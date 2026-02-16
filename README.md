@@ -103,4 +103,4 @@ Load `taxonomy_data.json` into Claude/Cowork and request visualizations.
 
 ## License
 
-MIT
+MIT SUNNY
