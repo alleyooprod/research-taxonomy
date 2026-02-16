@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthtech Taxonomy Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Healthtech Taxonomy Builder</h1>
+            <p class="subtitle">Automated company research and classification</p>
+        </header>
+
+        
+        <section class="input-section">
+            <h2>1. Add Links</h2>
+            
+            <div class="input-methods">
+                <div class="input-method">
+                    <h3>Upload File</h3>
+                    <input type="file" id="fileInput" accept=".txt,.md,.csv,.xlsx,.xls">
+                    <button onclick="uploadFile()">Parse File</button>
+                </div>
+
+                <div class="input-method">
+                    <h3>Paste Links</h3>
+                    <textarea id="textInput" placeholder="Paste URLs here (one per line or all together)..." rows="6"></textarea>
+                    <button onclick="parseText()">Parse Text</button>
+                </div>
+            </div>
+
+            <div id="urlPreview" class="hidden">
+                <h3>Detected Links: <span id="urlCount">0</span></h3>
+                <div id="urlList"></div>
+            </div>
+        </section>
+
+        
+        <section class="preflight-section hidden" id="preflightSection">
+            <h2>2. Pre-flight Validation</h2>
+            <p class="info">Checking link accessibility and resolving shortened URLs...</p>
+            
+            <div class="progress-bar">
+                <div id="preflightProgress" class="progress-fill"></div>
+            </div>
+            <p id="preflightStatus">Validating 0/0 links...</p>
+
+            <div id="flaggedLinks" class="hidden">
+                <h3>⚠️ Flagged Links</h3>
+                <p class="warning">These links need review before processing:</p>
+                <table id="flaggedTable">
+                    <thead>
+                        <tr>
+                            <th>Original URL</th>
+                            <th>Resolved URL</th>
+                            <th>Issue</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="validLinks" class="hidden">
+                <h3>✅ Valid Links: <span id="validCount">0</span></h3>
+                <button onclick="startProcessing()" class="primary-btn">Start Processing</button>
+            </div>
+        </section>
+
+        
+        <section class="processing-section hidden" id="processingSection">
+            <h2>3. Processing Batches</h2>
+            <p class="info">Processing in batches of 5. Approve each batch in VSCode terminal.</p>
+            
+            <div class="batch-status">
+                <h3>Batch <span id="currentBatch">1</span> / <span id="totalBatches">0</span></h3>
+                <div class="progress-bar">
+                    <div id="batchProgress" class="progress-fill"></div>
+                </div>
+                <p id="batchStatus">Waiting to start...</p>
+            </div>
+
+            <div id="batchLog" class="log-box"></div>
+        </section>
+
+        
+        <section class="results-section" id="resultsSection">
+            <h2>4. Results</h2>
+            
+            <div class="results-controls">
+                <input type="text" id="searchInput" placeholder="Search companies..." onkeyup="filterResults()">
+                <select id="categoryFilter" onchange="filterResults()">
+                    <option value="">All Categories</option>
+                </select>
+                <button onclick="refreshResults()">Refresh</button>
+                <button onclick="exportData()">Export JSON</button>
+            </div>
+
+            <div class="results-stats">
+                <p>Total Companies: <strong id="totalCompanies">0</strong></p>
+                <p>Last Updated: <strong id="lastUpdated">Never</strong></p>
+            </div>
+
+            <div id="resultsTable">
+                <table id="companyTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>What</th>
+                            <th>Target</th>
+                            <th>Geography</th>
+                            <th>Tags</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        
+        <div id="editModal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close" onclick="closeEditModal()">&times;</span>
+                <h2>Edit Company</h2>
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+                    
+                    <label>Name</label>
+                    <input type="text" id="editName" required>
+                    
+                    <label>URL</label>
+                    <input type="url" id="editUrl" required>
+                    
+                    <label>What (50-100 words)</label>
+                    <textarea id="editWhat" rows="4" required></textarea>
+                    
+                    <label>Target (30-50 words)</label>
+                    <textarea id="editTarget" rows="3" required></textarea>
+                    
+                    <label>Products (50-80 words)</label>
+                    <textarea id="editProducts" rows="4" required></textarea>
+                    
+                    <label>Funding (20-40 words)</label>
+                    <textarea id="editFunding" rows="2" required></textarea>
+                    
+                    <label>Geography (15-30 words)</label>
+                    <textarea id="editGeography" rows="2" required></textarea>
+                    
+                    <label>TAM (40-60 words)</label>
+                    <textarea id="editTam" rows="3" required></textarea>
+                    
+                    <label>Category</label>
+                    <select id="editCategory" required></select>
+                    
+                    <label>Subcategory</label>
+                    <input type="text" id="editSubcategory">
+                    
+                    <label>Tags (comma-separated)</label>
+                    <input type="text" id="editTags" placeholder="competitor, partner, inspiration">
+                    
+                    <button type="submit">Save Changes</button>
+                    <button type="button" onclick="closeEditModal()">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allUrls = [];
+        let validUrls = [];
+        let flaggedUrls = [];
+        let currentBatchIndex = 0;
+        let batches = [];
+        let allData = { companies: [], metadata: {} };
+
+        // Upload file and parse URLs
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            displayUrls(data.urls);
+        }
+
+        // Parse pasted text
+        async function parseText() {
+            const text = document.getElementById('textInput').value;
+            if (!text.trim()) {
+                alert('Please paste some text');
+                return;
+            }
+
+            const response = await fetch('/api/parse_text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+
+            const data = await response.json();
+            displayUrls(data.urls);
+        }
+
+        // Display parsed URLs
+        function displayUrls(urls) {
+            allUrls = urls;
+            document.getElementById('urlCount').textContent = urls.length;
+            document.getElementById('urlList').innerHTML = urls.map((url, i) => 
+                `<div class="url-item">${i+1}. ${url}</div>`
+            ).join('');
+            document.getElementById('urlPreview').classList.remove('hidden');
+
+            // Start pre-flight validation
+            runPreflight();
+        }
+
+        // Pre-flight validation
+        async function runPreflight() {
+            document.getElementById('preflightSection').classList.remove('hidden');
+            
+            const results = [];
+            for (let i = 0; i < allUrls.length; i++) {
+                document.getElementById('preflightStatus').textContent = 
+                    `Validating ${i+1}/${allUrls.length} links...`;
+                document.getElementById('preflightProgress').style.width = 
+                    `${((i+1) / allUrls.length) * 100}%`;
+
+                const response = await fetch('/api/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls: [allUrls[i]] })
+                });
+
+                const data = await response.json();
+                results.push(data[0]);
+            }
+
+            // Separate valid and flagged
+            validUrls = results.filter(r => r.status === 'valid').map(r => r.resolved_url);
+            flaggedUrls = results.filter(r => r.status !== 'valid');
+
+            if (flaggedUrls.length > 0) {
+                displayFlaggedLinks();
+            }
+
+            if (validUrls.length > 0) {
+                document.getElementById('validCount').textContent = validUrls.length;
+                document.getElementById('validLinks').classList.remove('hidden');
+            }
+        }
+
+        // Display flagged links
+        function displayFlaggedLinks() {
+            const tbody = document.querySelector('#flaggedTable tbody');
+            tbody.innerHTML = flaggedUrls.map((item, i) => `
+                <tr>
+                    <td>${item.url}</td>
+                    <td>${item.resolved_url}</td>
+                    <td>${item.reason}</td>
+                    <td>
+                        <button onclick="skipLink(${i})">Skip</button>
+                        <button onclick="editLink(${i})">Replace</button>
+                        <button onclick="forceInclude(${i})">Include Anyway</button>
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('flaggedLinks').classList.remove('hidden');
+        }
+
+        function skipLink(index) {
+            flaggedUrls.splice(index, 1);
+            displayFlaggedLinks();
+        }
+
+        function editLink(index) {
+            const newUrl = prompt('Enter replacement URL:', flaggedUrls[index].url);
+            if (newUrl) {
+                flaggedUrls[index].resolved_url = newUrl;
+                validUrls.push(newUrl);
+                flaggedUrls.splice(index, 1);
+                displayFlaggedLinks();
+                document.getElementById('validCount').textContent = validUrls.length;
+            }
+        }
+
+        function forceInclude(index) {
+            validUrls.push(flaggedUrls[index].resolved_url);
+            flaggedUrls.splice(index, 1);
+            displayFlaggedLinks();
+            document.getElementById('validCount').textContent = validUrls.length;
+        }
+
+        // Start processing
+        async function startProcessing() {
+            // Split into batches of 5
+            batches = [];
+            for (let i = 0; i < validUrls.length; i += 5) {
+                batches.push(validUrls.slice(i, i + 5));
+            }
+
+            document.getElementById('totalBatches').textContent = batches.length;
+            document.getElementById('processingSection').classList.remove('hidden');
+
+            // Process first batch
+            currentBatchIndex = 0;
+            await processBatch();
+        }
+
+        // Process single batch
+        async function processBatch() {
+            if (currentBatchIndex >= batches.length) {
+                document.getElementById('batchStatus').textContent = 'All batches complete!';
+                await refreshResults();
+                return;
+            }
+
+            const batch = batches[currentBatchIndex];
+            document.getElementById('currentBatch').textContent = currentBatchIndex + 1;
+            document.getElementById('batchStatus').textContent = 
+                `Processing batch ${currentBatchIndex + 1}... (Check VSCode for approval)`;
+
+            const logBox = document.getElementById('batchLog');
+            logBox.innerHTML += `<div class="log-entry">Batch ${currentBatchIndex + 1}: ${batch.length} links</div>`;
+
+            try {
+                const response = await fetch('/api/process_batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        urls: batch, 
+                        batch_number: currentBatchIndex + 1 
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    logBox.innerHTML += `<div class="log-entry success">✓ Batch ${currentBatchIndex + 1} complete</div>`;
+                    currentBatchIndex++;
+                    document.getElementById('batchProgress').style.width = 
+                        `${(currentBatchIndex / batches.length) * 100}%`;
+                    
+                    // Process next batch after short delay
+                    setTimeout(() => processBatch(), 2000);
+                } else {
+                    logBox.innerHTML += `<div class="log-entry error">✗ Batch ${currentBatchIndex + 1} failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                logBox.innerHTML += `<div class="log-entry error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Load and display results
+        async function refreshResults() {
+            const response = await fetch('/api/data');
+            allData = await response.json();
+
+            document.getElementById('totalCompanies').textContent = allData.metadata.total_companies || 0;
+            document.getElementById('lastUpdated').textContent = 
+                allData.metadata.last_updated ? new Date(allData.metadata.last_updated).toLocaleString() : 'Never';
+
+            // Populate category filter
+            const categories = [...new Set(allData.companies.map(c => c.category))];
+            const categoryFilter = document.getElementById('categoryFilter');
+            categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+                categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
+            // Populate edit modal categories
+            const editCategory = document.getElementById('editCategory');
+            editCategory.innerHTML = categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
+            displayResults(allData.companies);
+        }
+
+        // Display results in table
+        function displayResults(companies) {
+            const tbody = document.querySelector('#companyTable tbody');
+            tbody.innerHTML = companies.map((company, i) => `
+                <tr>
+                    <td><strong>${company.name}</strong></td>
+                    <td>${company.category || 'N/A'}</td>
+                    <td class="truncate">${company.what || 'N/A'}</td>
+                    <td class="truncate">${company.target || 'N/A'}</td>
+                    <td>${company.geography || 'N/A'}</td>
+                    <td>${(company.tags || []).join(', ')}</td>
+                    <td>
+                        <button onclick="editCompany('${company.id || i}')">Edit</button>
+                        <a href="${company.url}" target="_blank">Visit</a>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Filter results
+        function filterResults() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+
+            let filtered = allData.companies;
+
+            if (searchTerm) {
+                filtered = filtered.filter(c => 
+                    c.name.toLowerCase().includes(searchTerm) ||
+                    (c.what || '').toLowerCase().includes(searchTerm) ||
+                    (c.tags || []).some(tag => tag.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            if (categoryFilter) {
+                filtered = filtered.filter(c => c.category === categoryFilter);
+            }
+
+            displayResults(filtered);
+        }
+
+        // Edit company
+        function editCompany(id) {
+            const company = allData.companies.find(c => c.id === id || allData.companies.indexOf(c) === parseInt(id));
+            if (!company) return;
+
+            document.getElementById('editId').value = company.id || id;
+            document.getElementById('editName').value = company.name;
+            document.getElementById('editUrl').value = company.url;
+            document.getElementById('editWhat').value = company.what || '';
+            document.getElementById('editTarget').value = company.target || '';
+            document.getElementById('editProducts').value = company.products || '';
+            document.getElementById('editFunding').value = company.funding || '';
+            document.getElementById('editGeography').value = company.geography || '';
+            document.getElementById('editTam').value = company.tam || '';
+            document.getElementById('editCategory').value = company.category || '';
+            document.getElementById('editSubcategory').value = company.subcategory || '';
+            document.getElementById('editTags').value = (company.tags || []).join(', ');
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        // Save edited company
+        document.getElementById('editForm').onsubmit = async (e) => {
+            e.preventDefault();
+
+            const updatedCompany = {
+                id: document.getElementById('editId').value,
+                name: document.getElementById('editName').value,
+                url: document.getElementById('editUrl').value,
+                what: document.getElementById('editWhat').value,
+                target: document.getElementById('editTarget').value,
+                products: document.getElementById('editProducts').value,
+                funding: document.getElementById('editFunding').value,
+                geography: document.getElementById('editGeography').value,
+                tam: document.getElementById('editTam').value,
+                category: document.getElementById('editCategory').value,
+                subcategory: document.getElementById('editSubcategory').value,
+                tags: document.getElementById('editTags').value.split(',').map(t => t.trim())
+            };
+
+            const response = await fetch('/api/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedCompany)
+            });
+
+            if (response.ok) {
+                closeEditModal();
+                await refreshResults();
+                alert('Company updated successfully!');
+            } else {
+                alert('Error updating company');
+            }
+        };
+
+        // Export data
+        function exportData() {
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'taxonomy_export.json';
+            link.click();
+        }
+
+        // Load results on page load
+        window.onload = () => {
+            refreshResults();
+        };
+    </script>
+</body>
+</html>
