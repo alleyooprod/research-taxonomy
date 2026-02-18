@@ -1458,14 +1458,52 @@ class Database:
         slug = re.sub(r'[^a-z0-9]+', '-', slug)
         return slug.strip('-')
 
+    # --- Reports ---
+
+    def save_report(self, project_id, report_id, category_name, company_count,
+                    model, markdown_content, status="complete", error_message=None):
+        with self._get_conn() as conn:
+            conn.execute(
+                """INSERT OR REPLACE INTO reports
+                   (project_id, report_id, category_name, company_count, model,
+                    markdown_content, status, error_message)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (project_id, report_id, category_name, company_count,
+                 model, markdown_content, status, error_message),
+            )
+
+    def get_reports(self, project_id=None):
+        with self._get_conn() as conn:
+            if project_id:
+                rows = conn.execute(
+                    "SELECT * FROM reports WHERE project_id = ? ORDER BY created_at DESC",
+                    (project_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM reports ORDER BY created_at DESC"
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_report(self, report_id):
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM reports WHERE report_id = ?", (report_id,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    def delete_report(self, report_id):
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM reports WHERE report_id = ?", (report_id,))
+
     def get_stats(self, project_id=None):
         with self._get_conn() as conn:
             if project_id:
                 companies = conn.execute(
-                    "SELECT COUNT(*) FROM companies WHERE project_id = ?", (project_id,)
+                    "SELECT COUNT(*) FROM companies WHERE project_id = ? AND is_deleted = 0", (project_id,)
                 ).fetchone()[0]
                 categories = conn.execute(
-                    "SELECT COUNT(*) FROM categories WHERE is_active = 1 AND project_id = ?",
+                    "SELECT COUNT(*) FROM categories WHERE is_active = 1 AND parent_id IS NULL AND project_id = ?",
                     (project_id,),
                 ).fetchone()[0]
                 latest = conn.execute(
@@ -1473,9 +1511,11 @@ class Database:
                     (project_id,),
                 ).fetchone()[0]
             else:
-                companies = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+                companies = conn.execute(
+                    "SELECT COUNT(*) FROM companies WHERE is_deleted = 0"
+                ).fetchone()[0]
                 categories = conn.execute(
-                    "SELECT COUNT(*) FROM categories WHERE is_active = 1"
+                    "SELECT COUNT(*) FROM categories WHERE is_active = 1 AND parent_id IS NULL"
                 ).fetchone()[0]
                 latest = conn.execute(
                     "SELECT MAX(processed_at) FROM companies"

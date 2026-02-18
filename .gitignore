@@ -1,5 +1,6 @@
 .DS_Store
-data/taxonomy.db
+data/taxonomy.db-shm
+data/taxonomy.db-wal
 logs/
 __pycache__/
 *.pyc
@@ -9,3 +10,4 @@ batch_*_prompt.txt
 *.egg-info/
 dist/
 build/
+*.app/

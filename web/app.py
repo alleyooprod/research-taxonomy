@@ -13,6 +13,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 
 from config import WEB_HOST, WEB_PORT, DATA_DIR, DEFAULT_MODEL, DEFAULT_WORKERS, CLAUDE_BIN
 from core.classifier import build_taxonomy_tree_string
+from core.git_sync import sync_to_git_async
 from core.pipeline import Pipeline
 from core.url_resolver import extract_urls_from_text
 from storage.db import Database
@@ -336,6 +337,8 @@ def create_app():
             prefs = db.get_notification_prefs(project_id)
             if prefs and prefs.get("notify_taxonomy_change"):
                 send_slack(project_id, f"Taxonomy updated: {desc}")
+        if applied:
+            sync_to_git_async(f"Taxonomy: {len(applied)} changes applied")
         return jsonify({"applied": len(applied), "changes": applied})
 
     # --- Jobs / Processing API ---
@@ -468,6 +471,7 @@ def create_app():
                 prefs = pipe_db.get_notification_prefs(project_id)
                 if prefs and prefs.get("notify_batch_complete"):
                     send_slack(project_id, desc)
+            sync_to_git_async(f"Batch {batch_id}: processed {len(urls)} URLs")
 
         thread = Thread(target=run_pipeline, daemon=True)
         thread.start()
@@ -753,6 +757,7 @@ def create_app():
                         "project", project_id)
         notify_sse(project_id, "company_added",
                    {"count": imported, "source": "csv_import"})
+        sync_to_git_async(f"CSV import: {imported} companies")
         return jsonify({"imported": imported, "total_rows": len(rows)})
 
     # --- Tags API ---
@@ -1090,7 +1095,7 @@ Question: {question}"""
         report_id = str(uuid.uuid4())[:8]
 
         def run_report():
-
+            report_db = Database()
             companies = db.get_companies(project_id=project_id, limit=200)
             cat_companies = [c for c in companies if c.get('category_name') == category_name]
 
@@ -1204,6 +1209,26 @@ CONSTRAINTS:
             result_path = DATA_DIR / f"report_{report_id}.json"
             result_path.write_text(json.dumps(result_data))
 
+            # Persist completed reports in DB
+            if result_data.get("status") == "complete":
+                report_db.save_report(
+                    project_id=project_id or 1, report_id=report_id,
+                    category_name=category_name,
+                    company_count=len(cat_companies),
+                    model=model,
+                    markdown_content=result_data.get("report", ""),
+                )
+            elif result_data.get("status") == "error":
+                report_db.save_report(
+                    project_id=project_id or 1, report_id=report_id,
+                    category_name=category_name,
+                    company_count=len(cat_companies),
+                    model=model, markdown_content=None,
+                    status="error",
+                    error_message=result_data.get("error", ""),
+                )
+            sync_to_git_async(f"Report generated: {category_name}")
+
         thread = Thread(target=run_report, daemon=True)
         thread.start()
         return jsonify({"report_id": report_id})
@@ -1214,6 +1239,44 @@ CONSTRAINTS:
         if not result_path.exists():
             return jsonify({"status": "pending"})
         return jsonify(json.loads(result_path.read_text()))
+
+    # --- Reports API ---
+
+    @app.route("/api/reports")
+    def list_reports():
+        project_id = request.args.get("project_id", type=int)
+        reports = db.get_reports(project_id=project_id)
+        # Don't send full markdown in list view
+        for r in reports:
+            r.pop("markdown_content", None)
+        return jsonify(reports)
+
+    @app.route("/api/reports/<report_id>")
+    def get_report(report_id):
+        report = db.get_report(report_id)
+        if not report:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify(report)
+
+    @app.route("/api/reports/<report_id>", methods=["DELETE"])
+    def delete_report(report_id):
+        db.delete_report(report_id)
+        # Also clean up the data file if it exists
+        result_path = DATA_DIR / f"report_{report_id}.json"
+        result_path.unlink(missing_ok=True)
+        return jsonify({"status": "ok"})
+
+    @app.route("/api/reports/<report_id>/export/md")
+    def export_report_md(report_id):
+        report = db.get_report(report_id)
+        if not report or not report.get("markdown_content"):
+            return jsonify({"error": "Report not found"}), 404
+        md = report["markdown_content"]
+        buf = io.BytesIO(md.encode("utf-8"))
+        buf.seek(0)
+        filename = f"report_{report['category_name'].replace(' ', '_')}_{report_id}.md"
+        return send_file(buf, as_attachment=True, download_name=filename,
+                         mimetype="text/markdown")
 
     # --- Stats ---
 

@@ -211,6 +211,20 @@ CREATE TABLE IF NOT EXISTS notification_prefs (
     UNIQUE(project_id)
 );
 
+-- Saved market reports
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    report_id TEXT NOT NULL UNIQUE,  -- UUID fragment used for polling
+    category_name TEXT NOT NULL,
+    company_count INTEGER DEFAULT 0,
+    model TEXT,
+    markdown_content TEXT,           -- Full markdown report
+    status TEXT DEFAULT 'pending',   -- pending | complete | error
+    error_message TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_categories_project ON categories(project_id);
 CREATE INDEX IF NOT EXISTS idx_companies_url ON companies(url);
@@ -231,3 +245,5 @@ CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_share_tokens_project ON share_tokens(project_id);
 CREATE INDEX IF NOT EXISTS idx_activity_project ON activity_log(project_id);
 CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_reports_project ON reports(project_id);
+CREATE INDEX IF NOT EXISTS idx_reports_report_id ON reports(report_id);

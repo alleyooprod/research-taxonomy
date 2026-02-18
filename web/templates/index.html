@@ -115,6 +115,7 @@
                 <button class="tab active" onclick="showTab('companies')">Companies</button>
                 <button class="tab" onclick="showTab('taxonomy')">Taxonomy</button>
                 <button class="tab" onclick="showTab('map')">Map</button>
+                <button class="tab" onclick="showTab('reports')">Reports</button>
                 <button class="tab" onclick="showTab('process')">Process</button>
                 <button class="tab" onclick="showTab('export')">Export</button>
             </nav>
@@ -192,27 +193,6 @@
             <section id="tab-taxonomy" class="tab-content">
                 <div id="taxonomyTree"></div>
 
-                <div class="market-report-section">
-                    <h3>Market Reports</h3>
-                    <p class="hint-text">Generate AI-powered market analysis for a category.</p>
-                    <div class="report-controls">
-                        <select id="reportCategorySelect">
-                            <option value="">Select a category...</option>
-                        </select>
-                        <select id="reportModelSelect" class="model-select-inline">
-                            <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
-                            <option value="claude-opus-4-6">Opus</option>
-                            <option value="claude-haiku-4-5-20251001">Haiku</option>
-                        </select>
-                        <button class="primary-btn" id="reportBtn" onclick="generateMarketReport()">Generate Report</button>
-                    </div>
-                    <div id="reportStatus" class="hidden">
-                        <div class="progress-bar"><div id="reportProgress" class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div>
-                        <p>Generating report... Claude is researching the web and analyzing your data. This typically takes 2-4 minutes.</p>
-                    </div>
-                    <div id="reportContent" class="hidden report-viewer"></div>
-                </div>
-
                 <div class="review-section">
                     <h3>Taxonomy Review</h3>
                     <p class="hint-text">Run a comprehensive AI review of all categories and company placements. Add your own observations to guide the review.</p>
@@ -229,14 +209,22 @@
                     <div id="reviewResults" class="hidden"></div>
                 </div>
 
-                <h3>Quality Dashboard</h3>
-                <div id="qualityDashboard" class="quality-dashboard">
-                    <button class="btn" onclick="loadTaxonomyQuality()">Refresh Quality Metrics</button>
-                    <div id="qualityContent" class="hidden"></div>
+                <h3 class="collapsible-header" onclick="toggleSection('qualitySection')">
+                    Quality Dashboard <span id="qualitySection-toggle" class="collapse-arrow">&#9660;</span>
+                </h3>
+                <div id="qualitySection" class="collapsible-body">
+                    <div id="qualityDashboard" class="quality-dashboard">
+                        <button class="btn" onclick="loadTaxonomyQuality()">Refresh Quality Metrics</button>
+                        <div id="qualityContent" class="hidden"></div>
+                    </div>
                 </div>
 
-                <h3>Change History</h3>
-                <div id="taxonomyHistory"></div>
+                <h3 class="collapsible-header" onclick="toggleSection('historySection')">
+                    Change History <span id="historySection-toggle" class="collapse-arrow">&#9660;</span>
+                </h3>
+                <div id="historySection" class="collapsible-body">
+                    <div id="taxonomyHistory"></div>
+                </div>
             </section>
 
             <!-- Map Tab -->
@@ -262,6 +250,35 @@
                     <button class="primary-btn" onclick="runComparison()">Compare</button>
                     <button class="btn" onclick="clearCompareSelection()">Clear</button>
                 </div>
+            </section>
+
+            <!-- Reports Tab -->
+            <section id="tab-reports" class="tab-content">
+                <div class="market-report-section">
+                    <h3>Generate New Report</h3>
+                    <p class="hint-text">Generate AI-powered market analysis for a category. Reports are saved automatically.</p>
+                    <div class="report-controls">
+                        <select id="reportCategorySelect">
+                            <option value="">Select a category...</option>
+                        </select>
+                        <select id="reportModelSelect" class="model-select-inline">
+                            <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
+                            <option value="claude-opus-4-6">Opus</option>
+                            <option value="claude-haiku-4-5-20251001">Haiku</option>
+                        </select>
+                        <button class="primary-btn" id="reportBtn" onclick="generateMarketReport()">Generate Report</button>
+                    </div>
+                    <div id="reportStatus" class="hidden">
+                        <div class="progress-bar"><div id="reportProgress" class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div>
+                        <p>Generating report... Claude is researching the web and analyzing your data. This typically takes 2-4 minutes.</p>
+                    </div>
+                </div>
+
+                <div id="reportContent" class="hidden report-viewer"></div>
+
+                <h3 style="margin-top:24px">Saved Reports</h3>
+                <p class="hint-text">Previously generated reports are stored here.</p>
+                <div id="savedReportsList"></div>
             </section>
 
             <!-- Process Tab -->
@@ -766,16 +783,26 @@
             if (event && event.target) event.target.classList.add('active');
             else {
                 // Find the tab button by index
-                const tabNames = ['companies', 'taxonomy', 'map', 'process', 'export'];
+                const tabNames = ['companies', 'taxonomy', 'map', 'reports', 'process', 'export'];
                 const idx = tabNames.indexOf(name);
                 if (idx >= 0) document.querySelectorAll('.tab')[idx]?.classList.add('active');
             }
 
             if (name === 'companies') loadCompanies();
-            if (name === 'taxonomy') { loadTaxonomy(); resumeActiveReport(); }
+            if (name === 'taxonomy') loadTaxonomy();
             if (name === 'map') loadMarketMap();
+            if (name === 'reports') { loadSavedReports(); resumeActiveReport(); }
             if (name === 'process') loadBatches();
             if (name === 'export') { loadShareTokens(); loadNotifPrefs(); }
+        }
+
+        // --- Collapsible sections ---
+        function toggleSection(sectionId) {
+            const body = document.getElementById(sectionId);
+            const arrow = document.getElementById(sectionId + '-toggle');
+            if (!body) return;
+            body.classList.toggle('collapsed');
+            if (arrow) arrow.classList.toggle('collapsed');
         }
 
         // --- Stats ---
@@ -2929,6 +2956,11 @@
             const query = document.getElementById('discoveryQuery').value.trim();
             if (!query) { alert('Enter a market segment description'); return; }
 
+            if (!acquireAiLock('discovery')) {
+                alert(`Another AI task is running (${aiLock}). Please wait for it to finish.`);
+                return;
+            }
+
             const btn = document.getElementById('discoveryBtn');
             btn.disabled = true;
             btn.textContent = 'Searching...';
@@ -2955,6 +2987,7 @@
                 return;
             }
 
+            releaseAiLock();
             const btn = document.getElementById('discoveryBtn');
             btn.disabled = false;
             btn.textContent = 'Discover';
@@ -3072,6 +3105,11 @@
             const categoryName = document.getElementById('reportCategorySelect').value;
             if (!categoryName) { alert('Select a category'); return; }
 
+            if (!acquireAiLock('report generation')) {
+                alert(`Another AI task is running (${aiLock}). Please wait for it to finish.`);
+                return;
+            }
+
             const btn = document.getElementById('reportBtn');
             btn.disabled = true;
             btn.textContent = 'Generating...';
@@ -3114,6 +3152,7 @@
             // Clear persisted report
             localStorage.removeItem('activeReportId');
             localStorage.removeItem('activeReportCategory');
+            releaseAiLock();
 
             const btn = document.getElementById('reportBtn');
             btn.disabled = false;
@@ -3152,10 +3191,15 @@
                     .replace(/\n/g, '<br>');
             }
 
+            const currentReportId = reportId;
             content.innerHTML = `
                 <div class="report-header">
                     <h3>Market Report: ${esc(data.category || '')}</h3>
-                    <span class="hint-text">${data.company_count || 0} companies analyzed</span>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <span class="hint-text">${data.company_count || 0} companies analyzed</span>
+                        <button class="btn" onclick="exportReportMd('${esc(currentReportId)}')">Export .md</button>
+                        <button class="btn" onclick="exportReportPdf()">Export PDF</button>
+                    </div>
                 </div>
                 <div class="report-body">${html}</div>
             `;
@@ -3168,6 +3212,135 @@
                     console.warn('Mermaid rendering failed:', e);
                 }
             }
+
+            // Refresh saved reports list
+            loadSavedReports();
+        }
+
+        function exportReportMd(reportId) {
+            window.location.href = `/api/reports/${reportId}/export/md`;
+        }
+
+        function exportReportPdf() {
+            const reportBody = document.querySelector('#reportContent .report-body');
+            if (!reportBody) return;
+            // Use browser print with just the report content
+            const printWin = window.open('', '_blank');
+            printWin.document.write(`<!DOCTYPE html><html><head>
+                <title>Market Report</title>
+                <style>
+                    body { font-family: 'Noto Sans', sans-serif; font-size: 13px; line-height: 1.7; color: #333; max-width: 800px; margin: 0 auto; padding: 40px; }
+                    h1, h2, h3, h4 { color: #3D4035; }
+                    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+                    th, td { padding: 8px 10px; border: 1px solid #ddd; text-align: left; word-wrap: break-word; }
+                    th { background: #f5f2eb; font-weight: 600; }
+                    blockquote { margin: 12px 0; padding: 10px 16px; border-left: 3px solid #BC6C5A; background: #fff5f0; }
+                    ul, ol { margin: 8px 0; padding-left: 24px; }
+                    li { margin-bottom: 4px; }
+                    a { color: #BC6C5A; }
+                    .mermaid { display: none; }
+                </style>
+            </head><body>${reportBody.innerHTML}</body></html>`);
+            printWin.document.close();
+            printWin.onload = () => { printWin.print(); };
+        }
+
+        async function loadSavedReports() {
+            // Ensure category dropdown is populated
+            const reportSel = document.getElementById('reportCategorySelect');
+            if (reportSel && reportSel.options.length <= 1) {
+                const taxRes = await fetch(`/api/taxonomy?project_id=${currentProjectId}`);
+                const cats = await taxRes.json();
+                const topLevel = cats.filter(c => !c.parent_id);
+                reportSel.innerHTML = '<option value="">Select a category...</option>' +
+                    topLevel.map(c => `<option value="${esc(c.name)}">${esc(c.name)} (${c.company_count})</option>`).join('');
+            }
+            const container = document.getElementById('savedReportsList');
+            if (!container) return;
+            const res = await fetch(`/api/reports?project_id=${currentProjectId}`);
+            const reports = await res.json();
+            if (!reports.length) {
+                container.innerHTML = '<p class="hint-text">No saved reports yet. Generate one above.</p>';
+                return;
+            }
+            container.innerHTML = reports.map(r => `
+                <div class="saved-report-item">
+                    <div class="saved-report-info">
+                        <strong>${esc(r.category_name)}</strong>
+                        <span class="hint-text">${r.company_count} companies &middot; ${r.model || ''} &middot; ${new Date(r.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="saved-report-actions">
+                        ${r.status === 'complete'
+                            ? `<button class="btn" onclick="viewSavedReport('${esc(r.report_id)}')">View</button>
+                               <button class="btn" onclick="exportReportMd('${esc(r.report_id)}')">MD</button>`
+                            : `<span class="re-research-error" style="font-size:12px">${esc(r.error_message || 'Error')}</span>`
+                        }
+                        <button class="btn" style="color:var(--accent-danger)" onclick="deleteSavedReport('${esc(r.report_id)}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function viewSavedReport(reportId) {
+            const res = await fetch(`/api/reports/${reportId}`);
+            const data = await res.json();
+            if (!data.markdown_content) return;
+
+            const content = document.getElementById('reportContent');
+            content.classList.remove('hidden');
+
+            let html;
+            if (window.marked) {
+                const renderer = new marked.Renderer();
+                const defaultCode = renderer.code.bind(renderer);
+                renderer.code = function(args) {
+                    if (args.lang === 'mermaid') {
+                        return `<div class="mermaid">${args.text}</div>`;
+                    }
+                    return defaultCode(args);
+                };
+                marked.use({ renderer, breaks: true, gfm: true });
+                html = marked.parse(data.markdown_content || '');
+            } else {
+                html = esc(data.markdown_content).replace(/\n/g, '<br>');
+            }
+
+            content.innerHTML = `
+                <div class="report-header">
+                    <h3>Market Report: ${esc(data.category_name)}</h3>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <span class="hint-text">${data.company_count || 0} companies &middot; ${new Date(data.created_at).toLocaleDateString()}</span>
+                        <button class="btn" onclick="exportReportMd('${esc(reportId)}')">Export .md</button>
+                        <button class="btn" onclick="exportReportPdf()">Export PDF</button>
+                    </div>
+                </div>
+                <div class="report-body">${html}</div>
+            `;
+
+            if (window.mermaid) {
+                try { mermaid.run({ nodes: content.querySelectorAll('.mermaid') }); } catch (e) {}
+            }
+
+            content.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function deleteSavedReport(reportId) {
+            if (!confirm('Delete this report?')) return;
+            await fetch(`/api/reports/${reportId}`, { method: 'DELETE' });
+            loadSavedReports();
+        }
+
+        // --- AI Lock (prevents concurrent Claude CLI calls) ---
+        let aiLock = null;  // null = free, or string description of what's running
+
+        function acquireAiLock(label) {
+            if (aiLock) return false;
+            aiLock = label;
+            return true;
+        }
+
+        function releaseAiLock() {
+            aiLock = null;
         }
 
         // --- AI Chat ---
@@ -3193,6 +3366,13 @@
             const input = document.getElementById('chatInput');
             const question = input.value.trim();
             if (!question) return;
+
+            if (!acquireAiLock('chat')) {
+                const body = document.getElementById('chatBody');
+                body.innerHTML += `<div class="chat-msg chat-assistant"><em>Another AI task is running (${esc(aiLock)}). Please wait for it to finish.</em></div>`;
+                body.scrollTop = body.scrollHeight;
+                return;
+            }
 
             const body = document.getElementById('chatBody');
             body.innerHTML += `<div class="chat-msg chat-user">${esc(question)}</div>`;
@@ -3228,6 +3408,7 @@
                     pending.removeAttribute('id');
                 }
             }
+            releaseAiLock();
             body.scrollTop = body.scrollHeight;
         }
 

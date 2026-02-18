@@ -188,9 +188,21 @@ def resolve_and_validate(url):
 
 
 def extract_urls_from_text(text):
-    """Extract URLs from freeform text."""
+    """Extract URLs from freeform text, including bare domains without https://."""
+    # Match full URLs with protocol
     pattern = r'https?://[^\s<>"{}|\\^`\[\])\',$]+'
     urls = re.findall(pattern, text)
+
+    # Also match bare domains (e.g. "spectrum.life", "yulife.com")
+    bare_domain_pattern = r'(?<![/@\w])([a-zA-Z0-9][-a-zA-Z0-9]*\.(?:com|org|net|io|co|life|health|ai|app|tech|dev|uk|de|fr|eu|us|ca|au|nz|ie|nl|se|no|fi|dk|es|it|pt|ch|at|be|in|sg|hk|jp|kr|br|mx|za|pl|cz|hu|ro|bg|hr|lt|lv|ee|sk|si)(?:\.[a-z]{2})?)(?:/[^\s<>"{}|\\^`\[\])\',$]*)?'
+    bare_matches = re.findall(bare_domain_pattern, text)
+    for domain in bare_matches:
+        domain = domain.rstrip('.,;:!?)')
+        full_url = f"https://{domain}"
+        # Don't add if we already have this URL with protocol
+        if full_url not in urls and f"http://{domain}" not in urls:
+            urls.append(full_url)
+
     # Clean trailing punctuation
     cleaned = []
     for url in urls:
