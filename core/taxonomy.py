@@ -1,6 +1,7 @@
 """Taxonomy evolution: reviews and restructures categories after each batch."""
 import json
 import subprocess
+import threading
 
 from config import (
     CLAUDE_BIN, CLAUDE_COMMON_FLAGS, PROMPTS_DIR,
@@ -9,6 +10,116 @@ from config import (
 from core.classifier import build_taxonomy_tree_string
 
 REVIEW_TIMEOUT = 180  # Full review is more complex, allow 3 minutes
+
+# Lock to prevent concurrent taxonomy mutations (#5)
+_taxonomy_lock = threading.Lock()
+
+
+def _apply_single_change(db, change, project_id=None):
+    """Apply one taxonomy change dict. Returns the change if successful, else None."""
+    change_type = change.get("type")
+    reason = change.get("reason", "")
+
+    try:
+        if change_type == "add":
+            name = change.get("category_name")
+            if name:
+                cat_id = db.add_category(name, project_id=project_id)
+                if cat_id:
+                    db.log_taxonomy_change("add", {"name": name}, reason, [cat_id],
+                                           project_id=project_id)
+                    return change
+
+        elif change_type == "merge":
+            source = change.get("category_name")
+            target = change.get("merge_into")
+            if source and target:
+                success = db.merge_categories(source, target, reason,
+                                              project_id=project_id)
+                if success:
+                    return change
+
+        elif change_type == "rename":
+            old_name = change.get("category_name")
+            new_name = change.get("new_name")
+            if old_name and new_name:
+                success = db.rename_category(old_name, new_name, reason,
+                                             project_id=project_id)
+                if success:
+                    return change
+
+        elif change_type == "add_subcategory":
+            name = change.get("category_name")
+            parent_name = change.get("parent_category")
+            if name and parent_name:
+                parent = db.get_category_by_name(parent_name, project_id=project_id)
+                if parent:
+                    cat_id = db.add_category(name, parent_id=parent["id"],
+                                             project_id=project_id)
+                    if cat_id:
+                        db.log_taxonomy_change(
+                            "add_subcategory",
+                            {"name": name, "parent": parent_name},
+                            reason, [cat_id], project_id=project_id,
+                        )
+                        return change
+
+        elif change_type == "split":
+            source = change.get("category_name")
+            new_cats = change.get("split_into", [])
+            if source and new_cats:
+                # Create new categories
+                new_cat_ids = []
+                for new_name in new_cats:
+                    cat_id = db.add_category(new_name, project_id=project_id)
+                    if cat_id:
+                        new_cat_ids.append((new_name, cat_id))
+
+                # Reassign companies from the source category (#9)
+                source_cat = db.get_category_by_name(source, project_id=project_id)
+                if source_cat and new_cat_ids:
+                    companies = db.get_companies(
+                        project_id=project_id, category_id=source_cat["id"]
+                    )
+                    if companies and len(new_cat_ids) > 0:
+                        # Distribute evenly across new categories as a starting point.
+                        # The next taxonomy evolution or manual review will fine-tune.
+                        for i, c in enumerate(companies):
+                            target_name, target_id = new_cat_ids[i % len(new_cat_ids)]
+                            db.update_company(c["id"], {"category_id": target_id},
+                                              save_history=False)
+
+                db.log_taxonomy_change(
+                    "split",
+                    {"from": source, "into": new_cats},
+                    reason, project_id=project_id,
+                )
+                return change
+
+        elif change_type == "move":
+            company_name = change.get("category_name")
+            target_cat = change.get("merge_into")
+            if company_name and target_cat:
+                target = db.get_category_by_name(target_cat, project_id=project_id)
+                if target:
+                    companies = db.get_companies(search=company_name,
+                                                 project_id=project_id)
+                    for c in companies:
+                        if c["name"].lower() == company_name.lower():
+                            db.update_company(c["id"], {
+                                "category_id": target["id"],
+                            }, save_history=False)
+                            db.log_taxonomy_change(
+                                "move",
+                                {"company": company_name, "to": target_cat},
+                                reason, project_id=project_id,
+                            )
+                            return change
+
+    except Exception as e:
+        print(f"  Warning: Failed to apply {change_type} change: {e}")
+
+    return None
 
 
 def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
@@ -28,7 +139,6 @@ def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
     # Build summary of new companies
     company_summaries = []
     for c in batch_companies:
-        tags = json.loads(c["tags"]) if isinstance(c["tags"], str) else c.get("tags", [])
         company_summaries.append(
             f"- {c['name']}: {(c.get('what') or '')[:150]}"
         )
@@ -88,74 +198,23 @@ def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
     changes = structured.get("changes", [])
     applied = []
 
-    for change in changes:
-        change_type = change.get("type")
-        reason = change.get("reason", "")
-
-        try:
-            if change_type == "add":
-                name = change.get("category_name")
-                if name:
-                    cat_id = db.add_category(name, project_id=project_id)
-                    if cat_id:
-                        db.log_taxonomy_change("add", {"name": name}, reason, [cat_id],
-                                               project_id=project_id)
-                        print(f"  + Added category: {name}")
-                        applied.append(change)
-
-            elif change_type == "merge":
-                source = change.get("category_name")
-                target = change.get("merge_into")
-                if source and target:
-                    success = db.merge_categories(source, target, reason,
-                                                  project_id=project_id)
-                    if success:
-                        print(f"  ~ Merged '{source}' into '{target}'")
-                        applied.append(change)
-
-            elif change_type == "rename":
-                old_name = change.get("category_name")
-                new_name = change.get("new_name")
-                if old_name and new_name:
-                    success = db.rename_category(old_name, new_name, reason,
-                                                 project_id=project_id)
-                    if success:
-                        print(f"  ~ Renamed '{old_name}' to '{new_name}'")
-                        applied.append(change)
-
-            elif change_type == "add_subcategory":
-                name = change.get("category_name")
-                parent_name = change.get("parent_category")
-                if name and parent_name:
-                    parent = db.get_category_by_name(parent_name, project_id=project_id)
-                    if parent:
-                        cat_id = db.add_category(name, parent_id=parent["id"],
-                                                 project_id=project_id)
-                        if cat_id:
-                            db.log_taxonomy_change(
-                                "add_subcategory",
-                                {"name": name, "parent": parent_name},
-                                reason, [cat_id], project_id=project_id,
-                            )
-                            print(f"  + Added subcategory: {name} (under {parent_name})")
-                            applied.append(change)
-
-            elif change_type == "split":
-                source = change.get("category_name")
-                new_cats = change.get("split_into", [])
-                if source and new_cats:
-                    for new_name in new_cats:
-                        db.add_category(new_name, project_id=project_id)
-                    db.log_taxonomy_change(
-                        "split",
-                        {"from": source, "into": new_cats},
-                        reason, project_id=project_id,
-                    )
-                    print(f"  / Split '{source}' into {new_cats}")
-                    applied.append(change)
-
-        except Exception as e:
-            print(f"  Warning: Failed to apply {change_type} change: {e}")
+    with _taxonomy_lock:
+        for change in changes:
+            result = _apply_single_change(db, change, project_id=project_id)
+            if result:
+                change_type = change.get("type", "?")
+                name = change.get("category_name", "")
+                if change_type == "add":
+                    print(f"  + Added category: {name}")
+                elif change_type == "merge":
+                    print(f"  ~ Merged '{name}' into '{change.get('merge_into')}'")
+                elif change_type == "rename":
+                    print(f"  ~ Renamed '{name}' to '{change.get('new_name')}'")
+                elif change_type == "add_subcategory":
+                    print(f"  + Added subcategory: {name} (under {change.get('parent_category')})")
+                elif change_type == "split":
+                    print(f"  / Split '{name}' into {change.get('split_into', [])}")
+                applied.append(result)
 
     return applied
 
@@ -237,88 +296,9 @@ def apply_taxonomy_changes(db, changes, project_id=None):
     Returns list of successfully applied changes.
     """
     applied = []
-    for change in changes:
-        change_type = change.get("type")
-        reason = change.get("reason", "")
-
-        try:
-            if change_type == "add":
-                name = change.get("category_name")
-                if name:
-                    cat_id = db.add_category(name, project_id=project_id)
-                    if cat_id:
-                        db.log_taxonomy_change("add", {"name": name}, reason, [cat_id],
-                                               project_id=project_id)
-                        applied.append(change)
-
-            elif change_type == "merge":
-                source = change.get("category_name")
-                target = change.get("merge_into")
-                if source and target:
-                    success = db.merge_categories(source, target, reason,
-                                                  project_id=project_id)
-                    if success:
-                        applied.append(change)
-
-            elif change_type == "rename":
-                old_name = change.get("category_name")
-                new_name = change.get("new_name")
-                if old_name and new_name:
-                    success = db.rename_category(old_name, new_name, reason,
-                                                 project_id=project_id)
-                    if success:
-                        applied.append(change)
-
-            elif change_type == "add_subcategory":
-                name = change.get("category_name")
-                parent_name = change.get("parent_category")
-                if name and parent_name:
-                    parent = db.get_category_by_name(parent_name, project_id=project_id)
-                    if parent:
-                        cat_id = db.add_category(name, parent_id=parent["id"],
-                                                 project_id=project_id)
-                        if cat_id:
-                            db.log_taxonomy_change(
-                                "add_subcategory",
-                                {"name": name, "parent": parent_name},
-                                reason, [cat_id], project_id=project_id,
-                            )
-                            applied.append(change)
-
-            elif change_type == "split":
-                source = change.get("category_name")
-                new_cats = change.get("split_into", [])
-                if source and new_cats:
-                    for new_name in new_cats:
-                        db.add_category(new_name, project_id=project_id)
-                    db.log_taxonomy_change(
-                        "split", {"from": source, "into": new_cats}, reason,
-                        project_id=project_id,
-                    )
-                    applied.append(change)
-
-            elif change_type == "move":
-                company_name = change.get("category_name")
-                target_cat = change.get("merge_into")
-                if company_name and target_cat:
-                    target = db.get_category_by_name(target_cat, project_id=project_id)
-                    if target:
-                        companies = db.get_companies(search=company_name,
-                                                     project_id=project_id)
-                        for c in companies:
-                            if c["name"].lower() == company_name.lower():
-                                db.update_company(c["id"], {
-                                    "category_id": target["id"],
-                                })
-                                db.log_taxonomy_change(
-                                    "move",
-                                    {"company": company_name, "to": target_cat},
-                                    reason, project_id=project_id,
-                                )
-                                applied.append(change)
-                                break
-
-        except Exception as e:
-            print(f"  Warning: Failed to apply {change_type} change: {e}")
-
+    with _taxonomy_lock:
+        for change in changes:
+            result = _apply_single_change(db, change, project_id=project_id)
+            if result:
+                applied.append(result)
     return applied

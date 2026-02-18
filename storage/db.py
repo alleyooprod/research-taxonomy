@@ -353,7 +353,7 @@ class Database:
         with self._get_conn() as conn:
             cursor = conn.execute(
                 "INSERT OR IGNORE INTO categories (project_id, name, parent_id, description) VALUES (?, ?, ?, ?)",
-                (project_id or 1, name, parent_id, description),
+                (project_id, name, parent_id, description),
             )
             return cursor.lastrowid
 
@@ -386,7 +386,7 @@ class Database:
             conn.execute(
                 "INSERT INTO taxonomy_changes (project_id, change_type, details, reason, affected_category_ids) VALUES (?, ?, ?, ?, ?)",
                 (
-                    project_id or 1,
+                    project_id,
                     "merge",
                     json.dumps({"from": source_name, "into": target_name}),
                     reason,
@@ -412,7 +412,7 @@ class Database:
             conn.execute(
                 "INSERT INTO taxonomy_changes (project_id, change_type, details, reason, affected_category_ids) VALUES (?, ?, ?, ?, ?)",
                 (
-                    project_id or 1,
+                    project_id,
                     "rename",
                     json.dumps({"from": old_name, "to": new_name}),
                     reason,
@@ -528,7 +528,7 @@ class Database:
 
     def get_companies(self, project_id=None, category_id=None, search=None,
                       starred_only=False, needs_enrichment=False,
-                      sort_by="name", sort_dir="asc", limit=500,
+                      sort_by="name", sort_dir="asc", limit=500, offset=0,
                       tags=None, geography=None, funding_stage=None,
                       relationship_status=None):
         # Completeness fields used for scoring
@@ -592,8 +592,8 @@ class Database:
             }
             sort_col = allowed_sorts.get(sort_by, "co.name")
             direction = "DESC" if sort_dir.lower() == "desc" else "ASC"
-            query += f" ORDER BY {sort_col} {direction} LIMIT ?"
-            params.append(limit)
+            query += f" ORDER BY {sort_col} {direction} LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
 
             rows = conn.execute(query, params).fetchall()
             results = []
@@ -759,7 +759,7 @@ class Database:
             for source_url, resolved_url in urls:
                 conn.execute(
                     "INSERT INTO jobs (project_id, batch_id, url, source_url) VALUES (?, ?, ?, ?)",
-                    (project_id or 1, batch_id, resolved_url, source_url),
+                    (project_id, batch_id, resolved_url, source_url),
                 )
 
     def get_pending_jobs(self, batch_id):
@@ -864,7 +864,7 @@ class Database:
         with self._get_conn() as conn:
             conn.execute(
                 "INSERT INTO taxonomy_changes (project_id, change_type, details, reason, affected_category_ids) VALUES (?, ?, ?, ?, ?)",
-                (project_id or 1, change_type, json.dumps(details), reason, json.dumps(affected_ids or [])),
+                (project_id, change_type, json.dumps(details), reason, json.dumps(affected_ids or [])),
             )
 
     def get_taxonomy_history(self, project_id=None, limit=50):
@@ -891,7 +891,7 @@ class Database:
                         title, meta_description, scraped_text_preview, is_accessible)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        project_id or 1,
+                        project_id,
                         batch_id,
                         r["original_url"],
                         r["resolved_url"],

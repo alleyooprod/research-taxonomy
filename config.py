@@ -1,5 +1,6 @@
 """Shared configuration for the Olly market taxonomy builder."""
 import os
+import secrets
 from pathlib import Path
 
 # Paths
@@ -28,10 +29,16 @@ EVOLVE_TIMEOUT = 90
 
 # Claude CLI
 CLAUDE_BIN = "claude"
+# Set CLAUDE_SKIP_PERMISSIONS=0 to disable --dangerously-skip-permissions
+# (requires interactive permission grants for each Claude tool use)
+_skip_permissions = os.environ.get("CLAUDE_SKIP_PERMISSIONS", "1") != "0"
 CLAUDE_COMMON_FLAGS = [
     "--output-format", "json",
-    "--dangerously-skip-permissions",
+    *(["--dangerously-skip-permissions"] if _skip_permissions else []),
 ]
+
+# Session secret generated per app instance (used for write-endpoint auth)
+SESSION_SECRET = os.environ.get("APP_SESSION_SECRET", secrets.token_urlsafe(32))
 
 # Taxonomy evolution thresholds
 MIN_COMPANIES_FOR_NEW_CATEGORY = 3

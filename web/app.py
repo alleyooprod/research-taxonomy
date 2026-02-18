@@ -11,7 +11,10 @@ from threading import Thread
 
 from flask import Flask, render_template, request, jsonify, send_file
 
-from config import WEB_HOST, WEB_PORT, DATA_DIR, DEFAULT_MODEL, DEFAULT_WORKERS, CLAUDE_BIN
+from config import (
+    WEB_HOST, WEB_PORT, DATA_DIR, DEFAULT_MODEL, DEFAULT_WORKERS,
+    CLAUDE_BIN, CLAUDE_COMMON_FLAGS, SESSION_SECRET,
+)
 from core.classifier import build_taxonomy_tree_string
 from core.git_sync import sync_to_git_async
 from core.pipeline import Pipeline
@@ -44,11 +47,25 @@ def create_app():
     # Cleanup stale result files on startup (older than 7 days)
     _cleanup_stale_results()
 
+    # --- CSRF Protection ---
+    # Write endpoints require X-CSRF-Token header matching the session secret.
+    # The token is embedded in the rendered page and sent with every mutating request.
+
+    @app.before_request
+    def _csrf_check():
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return  # Read-only requests are fine
+        if request.path.startswith("/shared/"):
+            return  # Public endpoints
+        token = request.headers.get("X-CSRF-Token")
+        if token != SESSION_SECRET:
+            return jsonify({"error": "Invalid CSRF token"}), 403
+
     # --- Pages ---
 
     @app.route("/")
     def index():
-        return render_template("index.html")
+        return render_template("index.html", csrf_token=SESSION_SECRET)
 
     # --- Projects API ---
 
@@ -125,10 +142,11 @@ def create_app():
         funding_stage = request.args.get("funding_stage")
         relationship_status = request.args.get("relationship_status")
 
+        offset = request.args.get("offset", 0, type=int)
         companies = db.get_companies(
             project_id=project_id, category_id=category_id, search=search,
             starred_only=starred_only, needs_enrichment=needs_enrichment,
-            sort_by=sort_by, sort_dir=sort_dir,
+            sort_by=sort_by, sort_dir=sort_dir, offset=offset,
             tags=tags, geography=geography, funding_stage=funding_stage,
             relationship_status=relationship_status,
         )
@@ -881,6 +899,19 @@ def create_app():
 
     # --- AI Features API ---
 
+    def _sanitize_for_prompt(text, max_length=500):
+        """Sanitize user input before interpolating into AI prompts.
+        Strips prompt injection markers and truncates to prevent abuse."""
+        if not text:
+            return ""
+        # Remove common prompt injection patterns
+        sanitized = text.replace("```", "").replace("---", "")
+        # Remove instruction-like patterns that could override the system prompt
+        for marker in ["SYSTEM:", "ASSISTANT:", "HUMAN:", "USER:", "INSTRUCTION:",
+                       "IGNORE PREVIOUS", "ignore above", "disregard"]:
+            sanitized = sanitized.replace(marker, "").replace(marker.lower(), "")
+        return sanitized[:max_length].strip()
+
     @app.route("/api/ai/discover", methods=["POST"])
     def ai_discover():
         """Discover companies by describing a market segment."""
@@ -894,10 +925,11 @@ def create_app():
         discover_id = str(uuid.uuid4())[:8]
 
         def run_discover():
+            safe_query = _sanitize_for_prompt(query)
 
             prompt = f"""You are a market research assistant. The user is looking for companies in this space:
 
-"{query}"
+"{safe_query}"
 
 Search the web and return a JSON array of 5-10 company objects, each with:
 - "name": company name
@@ -963,13 +995,16 @@ Only return the JSON array, nothing else. Focus on real, existing companies."""
         similar_id = str(uuid.uuid4())[:8]
 
         def run_similar():
+            safe_name = _sanitize_for_prompt(company['name'], 100)
+            safe_what = _sanitize_for_prompt(company.get('what', 'N/A'), 200)
+            safe_target = _sanitize_for_prompt(company.get('target', 'N/A'), 200)
 
             prompt = f"""You are a market research assistant. Given this company:
 
-Name: {company['name']}
+Name: {safe_name}
 URL: {company['url']}
-What they do: {company.get('what', 'N/A')}
-Target: {company.get('target', 'N/A')}
+What they do: {safe_what}
+Target: {safe_target}
 Category: {company.get('category_name', 'N/A')}
 
 Search the web and find 5 similar or competing companies. Return a JSON array with:
@@ -1055,7 +1090,7 @@ Rules:
 - Maximum 5-8 bullet points
 - No preamble or pleasantries
 
-Question: {question}"""
+Question: {_sanitize_for_prompt(question)}"""
 
         try:
             result = subprocess.run(
@@ -1096,7 +1131,7 @@ Question: {question}"""
 
         def run_report():
             report_db = Database()
-            companies = db.get_companies(project_id=project_id, limit=200)
+            companies = report_db.get_companies(project_id=project_id, limit=200)
             cat_companies = [c for c in companies if c.get('category_name') == category_name]
 
             company_summaries = "\n".join([
@@ -1315,20 +1350,43 @@ CONSTRAINTS:
         """Push an event to all SSE clients for a project."""
         if project_id in sse_clients:
             msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+            dead = []
             for q in sse_clients[project_id]:
                 try:
                     q.put_nowait(msg)
                 except Exception:
+                    dead.append(q)
+            # Cleanup dead client queues to prevent memory leak
+            for q in dead:
+                try:
+                    sse_clients[project_id].remove(q)
+                except ValueError:
                     pass
+            if not sse_clients[project_id]:
+                del sse_clients[project_id]
+
+    def _is_valid_slack_webhook(url):
+        """Validate that a URL is a legitimate Slack webhook to prevent SSRF."""
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            return (
+                parsed.scheme == "https"
+                and parsed.hostname == "hooks.slack.com"
+                and parsed.path.startswith("/services/")
+            )
+        except Exception:
+            return False
 
     def send_slack(project_id, message):
         """Send a Slack webhook notification if configured."""
         try:
             prefs = db.get_notification_prefs(project_id)
-            if prefs and prefs.get("slack_webhook_url"):
+            webhook_url = prefs.get("slack_webhook_url") if prefs else None
+            if webhook_url and _is_valid_slack_webhook(webhook_url):
                 import urllib.request
                 req = urllib.request.Request(
-                    prefs["slack_webhook_url"],
+                    webhook_url,
                     data=json.dumps({"text": message}).encode(),
                     headers={"Content-Type": "application/json"},
                 )
@@ -1448,6 +1506,8 @@ CONSTRAINTS:
         webhook_url = data.get("slack_webhook_url", "").strip()
         if not webhook_url:
             return jsonify({"error": "No webhook URL provided"}), 400
+        if not _is_valid_slack_webhook(webhook_url):
+            return jsonify({"error": "Invalid Slack webhook URL. Must be https://hooks.slack.com/services/..."}), 400
         import urllib.request
         try:
             req = urllib.request.Request(
@@ -1471,7 +1531,30 @@ CONSTRAINTS:
     return app
 
 
+def _register_shutdown():
+    """Register cleanup handlers for graceful shutdown."""
+    import atexit
+    import signal
+
+    def _cleanup():
+        try:
+            from core.scraper import close_browser_sync
+            close_browser_sync()
+        except Exception:
+            pass
+
+    atexit.register(_cleanup)
+
+    def _signal_handler(signum, frame):
+        _cleanup()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
+
 if __name__ == "__main__":
+    _register_shutdown()
     app = create_app()
     print(f"\n  Research Taxonomy Library")
     print(f"  http://{WEB_HOST}:{WEB_PORT}\n")

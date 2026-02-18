@@ -3,7 +3,7 @@ import json
 import subprocess
 import time
 import traceback
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from config import DEFAULT_WORKERS, DEFAULT_MODEL, MAX_RETRIES, SUB_BATCH_SIZE, RESEARCH_TIMEOUT_RETRIES
@@ -18,7 +18,8 @@ from storage.export import export_json, export_markdown
 def _process_one_company(url, source_url, model, taxonomy_tree):
     """Process a single company: research + classify.
 
-    This runs in a subprocess worker, so it creates its own DB connection.
+    This runs in a thread worker. The heavy lifting is done via subprocess
+    calls to the Claude CLI, so threads are sufficient (I/O-bound work).
     Returns (url, result_dict) or (url, error_string).
     Automatically retries on timeout up to RESEARCH_TIMEOUT_RETRIES times.
     """
@@ -52,7 +53,7 @@ class Pipeline:
         self.db = db or Database()
         self.workers = workers
         self.model = model
-        self.project_id = project_id or 1
+        self.project_id = project_id
 
     def run(self, urls, batch_id, force=False, dry_run=False):
         """Full pipeline: resolve -> sub-batch research+classify -> evolve -> export."""
@@ -163,7 +164,7 @@ class Pipeline:
         success_count = 0
         error_count = 0
 
-        with ProcessPoolExecutor(max_workers=self.workers) as executor:
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
             futures = {}
             for source_url, url in resolved:
                 future = executor.submit(
@@ -356,16 +357,16 @@ class Pipeline:
 
                 cat_name = classification.get("category", "Uncategorized")
                 if classification.get("is_new_category"):
-                    self.db.add_category(cat_name)
+                    self.db.add_category(cat_name, project_id=self.project_id)
 
-                category = self.db.get_category_by_name(cat_name)
+                category = self.db.get_category_by_name(cat_name, project_id=self.project_id)
                 category_id = category["id"] if category else None
 
                 sub_name = classification.get("subcategory")
                 subcategory_id = None
                 if sub_name and category_id:
-                    self.db.add_category(sub_name, parent_id=category_id)
-                    sub = self.db.get_category_by_name(sub_name)
+                    self.db.add_category(sub_name, parent_id=category_id, project_id=self.project_id)
+                    sub = self.db.get_category_by_name(sub_name, project_id=self.project_id)
                     subcategory_id = sub["id"] if sub else None
 
                 self.db.update_company(company["id"], {

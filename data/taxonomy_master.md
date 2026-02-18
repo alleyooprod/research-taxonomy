@@ -1,7 +1,7 @@
 ---
 document_type: healthtech_taxonomy
-last_updated: 2026-02-18T14:11:56
-total_companies: 74
+last_updated: 2026-02-18T17:58:37
+total_companies: 75
 total_categories: 15
 format_version: 2.0
 purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance companies
@@ -9,7 +9,7 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 
 # Healthtech Market Taxonomy
 
-> **74 companies** across **15 categories** | Last updated: 2026-02-18 14:11
+> **75 companies** across **15 categories** | Last updated: 2026-02-18 17:58
 
 ## Taxonomy Tree
 
@@ -37,10 +37,10 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 |   +-- Neurostimulation Devices for Mental Health (3)
 |   +-- Private Mental Health Clinics & Therapy Practices (1)
     +-- Substance Use & Addiction (2)
-+-- Employee Benefits, EAP & Workplace Wellness (4)
++-- Employee Benefits, EAP & Workplace Wellness (5)
 |   +-- Corporate Wellness Benefits Aggregation & Gym Networks (1)
 |   +-- Employee Assistance Programmes (EAP) & Mental Health Benefits (0)
-|   +-- Employee Benefits Apps & Rewards Platforms (0)
+|   +-- Employee Benefits Apps & Rewards Platforms (1)
 |   +-- Executive & Leadership Performance Coaching (1)
     +-- Financial Wellbeing & Salary Sacrifice Platforms (1)
 +-- Fitness, Recovery & Performance (5)
@@ -90,14 +90,14 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 
 | Category | Companies | % of Total |
 |----------|----------:|-----------:|
-| Preventive Health & Diagnostics | 19 | 26% |
-| Consumer Health Apps & Behavior Change Platforms | 10 | 14% |
+| Preventive Health & Diagnostics | 19 | 25% |
+| Consumer Health Apps & Behavior Change Platforms | 10 | 13% |
 | Consumer Wearables & Connected Health Devices | 9 | 12% |
 | Digital Therapeutics & Mental Health | 7 | 9% |
 | Telehealth, Virtual Care & Digital Health Navigation | 7 | 9% |
+| Employee Benefits, EAP & Workplace Wellness | 5 | 7% |
 | Fitness, Recovery & Performance | 5 | 7% |
 | Nutrition & Gut Health | 5 | 7% |
-| Employee Benefits, EAP & Workplace Wellness | 4 | 5% |
 | Out of Scope | 3 | 4% |
 | Clinical Operations & Provider Workflow AI | 1 | 1% |
 | Health IT & Clinical Operations Software | 1 | 1% |
@@ -110,10 +110,10 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 
 | Tag | Count |
 |-----|------:|
-| adjacent_model | 56 |
+| adjacent_model | 57 |
 | inspiration | 51 |
-| competitor | 31 |
-| potential_partner | 23 |
+| competitor | 32 |
+| potential_partner | 24 |
 | out_of_scope | 11 |
 | infrastructure | 2 |
 
@@ -505,7 +505,7 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 - **TAM**: The global vagus nerve stimulation market is valued at approximately $575-667 million in 2025, projected to reach $970M-$1.3B by 2030-2032 at a 9-11% CAGR (Grand View Research, Coherent Market Insights). The consumer/non-invasive external VNS segment is the fastest-growing at ~9% CAGR. The broader consumer wellness tech and stress management market significantly expands the addressable opportunity.
 - **Processed**: 2026-02-17T15:10:08.651643
 
-### Employee Benefits, EAP & Workplace Wellness (4 companies)
+### Employee Benefits, EAP & Workplace Wellness (5 companies)
 
 #### Hintsa Performance
 
@@ -562,6 +562,20 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 - **Geography**: HQ in New York City. Operates in 13 countries across North America, Latin America, and Europe. Major presence in the US (20,000+ partners across all 50 states), UK, Brazil, and expanded European footprint via Urban Sports Club and Fitprime acquisitions.
 - **TAM**: Global corporate wellness market estimated at $66-70B in 2025, growing at 5.5-7.4% CAGR to $94-129B by early 2030s (sources: Grand View Research, Precedence Research, Fortune Business Insights). US market alone valued at ~$23B in 2025. Wellhub's addressable segment includes digital wellness platforms and employee benefit aggregation within this broader market.
 - **Processed**: 2026-02-17T08:13:51.674286
+
+#### YuLife
+
+- **URL**: https://yulife.com/
+- **Category**: Employee Benefits, EAP & Workplace Wellness > Employee Benefits Apps & Rewards Platforms
+- **Tags**: competitor, potential_partner, adjacent_model
+- **Confidence**: 92%
+- **What**: YuLife transforms traditional group insurance into an engagement-driven platform combining life insurance, critical illness, income protection, and dental coverage with a gamified wellness app. The platform rewards employees for healthy behaviors (walking, cycling, mindfulness) with YuCoin convertible to charitable donations, tree planting, or retail vouchers. YuLife integrates behavioral science and gamification technology to create "insurance like no other" that addresses financial, physical, and mental wellbeing simultaneously, claiming 181% ROI versus traditional insurers through documented engagement (80% active users) and improved employee retention and satisfaction metrics.
+- **Target**: B2B SaaS targeting mid-to-large organizations (100+ employees) seeking to enhance employee retention, engagement, and wellbeing. Primary buyers are HR/benefits managers and CFOs focused on demonstrable ROI. Serves enterprises across multiple sectors including retail (Tesco, Land Rover), financial services (Capital One), hospitality (Sodexo), and cooperative businesses. Secondary users are employees accessing benefits and wellness features through the mobile app and wellbeing hub.
+- **Products**: YuLife offers a comprehensive employee benefits platform: Group Protection Insurance (life, critical illness, income protection, dental) integrated with gamified wellness app featuring activity tracking, YuCoin rewards system, and charitable impact options. Complementary offerings include 24/7 virtual GP access, mental health support, fitness apps, mindfulness resources, and employer HR dashboard with engagement analytics, ROI reporting, and ESG impact tracking. App-only subscription available for organizations with existing group insurance, supporting 1M+ active employees across 1,000+ organizations.
+- **Funding**: Series C funded July 2022: $120M led by Dai-Ichi Life Insurance Company. Total raised: $207M across 4 rounds from 19 investors including Creandum, MMC Ventures, Notion Capital, LocalGlobe, Anthemis, Eurazeo, and T. Rowe Price. Current valuation: $800M. Most recent major funding activity from 2022; no announced rounds in 2024-2026 despite organizational updates.
+- **Geography**: Headquartered in London, England (12 Mallow Street, EC1Y 8RQ). Operating across 8 countries: UK, United States (launched October 2022), Japan (launched 2024), South Africa, Australia, and additional expansion markets. Global expansion strategy focuses on developed insurance markets with infrastructure partnerships (Aon Japan licensing agreement from August 2025). 51-200 employees listed on LinkedIn; verified organizational data shows 233 staff members.
+- **TAM**: Global employee benefits market valued at ~$55B (2024), projected to reach $78B by 2032 at 4.3% CAGR. Corporate wellness segment represents $53.5B (2024), growing to $64B by 2030 at 3% CAGR. Employee benefit broker market specifically estimated at $48.2B (2025) expanding to $78.2B by 2034 at 5.5% CAGR. YuLife addresses the high-growth intersection of benefits administration, wellness engagement, and gamified insurance technology, targeting the shift toward personalized, tech-enabled benefits delivery preferred by Gen Z/millennial workforces.
+- **Processed**: 2026-02-18T17:58:11.924936
 
 ### Fitness, Recovery & Performance (5 companies)
 

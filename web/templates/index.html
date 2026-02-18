@@ -626,6 +626,29 @@
     </div>
 
     <script>
+        // CSRF token for write requests (injected by server)
+        const CSRF_TOKEN = '{{ csrf_token }}';
+
+        // Safe fetch wrapper: adds CSRF header for mutating requests & catches network errors
+        async function safeFetch(url, options = {}) {
+            const method = (options.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                options.headers = options.headers || {};
+                if (typeof options.headers.set === 'function') {
+                    options.headers.set('X-CSRF-Token', CSRF_TOKEN);
+                } else {
+                    options.headers['X-CSRF-Token'] = CSRF_TOKEN;
+                }
+            }
+            try {
+                return await fetch(url, options);
+            } catch (e) {
+                console.error(`Fetch failed: ${method} ${url}`, e);
+                showToast(`Network error: ${e.message}`);
+                throw e;
+            }
+        }
+
         let searchTimeout = null;
         let currentTriageBatchId = null;
         let triageData = [];
@@ -668,11 +691,11 @@
 
         // --- Project Selection ---
         async function loadProjects() {
-            const res = await fetch('/api/projects');
+            const res = await safeFetch('/api/projects');
             const projects = await res.json();
 
             let html = projects.map(p => `
-                <div class="project-card" onclick="selectProject(${p.id}, '${esc(p.name)}')">
+                <div class="project-card" onclick="selectProject(${p.id}, '${escAttr(p.name)}')">
                     <h3>${esc(p.name)}</h3>
                     <p class="project-purpose">${esc(p.purpose || '')}</p>
                     <div class="project-meta">
@@ -760,7 +783,7 @@
                 description: document.getElementById('npDescription').value,
             };
 
-            const res = await fetch('/api/projects', {
+            const res = await safeFetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
@@ -807,7 +830,7 @@
 
         // --- Stats ---
         async function loadStats() {
-            const res = await fetch(`/api/stats?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/stats?project_id=${currentProjectId}`);
             const stats = await res.json();
             document.getElementById('statCompanies').textContent = `${stats.total_companies} companies`;
             document.getElementById('statCategories').textContent = `${stats.total_categories} categories`;
@@ -840,7 +863,7 @@
             if (relFilter) url += `relationship_status=${encodeURIComponent(relFilter)}&`;
             url += `sort_by=${currentSort.by}&sort_dir=${currentSort.dir}&`;
 
-            const res = await fetch(url);
+            const res = await safeFetch(url);
             const companies = await res.json();
 
             // Update sort indicators
@@ -894,7 +917,7 @@
         }
 
         async function toggleStar(id, el) {
-            const res = await fetch(`/api/companies/${id}/star`, { method: 'POST' });
+            const res = await safeFetch(`/api/companies/${id}/star`, { method: 'POST' });
             const data = await res.json();
             el.textContent = data.is_starred ? '\u2605' : '\u2606';
             el.classList.toggle('starred', !!data.is_starred);
@@ -903,7 +926,7 @@
         async function saveRelationship(id) {
             const status = document.getElementById(`relStatus-${id}`).value;
             const note = document.getElementById(`relNote-${id}`).value;
-            await fetch(`/api/companies/${id}/relationship`, {
+            await safeFetch(`/api/companies/${id}/relationship`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ status: status || null, note })
@@ -912,7 +935,7 @@
         }
 
         async function showDetail(id) {
-            const res = await fetch(`/api/companies/${id}`);
+            const res = await safeFetch(`/api/companies/${id}`);
             const c = await res.json();
 
             // Build sources HTML
@@ -1077,7 +1100,7 @@
 
         async function deleteCompany(id) {
             if (!confirm('Delete this company?')) return;
-            await fetch(`/api/companies/${id}`, { method: 'DELETE' });
+            await safeFetch(`/api/companies/${id}`, { method: 'DELETE' });
             closeDetail();
             loadCompanies();
             loadStats();
@@ -1102,7 +1125,7 @@
             statusDiv.classList.remove('hidden');
             statusDiv.innerHTML = '<div class="progress-bar"><div class="progress-fill" style="width:30%;animation:pulse 2s infinite"></div></div><p>Re-researching with additional sources...</p>';
 
-            const res = await fetch(`/api/companies/${companyId}/re-research`, {
+            const res = await safeFetch(`/api/companies/${companyId}/re-research`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ urls, model: document.getElementById('modelSelect').value }),
@@ -1112,7 +1135,7 @@
         }
 
         async function pollReResearch(companyId, researchId) {
-            const res = await fetch(`/api/re-research/${researchId}`);
+            const res = await safeFetch(`/api/re-research/${researchId}`);
             const data = await res.json();
 
             if (data.status === 'pending') {
@@ -1136,11 +1159,11 @@
 
         // --- Edit Modal ---
         async function openEditModal(id) {
-            const res = await fetch(`/api/companies/${id}`);
+            const res = await safeFetch(`/api/companies/${id}`);
             const c = await res.json();
 
             // Load categories for dropdowns
-            const taxRes = await fetch(`/api/taxonomy?project_id=${currentProjectId}`);
+            const taxRes = await safeFetch(`/api/taxonomy?project_id=${currentProjectId}`);
             allCategories = await taxRes.json();
 
             const topLevel = allCategories.filter(c => !c.parent_id);
@@ -1197,7 +1220,7 @@
             const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
 
             // Capture previous state for undo
-            const prevRes = await fetch(`/api/companies/${id}`);
+            const prevRes = await safeFetch(`/api/companies/${id}`);
             const prevData = await prevRes.json();
 
             const fields = {
@@ -1225,7 +1248,7 @@
                 primary_focus: document.getElementById('editPrimaryFocus').value || null,
             };
 
-            await fetch(`/api/companies/${id}`, {
+            await safeFetch(`/api/companies/${id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(fields),
@@ -1250,7 +1273,7 @@
                     business_model: prevData.business_model, company_stage: prevData.company_stage,
                     primary_focus: prevData.primary_focus,
                 };
-                await fetch(`/api/companies/${id}`, {
+                await safeFetch(`/api/companies/${id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(undoFields),
@@ -1262,7 +1285,7 @@
 
         // --- Taxonomy ---
         async function loadTaxonomy() {
-            const res = await fetch(`/api/taxonomy?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/taxonomy?project_id=${currentProjectId}`);
             const categories = await res.json();
 
             // Build tree
@@ -1295,7 +1318,7 @@
             }
 
             // Load history
-            const histRes = await fetch(`/api/taxonomy/history?project_id=${currentProjectId}`);
+            const histRes = await safeFetch(`/api/taxonomy/history?project_id=${currentProjectId}`);
             const history = await histRes.json();
             document.getElementById('taxonomyHistory').innerHTML = history.length
                 ? history.map(h => `<div class="history-entry">
@@ -1321,7 +1344,7 @@
             document.getElementById('reviewResults').classList.add('hidden');
 
             const observations = (document.getElementById('reviewObservations').value || '').trim();
-            const res = await fetch('/api/taxonomy/review', {
+            const res = await safeFetch('/api/taxonomy/review', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ project_id: currentProjectId, model: document.getElementById('reviewModelSelect').value, observations }),
@@ -1332,7 +1355,7 @@
         }
 
         async function pollReview(reviewId) {
-            const res = await fetch(`/api/taxonomy/review/${reviewId}`);
+            const res = await safeFetch(`/api/taxonomy/review/${reviewId}`);
             const data = await res.json();
 
             if (data.status === 'pending') {
@@ -1398,7 +1421,7 @@
 
             if (!selected.length) { alert('No changes selected'); return; }
 
-            const res = await fetch('/api/taxonomy/review/apply', {
+            const res = await safeFetch('/api/taxonomy/review/apply', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ changes: selected, project_id: currentProjectId }),
@@ -1422,7 +1445,7 @@
             if (!text.trim()) { alert('Paste some URLs first'); return; }
 
             // Phase 1: Start triage
-            const res = await fetch('/api/triage', {
+            const res = await safeFetch('/api/triage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text, project_id: currentProjectId })
@@ -1448,7 +1471,7 @@
         }
 
         async function pollTriage(batchId, expectedCount) {
-            const res = await fetch(`/api/triage/${batchId}`);
+            const res = await safeFetch(`/api/triage/${batchId}`);
             const results = await res.json();
 
             const done = results.length;
@@ -1567,7 +1590,7 @@
             }).filter(Boolean);
 
             // Submit confirmations
-            await fetch(`/api/triage/${currentTriageBatchId}/confirm`, {
+            await safeFetch(`/api/triage/${currentTriageBatchId}/confirm`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ actions })
@@ -1577,7 +1600,7 @@
             const model = document.getElementById('modelSelect').value;
             const workers = parseInt(document.getElementById('workerCount').value);
 
-            const res = await fetch(`/api/triage/${currentTriageBatchId}/process`, {
+            const res = await safeFetch(`/api/triage/${currentTriageBatchId}/process`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ model, workers, project_id: currentProjectId })
@@ -1603,7 +1626,7 @@
         }
 
         async function pollBatch(batchId) {
-            const res = await fetch(`/api/jobs/${batchId}`);
+            const res = await safeFetch(`/api/jobs/${batchId}`);
             const summary = await res.json();
 
             const total = summary.total || 0;
@@ -1633,7 +1656,7 @@
         }
 
         async function loadBatches() {
-            const res = await fetch(`/api/jobs?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/jobs?project_id=${currentProjectId}`);
             const batches = await res.json();
 
             document.getElementById('batchList').innerHTML = batches.length
@@ -1654,7 +1677,7 @@
         }
 
         async function showBatchDetail(batchId) {
-            const res = await fetch(`/api/jobs/${batchId}/details`);
+            const res = await safeFetch(`/api/jobs/${batchId}/details`);
             const data = await res.json();
             const jobs = data.jobs || [];
             const triage = data.triage || [];
@@ -1774,7 +1797,7 @@
             btn.disabled = true;
             btn.textContent = 'Retrying...';
             try {
-                const res = await fetch(`/api/jobs/${batchId}/retry-timeouts`, {
+                const res = await safeFetch(`/api/jobs/${batchId}/retry-timeouts`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ model: document.getElementById('modelSelect').value })
@@ -1801,7 +1824,7 @@
             btn.disabled = true;
             btn.textContent = 'Retrying...';
             try {
-                const res = await fetch(`/api/jobs/${batchId}/retry-errors`, {
+                const res = await safeFetch(`/api/jobs/${batchId}/retry-errors`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ model: document.getElementById('modelSelect').value })
@@ -1828,6 +1851,13 @@
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        function escAttr(str) {
+            // Escape for use inside JS string literals in HTML attributes (onclick, etc.)
+            if (!str) return '';
+            return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"')
+                      .replace(/</g, '\\x3c').replace(/>/g, '\\x3e');
         }
 
         // --- Market Map ---
@@ -1883,7 +1913,7 @@
             const companyId = event.dataTransfer.getData('text/plain');
             if (!companyId) return;
 
-            await fetch(`/api/companies/${companyId}`, {
+            await safeFetch(`/api/companies/${companyId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category_id: targetCategoryId, project_id: currentProjectId }),
@@ -1923,7 +1953,7 @@
         async function runComparison() {
             if (compareSelection.size < 2) { alert('Select at least 2 companies'); return; }
             const ids = Array.from(compareSelection).join(',');
-            const res = await fetch(`/api/companies/compare?ids=${ids}`);
+            const res = await safeFetch(`/api/companies/compare?ids=${ids}`);
             const companies = await res.json();
 
             const fields = ['what', 'target', 'products', 'funding', 'geography',
@@ -1989,7 +2019,7 @@
         async function addNote(companyId) {
             const content = document.getElementById(`newNoteText-${companyId}`).value.trim();
             if (!content) return;
-            await fetch(`/api/companies/${companyId}/notes`, {
+            await safeFetch(`/api/companies/${companyId}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content }),
@@ -1998,12 +2028,12 @@
         }
 
         async function deleteNote(noteId, companyId) {
-            await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
+            await safeFetch(`/api/notes/${noteId}`, { method: 'DELETE' });
             showDetail(companyId);
         }
 
         async function togglePinNote(noteId, companyId) {
-            await fetch(`/api/notes/${noteId}/pin`, { method: 'POST' });
+            await safeFetch(`/api/notes/${noteId}/pin`, { method: 'POST' });
             showDetail(companyId);
         }
 
@@ -2016,7 +2046,7 @@
             const event_type = document.getElementById(`newEventType-${companyId}`).value;
             const description = document.getElementById(`newEventDesc-${companyId}`).value.trim();
             const event_date = document.getElementById(`newEventDate-${companyId}`).value || null;
-            await fetch(`/api/companies/${companyId}/events`, {
+            await safeFetch(`/api/companies/${companyId}/events`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ event_type, description, event_date }),
@@ -2025,13 +2055,13 @@
         }
 
         async function deleteEvent(eventId, companyId) {
-            await fetch(`/api/events/${eventId}`, { method: 'DELETE' });
+            await safeFetch(`/api/events/${eventId}`, { method: 'DELETE' });
             showDetail(companyId);
         }
 
         // --- Version History ---
         async function showVersionHistory(companyId) {
-            const res = await fetch(`/api/companies/${companyId}/versions`);
+            const res = await safeFetch(`/api/companies/${companyId}/versions`);
             const versions = await res.json();
 
             let html = '<div class="version-history"><h3>Version History</h3>';
@@ -2055,7 +2085,7 @@
 
         async function restoreVersion(versionId, companyId) {
             if (!confirm('Restore this version? Current state will be saved as a version first.')) return;
-            await fetch(`/api/versions/${versionId}/restore`, { method: 'POST' });
+            await safeFetch(`/api/versions/${versionId}/restore`, { method: 'POST' });
             showDetail(companyId);
             loadCompanies();
         }
@@ -2064,7 +2094,7 @@
         async function loadTrash() {
             const container = document.getElementById('trashList');
             container.classList.remove('hidden');
-            const res = await fetch(`/api/trash?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/trash?project_id=${currentProjectId}`);
             const items = await res.json();
 
             if (!items.length) {
@@ -2087,7 +2117,7 @@
         }
 
         async function restoreFromTrash(id) {
-            await fetch(`/api/companies/${id}/restore`, { method: 'POST' });
+            await safeFetch(`/api/companies/${id}/restore`, { method: 'POST' });
             loadTrash();
             loadCompanies();
             loadStats();
@@ -2095,7 +2125,7 @@
 
         async function permanentDelete(id) {
             if (!confirm('Permanently delete? This cannot be undone.')) return;
-            await fetch(`/api/companies/${id}/permanent-delete`, { method: 'DELETE' });
+            await safeFetch(`/api/companies/${id}/permanent-delete`, { method: 'DELETE' });
             loadTrash();
         }
 
@@ -2109,7 +2139,7 @@
             formData.append('file', file);
             formData.append('project_id', currentProjectId);
 
-            const res = await fetch('/api/import/csv', { method: 'POST', body: formData });
+            const res = await safeFetch('/api/import/csv', { method: 'POST', body: formData });
             const data = await res.json();
 
             const resultDiv = document.getElementById('importResult');
@@ -2128,7 +2158,7 @@
             const container = document.getElementById('duplicatesList');
             container.classList.remove('hidden');
             container.innerHTML = '<p>Scanning...</p>';
-            const res = await fetch(`/api/duplicates?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/duplicates?project_id=${currentProjectId}`);
             const dupes = await res.json();
 
             if (!dupes.length) {
@@ -2156,7 +2186,7 @@
 
         async function mergeCompanies(targetId, sourceId) {
             if (!confirm('Merge these companies? The source will be moved to trash.')) return;
-            await fetch('/api/companies/merge', {
+            await safeFetch('/api/companies/merge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ target_id: targetId, source_id: sourceId }),
@@ -2168,7 +2198,7 @@
 
         // --- Multi-Filter System ---
         async function loadFilterOptions() {
-            const res = await fetch(`/api/filters/options?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/filters/options?project_id=${currentProjectId}`);
             const data = await res.json();
 
             // Populate tag filter dropdown
@@ -2249,7 +2279,7 @@
             for (const tag of activeFilters.tags) {
                 chips.push(`<span class="filter-chip filter-chip-tag" data-type="tag">
                     Tag: ${esc(tag)}
-                    <span class="chip-remove" onclick="removeFilter('tag','${esc(tag)}')">&times;</span>
+                    <span class="chip-remove" onclick="removeFilter('tag','${escAttr(tag)}')">&times;</span>
                 </span>`);
             }
             if (activeFilters.geography) {
@@ -2277,7 +2307,7 @@
 
         // --- Saved Views ---
         async function loadSavedViews() {
-            const res = await fetch(`/api/views?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/views?project_id=${currentProjectId}`);
             savedViews = await res.json();
             const sel = document.getElementById('savedViewSelect');
             sel.innerHTML = '<option value="">Saved views...</option>' +
@@ -2320,7 +2350,7 @@
                 search: document.getElementById('searchInput').value,
             };
 
-            await fetch('/api/views', {
+            await safeFetch('/api/views', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ project_id: currentProjectId, name: name.trim(), filters }),
@@ -2332,13 +2362,13 @@
         async function openTagManager() {
             document.getElementById('tagModal').classList.remove('hidden');
             hideTagForms();
-            const res = await fetch(`/api/tags?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/tags?project_id=${currentProjectId}`);
             const tags = await res.json();
             document.getElementById('tagList').innerHTML = tags.length
                 ? tags.map(t => `<div class="tag-manager-item">
                     <span class="tag">${esc(t.tag)}</span>
                     <span class="tag-count">${t.count} companies</span>
-                    <button class="tag-delete-btn" onclick="deleteTag('${esc(t.tag)}')" title="Delete tag">&times;</button>
+                    <button class="tag-delete-btn" onclick="deleteTag('${escAttr(t.tag)}')" title="Delete tag">&times;</button>
                   </div>`).join('')
                 : '<p style="color:var(--text-muted);font-size:13px">No tags yet.</p>';
         }
@@ -2366,14 +2396,14 @@
             const old_tag = document.getElementById('tagRenameOld').value.trim();
             const new_tag = document.getElementById('tagRenameNew').value.trim();
             if (!old_tag || !new_tag) { alert('Enter both tag names'); return; }
-            const res = await fetch('/api/tags/rename', {
+            const res = await safeFetch('/api/tags/rename', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ old_tag, new_tag, project_id: currentProjectId }),
             });
             const data = await res.json();
             showUndoToast(`Renamed "${old_tag}" to "${new_tag}" (${data.updated} companies)`, async () => {
-                await fetch('/api/tags/rename', {
+                await safeFetch('/api/tags/rename', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ old_tag: new_tag, new_tag: old_tag, project_id: currentProjectId }),
@@ -2390,7 +2420,7 @@
             const source = document.getElementById('tagMergeSource').value.trim();
             const target = document.getElementById('tagMergeTarget').value.trim();
             if (!source || !target) { alert('Enter both tag names'); return; }
-            await fetch('/api/tags/merge', {
+            await safeFetch('/api/tags/merge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ source_tag: source, target_tag: target, project_id: currentProjectId }),
@@ -2402,7 +2432,7 @@
 
         async function deleteTag(tagName) {
             if (!confirm(`Remove tag "${tagName}" from all companies?`)) return;
-            await fetch('/api/tags/delete', {
+            await safeFetch('/api/tags/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tag: tagName, project_id: currentProjectId }),
@@ -2748,7 +2778,7 @@
         }
 
         async function loadRecentActivity() {
-            const res = await fetch(`/api/activity?project_id=${currentProjectId}&limit=10`);
+            const res = await safeFetch(`/api/activity?project_id=${currentProjectId}&limit=10`);
             const events = await res.json();
             if (events.length) {
                 const content = document.getElementById('notifPanelContent');
@@ -2768,7 +2798,7 @@
         // --- Share Tokens ---
         async function createShareLink() {
             const label = document.getElementById('shareLinkLabel').value.trim() || 'Shared link';
-            const res = await fetch('/api/share-tokens', {
+            const res = await safeFetch('/api/share-tokens', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ project_id: currentProjectId, label }),
@@ -2780,7 +2810,7 @@
         }
 
         async function loadShareTokens() {
-            const res = await fetch(`/api/share-tokens?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/share-tokens?project_id=${currentProjectId}`);
             const tokens = await res.json();
             const container = document.getElementById('shareTokensList');
             if (!tokens.length) {
@@ -2800,13 +2830,13 @@
         }
 
         async function revokeShareToken(tokenId) {
-            await fetch(`/api/share-tokens/${tokenId}`, { method: 'DELETE' });
+            await safeFetch(`/api/share-tokens/${tokenId}`, { method: 'DELETE' });
             loadShareTokens();
         }
 
         // --- Notification Prefs ---
         async function loadNotifPrefs() {
-            const res = await fetch(`/api/notification-prefs?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/notification-prefs?project_id=${currentProjectId}`);
             const prefs = await res.json();
             document.getElementById('slackWebhook').value = prefs.slack_webhook_url || '';
             document.getElementById('notifBatchComplete').checked = !!prefs.notify_batch_complete;
@@ -2815,7 +2845,7 @@
         }
 
         async function saveNotifPrefs() {
-            const res = await fetch('/api/notification-prefs', {
+            const res = await safeFetch('/api/notification-prefs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2835,7 +2865,7 @@
         async function testSlack() {
             const url = document.getElementById('slackWebhook').value.trim();
             if (!url) { alert('Enter a Slack webhook URL first'); return; }
-            const res = await fetch('/api/notification-prefs/test-slack', {
+            const res = await safeFetch('/api/notification-prefs/test-slack', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slack_webhook_url: url }),
@@ -2850,7 +2880,7 @@
             const container = document.getElementById('activityFeed');
             container.classList.remove('hidden');
             container.innerHTML = '<p>Loading...</p>';
-            const res = await fetch(`/api/activity?project_id=${currentProjectId}&limit=50`);
+            const res = await safeFetch(`/api/activity?project_id=${currentProjectId}&limit=50`);
             const events = await res.json();
 
             if (!events.length) {
@@ -2872,7 +2902,7 @@
             const container = document.getElementById('qualityContent');
             container.classList.remove('hidden');
             container.innerHTML = '<p>Loading...</p>';
-            const res = await fetch(`/api/taxonomy/quality?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/taxonomy/quality?project_id=${currentProjectId}`);
             const q = await res.json();
 
             let html = '<div class="quality-cards">';
@@ -2969,7 +2999,7 @@
             document.getElementById('discoveryStatus').classList.remove('hidden');
             document.getElementById('discoveryList').innerHTML = '';
 
-            const res = await fetch('/api/ai/discover', {
+            const res = await safeFetch('/api/ai/discover', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query, project_id: currentProjectId, model: document.getElementById('discoveryModelSelect').value }),
@@ -2979,7 +3009,7 @@
         }
 
         async function pollDiscovery(discoverId) {
-            const res = await fetch(`/api/ai/discover/${discoverId}`);
+            const res = await safeFetch(`/api/ai/discover/${discoverId}`);
             const data = await res.json();
 
             if (data.status === 'pending') {
@@ -3038,7 +3068,7 @@
             container.classList.remove('hidden');
             container.innerHTML = '<div class="progress-bar"><div class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div><p style="font-size:13px">Finding similar companies...</p>';
 
-            const res = await fetch('/api/ai/find-similar', {
+            const res = await safeFetch('/api/ai/find-similar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ company_id: companyId, model: document.getElementById('modelSelect').value }),
@@ -3048,7 +3078,7 @@
         }
 
         async function pollSimilar(similarId, companyId) {
-            const res = await fetch(`/api/ai/find-similar/${similarId}`);
+            const res = await safeFetch(`/api/ai/find-similar/${similarId}`);
             const data = await res.json();
 
             if (data.status === 'pending') {
@@ -3116,7 +3146,7 @@
             document.getElementById('reportStatus').classList.remove('hidden');
             document.getElementById('reportContent').classList.add('hidden');
 
-            const res = await fetch('/api/ai/market-report', {
+            const res = await safeFetch('/api/ai/market-report', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category_name: categoryName, project_id: currentProjectId, model: document.getElementById('reportModelSelect').value }),
@@ -3141,7 +3171,7 @@
         }
 
         async function pollReport(reportId) {
-            const res = await fetch(`/api/ai/market-report/${reportId}`);
+            const res = await safeFetch(`/api/ai/market-report/${reportId}`);
             const data = await res.json();
 
             if (data.status === 'pending') {
@@ -3249,7 +3279,7 @@
             // Ensure category dropdown is populated
             const reportSel = document.getElementById('reportCategorySelect');
             if (reportSel && reportSel.options.length <= 1) {
-                const taxRes = await fetch(`/api/taxonomy?project_id=${currentProjectId}`);
+                const taxRes = await safeFetch(`/api/taxonomy?project_id=${currentProjectId}`);
                 const cats = await taxRes.json();
                 const topLevel = cats.filter(c => !c.parent_id);
                 reportSel.innerHTML = '<option value="">Select a category...</option>' +
@@ -3257,7 +3287,7 @@
             }
             const container = document.getElementById('savedReportsList');
             if (!container) return;
-            const res = await fetch(`/api/reports?project_id=${currentProjectId}`);
+            const res = await safeFetch(`/api/reports?project_id=${currentProjectId}`);
             const reports = await res.json();
             if (!reports.length) {
                 container.innerHTML = '<p class="hint-text">No saved reports yet. Generate one above.</p>';
@@ -3282,7 +3312,7 @@
         }
 
         async function viewSavedReport(reportId) {
-            const res = await fetch(`/api/reports/${reportId}`);
+            const res = await safeFetch(`/api/reports/${reportId}`);
             const data = await res.json();
             if (!data.markdown_content) return;
 
@@ -3326,7 +3356,7 @@
 
         async function deleteSavedReport(reportId) {
             if (!confirm('Delete this report?')) return;
-            await fetch(`/api/reports/${reportId}`, { method: 'DELETE' });
+            await safeFetch(`/api/reports/${reportId}`, { method: 'DELETE' });
             loadSavedReports();
         }
 
@@ -3381,7 +3411,7 @@
             input.value = '';
 
             try {
-                const res = await fetch('/api/ai/chat', {
+                const res = await safeFetch('/api/ai/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question, project_id: currentProjectId, model: 'claude-haiku-4-5-20251001' }),

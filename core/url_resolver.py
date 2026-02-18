@@ -63,34 +63,32 @@ def _extract_company_url_from_links(links):
 
 
 def _resolve_aggregator_with_playwright(url):
-    """Use Playwright to render a JS-heavy aggregator page and extract links."""
-    import asyncio
-    from playwright.async_api import async_playwright
+    """Use Playwright to render a JS-heavy aggregator page and extract links.
+
+    Reuses the thread-local browser from core.scraper.
+    """
+    from core.scraper import _get_or_create_loop, _get_browser, _USER_AGENT
 
     async def _scrape():
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                           "AppleWebKit/537.36 (KHTML, like Gecko) "
-                           "Chrome/120.0.0.0 Safari/537.36"
-            )
-            page = await context.new_page()
-            try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                await page.wait_for_timeout(3000)  # Wait for JS to render links
-                hrefs = await page.evaluate("""
-                    () => Array.from(document.querySelectorAll('a[href]'))
-                        .map(a => a.href)
-                        .filter(h => h.startsWith('http'))
-                """)
-                return hrefs
-            except Exception:
-                return []
-            finally:
-                await browser.close()
+        _pw, browser = await _get_browser()
+        context = await browser.new_context(user_agent=_USER_AGENT)
+        page = await context.new_page()
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            await page.wait_for_timeout(3000)  # Wait for JS to render links
+            hrefs = await page.evaluate("""
+                () => Array.from(document.querySelectorAll('a[href]'))
+                    .map(a => a.href)
+                    .filter(h => h.startsWith('http'))
+            """)
+            return hrefs
+        except Exception:
+            return []
+        finally:
+            await context.close()
 
-    return asyncio.run(_scrape())
+    loop = _get_or_create_loop()
+    return loop.run_until_complete(_scrape())
 
 
 def resolve_shortened_url(url, _depth=0):

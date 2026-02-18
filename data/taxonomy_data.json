@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "last_updated": "2026-02-18T14:11:56.910639",
-    "total_companies": 74,
+    "last_updated": "2026-02-18T17:58:37.556070",
+    "total_companies": 75,
     "total_categories": 15,
-    "exported_at": "2026-02-18T14:11:56.910647"
+    "exported_at": "2026-02-18T17:58:37.556106"
   },
   "categories": [
     {
@@ -4032,6 +4032,53 @@
       "subcategory_name": "Smart Home Health Devices",
       "source_count": 2,
       "completeness": 1.0
+    },
+    {
+      "id": 75,
+      "project_id": 1,
+      "slug": "yulife",
+      "name": "YuLife",
+      "url": "https://yulife.com/",
+      "what": "YuLife transforms traditional group insurance into an engagement-driven platform combining life insurance, critical illness, income protection, and dental coverage with a gamified wellness app. The platform rewards employees for healthy behaviors (walking, cycling, mindfulness) with YuCoin convertible to charitable donations, tree planting, or retail vouchers. YuLife integrates behavioral science and gamification technology to create \"insurance like no other\" that addresses financial, physical, and mental wellbeing simultaneously, claiming 181% ROI versus traditional insurers through documented engagement (80% active users) and improved employee retention and satisfaction metrics.",
+      "target": "B2B SaaS targeting mid-to-large organizations (100+ employees) seeking to enhance employee retention, engagement, and wellbeing. Primary buyers are HR/benefits managers and CFOs focused on demonstrable ROI. Serves enterprises across multiple sectors including retail (Tesco, Land Rover), financial services (Capital One), hospitality (Sodexo), and cooperative businesses. Secondary users are employees accessing benefits and wellness features through the mobile app and wellbeing hub.",
+      "products": "YuLife offers a comprehensive employee benefits platform: Group Protection Insurance (life, critical illness, income protection, dental) integrated with gamified wellness app featuring activity tracking, YuCoin rewards system, and charitable impact options. Complementary offerings include 24/7 virtual GP access, mental health support, fitness apps, mindfulness resources, and employer HR dashboard with engagement analytics, ROI reporting, and ESG impact tracking. App-only subscription available for organizations with existing group insurance, supporting 1M+ active employees across 1,000+ organizations.",
+      "funding": "Series C funded July 2022: $120M led by Dai-Ichi Life Insurance Company. Total raised: $207M across 4 rounds from 19 investors including Creandum, MMC Ventures, Notion Capital, LocalGlobe, Anthemis, Eurazeo, and T. Rowe Price. Current valuation: $800M. Most recent major funding activity from 2022; no announced rounds in 2024-2026 despite organizational updates.",
+      "geography": "Headquartered in London, England (12 Mallow Street, EC1Y 8RQ). Operating across 8 countries: UK, United States (launched October 2022), Japan (launched 2024), South Africa, Australia, and additional expansion markets. Global expansion strategy focuses on developed insurance markets with infrastructure partnerships (Aon Japan licensing agreement from August 2025). 51-200 employees listed on LinkedIn; verified organizational data shows 233 staff members.",
+      "tam": "Global employee benefits market valued at ~$55B (2024), projected to reach $78B by 2032 at 4.3% CAGR. Corporate wellness segment represents $53.5B (2024), growing to $64B by 2030 at 3% CAGR. Employee benefit broker market specifically estimated at $48.2B (2025) expanding to $78.2B by 2034 at 5.5% CAGR. YuLife addresses the high-growth intersection of benefits administration, wellness engagement, and gamified insurance technology, targeting the shift toward personalized, tech-enabled benefits delivery preferred by Gen Z/millennial workforces.",
+      "category_id": 9,
+      "subcategory_id": 108,
+      "tags": [
+        "competitor",
+        "potential_partner",
+        "adjacent_model"
+      ],
+      "raw_research": "{\"name\": \"YuLife\", \"url\": \"https://yulife.com/\", \"what\": \"YuLife transforms traditional group insurance into an engagement-driven platform combining life insurance, critical illness, income protection, and dental coverage with a gamified wellness app. The platform rewards employees for healthy behaviors (walking, cycling, mindfulness) with YuCoin convertible to charitable donations, tree planting, or retail vouchers. YuLife integrates behavioral science and gamification technology to create \\\"insurance like no other\\\" that addresses financial, physical, and mental wellbeing simultaneously, claiming 181% ROI versus traditional insurers through documented engagement (80% active users) and improved employee retention and satisfaction metrics.\", \"target\": \"B2B SaaS targeting mid-to-large organizations (100+ employees) seeking to enhance employee retention, engagement, and wellbeing. Primary buyers are HR/benefits managers and CFOs focused on demonstrable ROI. Serves enterprises across multiple sectors including retail (Tesco, Land Rover), financial services (Capital One), hospitality (Sodexo), and cooperative businesses. Secondary users are employees accessing benefits and wellness features through the mobile app and wellbeing hub.\", \"products\": \"YuLife offers a comprehensive employee benefits platform: Group Protection Insurance (life, critical illness, income protection, dental) integrated with gamified wellness app featuring activity tracking, YuCoin rewards system, and charitable impact options. Complementary offerings include 24/7 virtual GP access, mental health support, fitness apps, mindfulness resources, and employer HR dashboard with engagement analytics, ROI reporting, and ESG impact tracking. App-only subscription available for organizations with existing group insurance, supporting 1M+ active employees across 1,000+ organizations.\", \"funding\": \"Series C funded July 2022: $120M led by Dai-Ichi Life Insurance Company. Total raised: $207M across 4 rounds from 19 investors including Creandum, MMC Ventures, Notion Capital, LocalGlobe, Anthemis, Eurazeo, and T. Rowe Price. Current valuation: $800M. Most recent major funding activity from 2022; no announced rounds in 2024-2026 despite organizational updates.\", \"geography\": \"Headquartered in London, England (12 Mallow Street, EC1Y 8RQ). Operating across 8 countries: UK, United States (launched October 2022), Japan (launched 2024), South Africa, Australia, and additional expansion markets. Global expansion strategy focuses on developed insurance markets with infrastructure partnerships (Aon Japan licensing agreement from August 2025). 51-200 employees listed on LinkedIn; verified organizational data shows 233 staff members.\", \"tam\": \"Global employee benefits market valued at ~$55B (2024), projected to reach $78B by 2032 at 4.3% CAGR. Corporate wellness segment represents $53.5B (2024), growing to $64B by 2030 at 3% CAGR. Employee benefit broker market specifically estimated at $48.2B (2025) expanding to $78.2B by 2034 at 5.5% CAGR. YuLife addresses the high-growth intersection of benefits administration, wellness engagement, and gamified insurance technology, targeting the shift toward personalized, tech-enabled benefits delivery preferred by Gen Z/millennial workforces.\", \"tags\": [\"competitor\", \"potential_partner\", \"adjacent_model\"], \"founded_year\": 2016, \"employee_range\": \"201-500\", \"hq_city\": \"London\", \"hq_country\": \"United Kingdom\", \"linkedin_url\": \"https://www.linkedin.com/company/yulife\", \"confidence\": 0.9, \"_cost_usd\": 0, \"_duration_ms\": 66384, \"_model\": \"claude-haiku-4-5-20251001\"}",
+      "source_url": "https://yulife.com/",
+      "processed_at": "2026-02-18T17:58:11.924936",
+      "updated_at": "2026-02-18 17:58:11",
+      "confidence_score": 0.92,
+      "logo_url": "https://logo.clearbit.com/yulife.com",
+      "employee_range": "201-500",
+      "founded_year": 2016,
+      "funding_stage": null,
+      "total_funding_usd": null,
+      "hq_city": "London",
+      "hq_country": "United Kingdom",
+      "linkedin_url": "https://www.linkedin.com/company/yulife",
+      "last_verified_at": "2026-02-18T17:58:11.924936",
+      "is_starred": 0,
+      "is_deleted": 0,
+      "deleted_at": null,
+      "status": "active",
+      "business_model": null,
+      "company_stage": null,
+      "primary_focus": null,
+      "relationship_status": null,
+      "relationship_note": null,
+      "category_name": "Employee Benefits, EAP & Workplace Wellness",
+      "subcategory_name": "Employee Benefits Apps & Rewards Platforms",
+      "source_count": 1,
+      "completeness": 0.92
     },
     {
       "id": 51,

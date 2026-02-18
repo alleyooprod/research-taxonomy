@@ -1,5 +1,6 @@
 """Web scraping via Playwright for healthtech triage and research."""
 import asyncio
+import threading
 from dataclasses import dataclass, asdict
 from typing import Optional
 
@@ -46,73 +47,142 @@ MARKET_KEYWORDS = [
 HEALTH_KEYWORDS = MARKET_KEYWORDS
 
 
-async def _scrape_page_async(url: str, timeout_ms: int = 15000) -> ScrapedPage:
-    """Async implementation: launch browser, navigate, extract content."""
+# --- Browser pool: reuse a single Chromium instance per thread (#7, #21) ---
+
+_browser_lock = threading.Lock()
+_browser_instances: dict[int, object] = {}  # thread_id -> (playwright, browser)
+
+_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
+
+
+def _get_or_create_loop():
+    """Get the running event loop or create one for this thread."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
+
+
+async def _get_browser():
+    """Get or create a reusable browser for the current thread."""
+    tid = threading.get_ident()
+    with _browser_lock:
+        entry = _browser_instances.get(tid)
+    if entry:
+        pw, browser = entry
+        if browser.is_connected():
+            return pw, browser
+        # Stale browser, clean up
+        with _browser_lock:
+            _browser_instances.pop(tid, None)
+
     from playwright.async_api import async_playwright
+    pw = await async_playwright().start()
+    browser = await pw.chromium.launch(headless=True)
+    with _browser_lock:
+        _browser_instances[tid] = (pw, browser)
+    return pw, browser
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            )
-        )
-        page = await context.new_page()
 
+async def _close_browser():
+    """Close the browser for the current thread."""
+    tid = threading.get_ident()
+    with _browser_lock:
+        entry = _browser_instances.pop(tid, None)
+    if entry:
+        pw, browser = entry
         try:
-            response = await page.goto(
-                url, wait_until="domcontentloaded", timeout=timeout_ms
-            )
-            status_code = response.status if response else 0
-            final_url = page.url
-
-            # Wait briefly for JS to render
-            await page.wait_for_timeout(2000)
-
-            title = await page.title() or ""
-
-            meta_desc_el = await page.query_selector('meta[name="description"]')
-            meta_description = ""
-            if meta_desc_el:
-                meta_description = (
-                    await meta_desc_el.get_attribute("content") or ""
-                )
-
-            # Extract visible text (first 2000 chars)
-            main_text = await page.evaluate(
-                "() => document.body ? document.body.innerText.substring(0, 2000) : ''"
-            )
-
-            return ScrapedPage(
-                url=url,
-                final_url=final_url,
-                title=title,
-                meta_description=meta_description,
-                main_text=main_text,
-                status_code=status_code,
-                is_accessible=(status_code < 400),
-            )
-
-        except Exception as e:
-            return ScrapedPage(
-                url=url,
-                final_url=url,
-                title="",
-                meta_description="",
-                main_text="",
-                status_code=0,
-                is_accessible=False,
-                error=str(e),
-            )
-        finally:
             await browser.close()
+        except Exception:
+            pass
+        try:
+            await pw.stop()
+        except Exception:
+            pass
+
+
+def close_browser_sync():
+    """Synchronous helper to close the thread-local browser. Call on shutdown."""
+    loop = _get_or_create_loop()
+    loop.run_until_complete(_close_browser())
+
+
+async def _scrape_page_async(url: str, timeout_ms: int = 15000) -> ScrapedPage:
+    """Async implementation: reuse browser, create a new context per scrape."""
+    try:
+        _pw, browser = await _get_browser()
+    except Exception as e:
+        return ScrapedPage(
+            url=url, final_url=url, title="", meta_description="",
+            main_text="", status_code=0, is_accessible=False,
+            error=f"Browser launch failed: {e}",
+        )
+
+    context = await browser.new_context(user_agent=_USER_AGENT)
+    page = await context.new_page()
+
+    try:
+        response = await page.goto(
+            url, wait_until="domcontentloaded", timeout=timeout_ms
+        )
+        status_code = response.status if response else 0
+        final_url = page.url
+
+        # Wait briefly for JS to render
+        await page.wait_for_timeout(2000)
+
+        title = await page.title() or ""
+
+        meta_desc_el = await page.query_selector('meta[name="description"]')
+        meta_description = ""
+        if meta_desc_el:
+            meta_description = (
+                await meta_desc_el.get_attribute("content") or ""
+            )
+
+        # Extract visible text (first 2000 chars)
+        main_text = await page.evaluate(
+            "() => document.body ? document.body.innerText.substring(0, 2000) : ''"
+        )
+
+        return ScrapedPage(
+            url=url,
+            final_url=final_url,
+            title=title,
+            meta_description=meta_description,
+            main_text=main_text,
+            status_code=status_code,
+            is_accessible=(status_code < 400),
+        )
+
+    except Exception as e:
+        return ScrapedPage(
+            url=url,
+            final_url=url,
+            title="",
+            meta_description="",
+            main_text="",
+            status_code=0,
+            is_accessible=False,
+            error=str(e),
+        )
+    finally:
+        await context.close()
 
 
 def scrape_page(url: str, timeout_ms: int = 15000) -> ScrapedPage:
-    """Synchronous wrapper around the async Playwright scraper."""
-    return asyncio.run(_scrape_page_async(url, timeout_ms))
+    """Synchronous wrapper around the async Playwright scraper.
+
+    Reuses a thread-local event loop and browser instance.
+    """
+    loop = _get_or_create_loop()
+    return loop.run_until_complete(_scrape_page_async(url, timeout_ms))
 
 
 def check_relevance(scraped: ScrapedPage, keywords: list[str] = None) -> tuple[str, str]:
