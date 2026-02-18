@@ -1,5 +1,6 @@
 #!/bin/bash
 # Build a macOS .app bundle for Research Taxonomy Library.
+# Uses AppleScript wrapper so macOS grants proper file access permissions.
 # Usage: ./build_app.sh
 set -euo pipefail
 
@@ -18,52 +19,19 @@ fi
 echo "Installing dependencies..."
 "${PROJECT_DIR}/venv/bin/pip" install -q -r "${PROJECT_DIR}/requirements.txt"
 
-# -- Create .app bundle structure --
+# -- Ensure logs dir exists --
+mkdir -p "${PROJECT_DIR}/logs"
+
+# -- Create AppleScript-based .app --
+# AppleScript apps inherit full user permissions (Documents, Desktop, etc.)
 rm -rf "${PROJECT_DIR}/${APP_DIR}"
-mkdir -p "${PROJECT_DIR}/${APP_DIR}/Contents/MacOS"
-mkdir -p "${PROJECT_DIR}/${APP_DIR}/Contents/Resources"
 
-# -- Launcher script --
-cat > "${PROJECT_DIR}/${APP_DIR}/Contents/MacOS/launcher" << 'LAUNCHER'
-#!/bin/bash
-# Resolve the real project directory (not inside the .app bundle)
-APP_PATH="$(cd "$(dirname "$0")/../../.." && pwd)"
+osacompile -o "${PROJECT_DIR}/${APP_DIR}" -e "
+do shell script \"cd '${PROJECT_DIR}' && '${PROJECT_DIR}/venv/bin/python3' '${PROJECT_DIR}/desktop.py' >> '${PROJECT_DIR}/logs/desktop.log' 2>&1 &\"
+"
 
-# Activate venv
-source "${APP_PATH}/venv/bin/activate"
-
-# Run the desktop launcher
-exec python "${APP_PATH}/desktop.py"
-LAUNCHER
-
-chmod +x "${PROJECT_DIR}/${APP_DIR}/Contents/MacOS/launcher"
-
-# -- Info.plist --
-cat > "${PROJECT_DIR}/${APP_DIR}/Contents/Info.plist" << PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key>
-    <string>${APP_NAME}</string>
-    <key>CFBundleDisplayName</key>
-    <string>${APP_NAME}</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.taxonomy.research-library</string>
-    <key>CFBundleVersion</key>
-    <string>1.0</string>
-    <key>CFBundleExecutable</key>
-    <string>launcher</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-</dict>
-</plist>
-PLIST
+# -- Remove quarantine flag --
+xattr -cr "${PROJECT_DIR}/${APP_DIR}" 2>/dev/null || true
 
 echo ""
 echo "Done! Built: ${PROJECT_DIR}/${APP_DIR}"
