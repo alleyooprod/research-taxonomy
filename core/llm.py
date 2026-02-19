@@ -61,7 +61,16 @@ def run_cli(prompt: str, model: str, timeout: int,
     if LLM_BACKEND == "sdk" and not needs_cli_tools:
         return _run_claude_sdk(prompt, model, timeout, json_schema)
 
-    return _run_claude_cli(prompt, model, timeout, tools, json_schema)
+    try:
+        return _run_claude_cli(prompt, model, timeout, tools, json_schema)
+    except FileNotFoundError:
+        logger.warning("Claude CLI binary not found, attempting SDK fallback")
+        if not needs_cli_tools:
+            return _run_claude_sdk(prompt, model, timeout, json_schema)
+        raise RuntimeError(
+            "Claude CLI not found. Install it (run 'claude' in terminal) "
+            "or set an Anthropic API key in Settings to use SDK mode."
+        )
 
 
 # ---- Claude SDK -------------------------------------------------------------
@@ -174,7 +183,13 @@ def _run_gemini(prompt, model, timeout):
         "--model", model,
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Gemini CLI (npx) not found. Install Node.js from https://nodejs.org "
+            "then run 'npx @google/gemini-cli' once to set up, or switch to a Claude model."
+        )
 
     if result.returncode != 0:
         stderr = result.stderr.strip()[:500] if result.stderr else "unknown error"

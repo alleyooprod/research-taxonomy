@@ -6,6 +6,49 @@ let currentSort = { by: 'name', dir: 'asc' };
 let currentCompanyView = 'table';
 let _lastCompanies = [];
 
+function _renderPricingSection(c) {
+    const hasPricing = c.pricing_model || c.revenue_model || c.pricing_b2c_low || c.pricing_b2b_low;
+    if (!hasPricing) return '';
+
+    const modelLabel = c.pricing_model ? c.pricing_model.replace(/_/g, ' ') : 'N/A';
+    let priceRange = '';
+    if (c.pricing_b2c_low != null || c.pricing_b2c_high != null) {
+        const lo = c.pricing_b2c_low != null ? '$' + c.pricing_b2c_low : '';
+        const hi = c.pricing_b2c_high != null ? '$' + c.pricing_b2c_high : '';
+        priceRange += `B2C: ${lo}${lo && hi ? ' – ' : ''}${hi}/mo`;
+    }
+    if (c.pricing_b2b_low != null || c.pricing_b2b_high != null) {
+        const lo = c.pricing_b2b_low != null ? '$' + c.pricing_b2b_low : '';
+        const hi = c.pricing_b2b_high != null ? '$' + c.pricing_b2b_high : '';
+        if (priceRange) priceRange += ' | ';
+        priceRange += `B2B: ${lo}${lo && hi ? ' – ' : ''}${hi}/seat/mo`;
+    }
+
+    let tiersHtml = '';
+    if (c.pricing_tiers) {
+        let tiers = c.pricing_tiers;
+        if (typeof tiers === 'string') { try { tiers = JSON.parse(tiers); } catch { tiers = null; } }
+        if (Array.isArray(tiers) && tiers.length) {
+            tiersHtml = `<div class="pricing-tiers"><table class="pricing-tiers-table">
+                <tr>${tiers.map(t => `<th>${esc(t.name)}</th>`).join('')}</tr>
+                <tr>${tiers.map(t => `<td class="pricing-tier-price">$${t.price || '?'}/mo</td>`).join('')}</tr>
+                <tr>${tiers.map(t => `<td class="pricing-tier-features">${(t.features || []).map(f => esc(f)).join('<br>')}</td>`).join('')}</tr>
+            </table></div>`;
+        }
+    }
+
+    return `<div class="detail-pricing">
+        <label class="detail-section-label">Pricing</label>
+        <div class="detail-firmographics">
+            <div class="detail-field"><label>Model</label><p><span class="pricing-badge">${esc(modelLabel)}</span>${c.has_free_tier ? ' <span class="pricing-free-badge">Free tier</span>' : ''}</p></div>
+            <div class="detail-field"><label>Revenue</label><p>${esc(c.revenue_model || 'N/A')}</p></div>
+            ${priceRange ? `<div class="detail-field"><label>Price Range</label><p>${priceRange}</p></div>` : ''}
+        </div>
+        ${tiersHtml}
+        ${c.pricing_notes ? `<div class="detail-field"><label>Notes</label><p>${esc(c.pricing_notes)}</p></div>` : ''}
+    </div>`;
+}
+
 // --- Bulk Selection ---
 let bulkSelection = new Set();
 let _lastCheckedIdx = null;
@@ -257,6 +300,7 @@ async function showDetail(id) {
             <div class="detail-field"><label>Employees</label><p>${esc(c.employee_range || 'N/A')}</p></div>
             <div class="detail-field"><label>HQ</label><p>${esc(c.hq_city || '')}${c.hq_city && c.hq_country ? ', ' : ''}${esc(c.hq_country || 'N/A')}</p></div>
         </div>
+        ${_renderPricingSection(c)}
         <div class="detail-field"><label>Geography</label><p>${esc(c.geography || 'N/A')}</p></div>
         <div class="detail-field"><label>TAM</label><p>${esc(c.tam || 'N/A')}</p></div>
         <div class="detail-field"><label>Category</label><p>${c.category_id ? `<a class="cat-link" onclick="navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')">${esc(c.category_name)}</a>` : 'N/A'} / ${esc(c.subcategory_name || 'N/A')}</p></div>
@@ -876,7 +920,7 @@ function renderMatrixView(companies, container) {
     const catNames = Object.keys(cats).sort();
 
     container.innerHTML = `<div class="matrix-wrapper"><table class="matrix-table">
-        <thead><tr><th>Category</th>${geoList.map(g => `<th>${esc(g)}</th>`).join('')}<th>Total</th></tr></thead>
+        <thead><tr><th>Category</th>${geoList.map(g => `<th title="${esc(g)}">${esc(g.length > 16 ? g.substring(0, 15) + '\u2026' : g)}</th>`).join('')}<th>Total</th></tr></thead>
         <tbody>${catNames.map(cat => {
             const total = geoList.reduce((s, g) => s + (cats[cat][g] ? cats[cat][g].length : 0), 0);
             return `<tr><td><strong>${esc(cat)}</strong></td>

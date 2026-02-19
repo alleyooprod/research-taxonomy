@@ -1,0 +1,198 @@
+/* Feature: Dimensions — research dimensions cards, values, explore results */
+
+/* ========== Toolbar ========== */
+.dimensions-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+/* ========== Dimension Cards ========== */
+.dimensions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dimension-card {
+    background: var(--bg-container);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.dimension-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dimension-header strong {
+    font-size: 14px;
+}
+
+.dimension-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.badge-text { background: var(--accent-primary-light); color: var(--accent-primary); }
+.badge-number { background: rgba(90, 130, 188, 0.1); color: #5a82bc; }
+.badge-boolean { background: var(--accent-success-light); color: var(--accent-success-text); }
+.badge-enum { background: rgba(188, 160, 90, 0.1); color: #8a7540; }
+.badge-json { background: rgba(160, 90, 188, 0.1); color: #8a4da0; }
+
+.dimension-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.dimension-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 4px 0 8px;
+    line-height: 1.4;
+}
+
+.dimension-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* ========== Explore Results ========== */
+.proposed-dimension {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+.proposed-dim-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.dim-rationale {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 4px 0 8px;
+    line-height: 1.4;
+}
+
+/* ========== Values Table ========== */
+.dimension-values-modal {
+    background: var(--bg-container);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 640px;
+    width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.dim-values-table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+    margin: 12px 0;
+}
+
+.dim-values-table th,
+.dim-values-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.dim-values-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+}
+
+/* ========== Company Detail Dimensions ========== */
+.detail-dimensions {
+    margin-top: 8px;
+}
+
+.dim-values-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dim-value-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+.dim-label {
+    color: var(--text-secondary);
+    min-width: 120px;
+    font-weight: 500;
+}
+
+.dim-value {
+    color: var(--text-primary);
+}
+
+.dim-confidence {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+/* ========== Add Dimension Modal ========== */
+.add-dim-modal {
+    background: var(--bg-container);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 480px;
+    width: 90vw;
+}
+
+.add-dim-modal label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 12px 0 4px;
+    color: var(--text-secondary);
+}
+
+.add-dim-modal input,
+.add-dim-modal select,
+.add-dim-modal textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.add-dim-modal textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.add-dim-modal .btn-row {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}

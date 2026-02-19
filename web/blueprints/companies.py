@@ -140,7 +140,7 @@ def _run_re_research(job_id, company_id, company, urls, model):
 
     updated = research_company_with_sources(urls, existing, model=model)
 
-    re_db.update_company(company_id, {
+    update_fields = {
         "what": updated.get("what"),
         "target": updated.get("target"),
         "products": updated.get("products"),
@@ -157,7 +157,16 @@ def _run_re_research(job_id, company_id, company, urls, model):
         "hq_city": updated.get("hq_city"),
         "hq_country": updated.get("hq_country"),
         "linkedin_url": updated.get("linkedin_url"),
-    })
+    }
+    for pf in ("pricing_model", "pricing_b2c_low", "pricing_b2c_high",
+               "pricing_b2b_low", "pricing_b2b_high", "has_free_tier",
+               "revenue_model", "pricing_tiers", "pricing_notes"):
+        if updated.get(pf) is not None:
+            val = updated[pf]
+            if pf == "pricing_tiers" and not isinstance(val, str):
+                val = json.dumps(val)
+            update_fields[pf] = val
+    re_db.update_company(company_id, update_fields)
 
     for url in urls:
         re_db.add_company_source(company_id, url, "re-research")

@@ -95,6 +95,11 @@
     padding-top: 4px;
 }
 
+/* Indent company list when it follows a subcategory row (inserted as sibling) */
+.sub-cat + .cat-companies-inline {
+    margin-left: 20px;
+}
+
 .cat-company-row {
     display: flex;
     align-items: center;

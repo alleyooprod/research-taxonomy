@@ -1,8 +1,118 @@
 /**
- * AI discovery, find similar, and chat widget.
+ * AI discovery, find similar, chat widget, and AI setup panel.
  */
 
 let chatOpen = false;
+
+// --- AI Setup Panel ---
+
+async function loadAiSetupStatus() {
+    const res = await safeFetch('/api/ai/setup-status');
+    const s = await res.json();
+    if (!s) return;
+
+    const summary = document.getElementById('aiSetupSummary');
+    const sdkStatus = document.getElementById('sdkStatus');
+    const cliStatus = document.getElementById('cliStatus');
+    const geminiStatus = document.getElementById('geminiStatus');
+    const apiKeyStatus = document.getElementById('apiKeyStatus');
+    const cliPathStatus = document.getElementById('cliPathStatus');
+    const geminiPathStatus = document.getElementById('geminiPathStatus');
+
+    // Claude SDK
+    if (s.claude_sdk?.api_key_set) {
+        sdkStatus.className = 'ai-setup-status ok';
+        apiKeyStatus.innerHTML = `Key: <strong>${esc(s.claude_sdk.api_key_masked)}</strong>`;
+    } else {
+        sdkStatus.className = 'ai-setup-status warn';
+        apiKeyStatus.textContent = 'No API key configured';
+    }
+
+    // Claude CLI
+    if (s.claude_cli?.installed) {
+        cliStatus.className = 'ai-setup-status ok';
+        cliPathStatus.textContent = `Found: ${s.claude_cli.path}`;
+    } else {
+        cliStatus.className = 'ai-setup-status error';
+        cliPathStatus.innerHTML = 'Not found in PATH. Install from <a href="https://docs.anthropic.com/en/docs/claude-cli" target="_blank" rel="noopener">docs.anthropic.com</a>';
+    }
+
+    // Gemini
+    if (s.gemini?.npx_installed) {
+        geminiStatus.className = 'ai-setup-status ok';
+        geminiPathStatus.textContent = `Node.js: ${s.gemini.node_path}`;
+    } else if (s.gemini?.node_installed) {
+        geminiStatus.className = 'ai-setup-status warn';
+        geminiPathStatus.textContent = 'Node.js found but npx missing';
+    } else {
+        geminiStatus.className = 'ai-setup-status error';
+        geminiPathStatus.innerHTML = 'Node.js not found. Install from <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a>';
+    }
+
+    // Summary line
+    const parts = [];
+    if (s.claude_sdk?.api_key_set) parts.push('API Key');
+    if (s.claude_cli?.installed) parts.push('Claude CLI');
+    if (s.gemini?.npx_installed) parts.push('Gemini');
+    summary.textContent = parts.length ? parts.join(' + ') + ' ready' : 'No AI backends configured';
+}
+
+function toggleAiSetup() {
+    const body = document.getElementById('aiSetupBody');
+    const arrow = document.getElementById('aiSetupArrow');
+    body.classList.toggle('hidden');
+    arrow.classList.toggle('expanded');
+    if (!body.classList.contains('hidden')) loadAiSetupStatus();
+}
+
+async function saveAiApiKey() {
+    const input = document.getElementById('aiSetupApiKey');
+    const key = input.value.trim();
+    if (!key) { showToast('Enter an API key'); return; }
+
+    const res = await safeFetch('/api/ai/save-api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: key }),
+    });
+    const data = await res.json();
+    if (data.error) {
+        showToast(data.error);
+        return;
+    }
+    input.value = '';
+    showToast('API key saved');
+    loadAiSetupStatus();
+}
+
+async function testAiBackend(backend) {
+    const btnId = { claude_sdk: 'testSdkBtn', claude_cli: 'testCliBtn', gemini: 'testGeminiBtn' }[backend];
+    const btn = document.getElementById(btnId);
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Testing...';
+
+    // Remove previous result
+    const prev = btn.parentElement.querySelector('.ai-setup-test-result');
+    if (prev) prev.remove();
+
+    const res = await safeFetch('/api/ai/test-backend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backend }),
+    });
+    const data = await res.json();
+
+    btn.disabled = false;
+    btn.textContent = origText;
+
+    const result = document.createElement('div');
+    result.className = `ai-setup-test-result ${data.ok ? 'success' : 'failure'}`;
+    result.textContent = data.ok ? data.message : data.error;
+    btn.parentElement.appendChild(result);
+
+    if (data.ok) loadAiSetupStatus();
+}
 
 // --- AI Discovery ---
 async function startDiscovery() {
@@ -28,6 +138,15 @@ async function startDiscovery() {
         body: JSON.stringify({ query, project_id: currentProjectId, model: document.getElementById('discoveryModelSelect').value }),
     });
     const data = await res.json();
+
+    if (data.error) {
+        releaseAiLock();
+        btn.disabled = false;
+        btn.textContent = 'Discover';
+        document.getElementById('discoveryStatus').classList.add('hidden');
+        document.getElementById('discoveryList').innerHTML = `<p class="re-research-error">${esc(data.error)}</p>`;
+        return;
+    }
     pollDiscovery(data.discover_id);
 }
 

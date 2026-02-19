@@ -1,13 +1,18 @@
 """AI features API: discover, find-similar, chat, market reports."""
 import json
+import os
 import re
+import shutil
 import subprocess
 
 from flask import Blueprint, current_app, jsonify, request
 
-from config import DATA_DIR, DEFAULT_MODEL, MODEL_CHOICES
+from config import (
+    DATA_DIR, DEFAULT_MODEL, MODEL_CHOICES, CLAUDE_BIN,
+    load_app_settings, save_app_settings,
+)
 from core.git_sync import sync_to_git_async
-from core.llm import run_cli
+from core.llm import run_cli, is_gemini_model, LLM_BACKEND
 from storage.db import Database
 from web.async_jobs import start_async_job, write_result, poll_result
 
@@ -58,6 +63,123 @@ def ai_models():
     })
 
 
+# --- AI Setup & Status ---
+
+@ai_bp.route("/api/ai/setup-status")
+def ai_setup_status():
+    """Return status of all AI backends for the setup panel."""
+    settings = load_app_settings()
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.get("anthropic_api_key", "")
+
+    claude_cli_path = shutil.which("claude")
+    node_path = shutil.which("node")
+    npx_path = shutil.which("npx")
+
+    # Mask API key for display
+    api_key_masked = ""
+    if api_key:
+        api_key_masked = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else "***"
+
+    return jsonify({
+        "claude_cli": {
+            "installed": claude_cli_path is not None,
+            "path": claude_cli_path or "",
+        },
+        "claude_sdk": {
+            "api_key_set": bool(api_key),
+            "api_key_masked": api_key_masked,
+            "backend": LLM_BACKEND,
+        },
+        "gemini": {
+            "node_installed": node_path is not None,
+            "npx_installed": npx_path is not None,
+            "node_path": node_path or "",
+        },
+    })
+
+
+@ai_bp.route("/api/ai/save-api-key", methods=["POST"])
+def ai_save_api_key():
+    """Save Anthropic API key from the setup panel."""
+    data = request.json
+    api_key = data.get("api_key", "").strip()
+    if not api_key:
+        return jsonify({"error": "API key is required"}), 400
+    if not api_key.startswith("sk-ant-"):
+        return jsonify({"error": "Invalid key format. Anthropic keys start with sk-ant-"}), 400
+
+    settings = load_app_settings()
+    settings["anthropic_api_key"] = api_key
+    save_app_settings(settings)
+
+    # Also set in environment for the current process
+    os.environ["ANTHROPIC_API_KEY"] = api_key
+
+    return jsonify({"ok": True, "masked": api_key[:8] + "..." + api_key[-4:]})
+
+
+@ai_bp.route("/api/ai/test-backend", methods=["POST"])
+def ai_test_backend():
+    """Test an AI backend with a minimal prompt."""
+    data = request.json
+    backend = data.get("backend", "claude_cli")  # claude_cli, claude_sdk, gemini
+
+    try:
+        if backend == "claude_sdk":
+            settings = load_app_settings()
+            api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.get("anthropic_api_key", "")
+            if not api_key:
+                return jsonify({"ok": False, "error": "No API key configured"})
+
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            resp = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=10,
+                messages=[{"role": "user", "content": "Reply with just the word OK"}],
+            )
+            return jsonify({"ok": True, "message": "Claude SDK connected successfully"})
+
+        elif backend == "claude_cli":
+            claude_path = shutil.which("claude")
+            if not claude_path:
+                return jsonify({"ok": False, "error": "Claude CLI not found in PATH"})
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", "Reply with just the word OK",
+                 "--output-format", "json", "--model", "claude-haiku-4-5-20251001",
+                 "--no-session-persistence", "--dangerously-skip-permissions"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.strip()[:300] if result.stderr else "Unknown error"
+                return jsonify({"ok": False, "error": stderr})
+            return jsonify({"ok": True, "message": "Claude CLI working"})
+
+        elif backend == "gemini":
+            if not shutil.which("npx"):
+                return jsonify({"ok": False, "error": "npx not found. Install Node.js first."})
+            result = subprocess.run(
+                ["npx", "@google/gemini-cli", "-p",
+                 "Reply with just the word OK",
+                 "--output-format", "json", "-y",
+                 "--model", "gemini-2.0-flash"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.strip()[:300] if result.stderr else "Unknown error"
+                return jsonify({"ok": False, "error": stderr})
+            return jsonify({"ok": True, "message": "Gemini CLI working"})
+
+        return jsonify({"ok": False, "error": f"Unknown backend: {backend}"})
+
+    except subprocess.TimeoutExpired:
+        return jsonify({"ok": False, "error": "Test timed out after 30 seconds"})
+    except FileNotFoundError as e:
+        return jsonify({"ok": False, "error": f"Binary not found: {e}"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
 # --- Discover ---
 
 def _run_discover(job_id, query, model):
@@ -74,7 +196,7 @@ Search the web and return a JSON array of 5-10 company objects, each with:
 Only return the JSON array, nothing else. Focus on real, existing companies."""
 
     try:
-        response = run_cli(prompt, model, timeout=120)
+        response = run_cli(prompt, model, timeout=120, tools="WebSearch,WebFetch")
         text = response.get("result", "")
         match = re.search(r'\[.*\]', text, re.DOTALL)
         if match:
@@ -92,6 +214,26 @@ Only return the JSON array, nothing else. Focus on real, existing companies."""
     write_result("discover", job_id, result)
 
 
+def _check_cli_available(model):
+    """Return an error message if the model's CLI tool is not found, or None."""
+    if is_gemini_model(model):
+        if not shutil.which("npx"):
+            return ("Gemini requires Node.js (npx). Install Node.js from "
+                    "https://nodejs.org or switch to a Claude model.")
+        return None
+
+    # Claude model — check if SDK or CLI is available
+    settings = load_app_settings()
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.get("anthropic_api_key", "")
+    if api_key:
+        return None  # SDK fallback available
+    if shutil.which("claude"):
+        return None
+    return ("Claude CLI not found and no API key configured. "
+            "Either install the Claude CLI (run 'claude' in terminal) "
+            "or set an Anthropic API key in Settings.")
+
+
 @ai_bp.route("/api/ai/discover", methods=["POST"])
 def ai_discover():
     data = request.json
@@ -100,6 +242,11 @@ def ai_discover():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
+    # Pre-flight: check if the required CLI tool is available
+    error = _check_cli_available(model)
+    if error:
+        return jsonify({"error": error}), 400
+
     discover_id = start_async_job("discover", _run_discover, query, model)
     return jsonify({"discover_id": discover_id})
 
@@ -107,6 +254,79 @@ def ai_discover():
 @ai_bp.route("/api/ai/discover/<discover_id>")
 def get_discover_status(discover_id):
     return jsonify(poll_result("discover", discover_id))
+
+
+# --- Batch Pricing Research ---
+
+def _run_pricing_research(job_id, project_id, company_ids, model):
+    from pathlib import Path
+    pricing_db = Database()
+    prompt_path = Path(__file__).parent.parent.parent / "prompts" / "research_pricing.txt"
+    prompt_template = prompt_path.read_text() if prompt_path.exists() else ""
+
+    results = []
+    for cid in company_ids:
+        company = pricing_db.get_company(cid)
+        if not company:
+            continue
+        prompt = prompt_template.format(name=company["name"], url=company["url"])
+        try:
+            response = run_cli(prompt, model, timeout=90,
+                               tools="WebSearch,WebFetch",
+                               json_schema=str(Path(__file__).parent.parent.parent / "prompts" / "schemas" / "pricing_research.json"))
+            text = response.get("result", "")
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            if match:
+                pricing = json.loads(match.group())
+                update = {}
+                for pf in ("pricing_model", "pricing_b2c_low", "pricing_b2c_high",
+                           "pricing_b2b_low", "pricing_b2b_high", "has_free_tier",
+                           "revenue_model", "pricing_tiers", "pricing_notes"):
+                    if pricing.get(pf) is not None:
+                        val = pricing[pf]
+                        if pf == "pricing_tiers" and not isinstance(val, str):
+                            val = json.dumps(val)
+                        update[pf] = val
+                if update:
+                    pricing_db.update_company(cid, update)
+                results.append({"id": cid, "name": company["name"], "ok": True,
+                                "fields": list(update.keys())})
+            else:
+                results.append({"id": cid, "name": company["name"], "ok": False,
+                                "error": "No pricing data found"})
+        except Exception as e:
+            results.append({"id": cid, "name": company["name"], "ok": False,
+                            "error": str(e)[:200]})
+
+    write_result("pricing", job_id, {"status": "complete", "results": results})
+
+
+@ai_bp.route("/api/ai/research-pricing", methods=["POST"])
+def ai_research_pricing():
+    db = current_app.db
+    data = request.json
+    project_id = data.get("project_id")
+    model = data.get("model", DEFAULT_MODEL)
+    company_ids = data.get("company_ids")
+
+    if not company_ids:
+        companies = db.get_companies(project_id=project_id, limit=500)
+        company_ids = [c["id"] for c in companies if not c.get("pricing_model")]
+    if not company_ids:
+        return jsonify({"error": "No companies need pricing research"}), 400
+
+    error = _check_cli_available(model)
+    if error:
+        return jsonify({"error": error}), 400
+
+    pricing_id = start_async_job("pricing", _run_pricing_research,
+                                  project_id, company_ids, model)
+    return jsonify({"pricing_id": pricing_id, "count": len(company_ids)})
+
+
+@ai_bp.route("/api/ai/research-pricing/<pricing_id>")
+def get_pricing_status(pricing_id):
+    return jsonify(poll_result("pricing", pricing_id))
 
 
 # --- Find Similar ---

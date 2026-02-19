@@ -62,7 +62,8 @@ def _check_rate_limit(key, category="default"):
 def _cleanup_stale_results():
     """Remove stale async result files older than 7 days."""
     cutoff = time.time() - 86400 * 7
-    prefixes = ("report_", "discover_", "similar_", "reresearch_", "review_", "diagram_")
+    prefixes = ("report_", "discover_", "similar_", "reresearch_", "review_", "diagram_",
+                 "pricing_", "explore_dim_", "populate_dim_", "landscape_", "gap_")
     try:
         for f in DATA_DIR.iterdir():
             if f.suffix == ".json" and f.name.startswith(prefixes):
@@ -189,6 +190,27 @@ def create_app():
         app.db.update_project(project_id, fields)
         return jsonify({"status": "ok"})
 
+    @app.route("/api/projects/<int:project_id>/toggle-feature", methods=["POST"])
+    def toggle_feature(project_id):
+        import json as _json
+        data = request.json
+        feature = data.get("feature")
+        enabled = data.get("enabled", True)
+        if not feature:
+            return jsonify({"error": "feature is required"}), 400
+        project = app.db.get_project(project_id)
+        if not project:
+            return jsonify({"error": "Project not found"}), 404
+        features = {}
+        if project.get("features"):
+            try:
+                features = _json.loads(project["features"])
+            except (ValueError, TypeError):
+                features = {}
+        features[feature] = enabled
+        app.db.update_project(project_id, {"features": _json.dumps(features)})
+        return jsonify({"status": "ok", "features": features})
+
     # --- Register Blueprints ---
     from web.blueprints.companies import companies_bp
     from web.blueprints.taxonomy import taxonomy_bp
@@ -198,6 +220,8 @@ def create_app():
     from web.blueprints.settings import settings_bp
     from web.blueprints.research import research_bp
     from web.blueprints.canvas import canvas_bp
+    from web.blueprints.dimensions import dimensions_bp
+    from web.blueprints.discovery import discovery_bp
 
     app.register_blueprint(companies_bp)
     app.register_blueprint(taxonomy_bp)
@@ -207,6 +231,8 @@ def create_app():
     app.register_blueprint(settings_bp)
     app.register_blueprint(research_bp)
     app.register_blueprint(canvas_bp)
+    app.register_blueprint(dimensions_bp)
+    app.register_blueprint(discovery_bp)
 
     return app
 

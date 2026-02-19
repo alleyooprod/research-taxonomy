@@ -103,7 +103,8 @@ async function loadCanvas(canvasId) {
     document.getElementById('canvasDrawToolbar').classList.remove('hidden');
     setCanvasButtonsEnabled(true);
 
-    initFabricCanvas(canvasData.data || {});
+    // Defer init until after browser reflow (wrapper just became visible)
+    requestAnimationFrame(() => initFabricCanvas(canvasData.data || {}));
 }
 
 function setCanvasButtonsEnabled(enabled) {
@@ -151,6 +152,13 @@ function initFabricCanvas(data) {
 
     // Size canvas to fill wrapper
     const rect = wrapper.getBoundingClientRect();
+
+    // Guard: if wrapper has no dimensions yet (pre-reflow), retry next frame
+    if (rect.width < 1 || rect.height < 1) {
+        requestAnimationFrame(() => initFabricCanvas(data));
+        return;
+    }
+
     canvasEl.width = rect.width;
     canvasEl.height = rect.height;
 
@@ -184,6 +192,7 @@ function initFabricCanvas(data) {
 
     // Setup event handlers
     _setupFabricEvents();
+    _fabricCanvas.renderAll();
 
     // Drop zone for companies
     wrapper.addEventListener('dragover', (e) => e.preventDefault());
@@ -967,5 +976,7 @@ window.addEventListener('resize', () => {
     const wrapper = document.getElementById('canvasWrapper');
     if (!wrapper || wrapper.classList.contains('hidden')) return;
     const rect = wrapper.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
     _fabricCanvas.setDimensions({ width: rect.width, height: rect.height });
+    _fabricCanvas.renderAll();
 });

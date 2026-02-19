@@ -127,32 +127,59 @@
 /* ========== Matrix View ========== */
 .matrix-wrapper {
     overflow-x: auto;
+    max-width: 100%;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
-.matrix-table {
-    width: 100%;
+.matrix-wrapper .matrix-table {
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 13px;
 }
 
-.matrix-table th,
-.matrix-table td {
+.matrix-wrapper .matrix-table th,
+.matrix-wrapper .matrix-table td {
     padding: 8px 10px;
     border: 1px solid var(--border-default);
     text-align: center;
 }
 
-.matrix-table th {
+.matrix-wrapper .matrix-table th {
     background: var(--bg-surface);
     font-weight: 600;
     font-size: 12px;
     position: sticky;
     top: 0;
+    z-index: 2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
 }
 
-.matrix-table td:first-child,
-.matrix-table th:first-child {
+.matrix-wrapper .matrix-table td:first-child,
+.matrix-wrapper .matrix-table th:first-child {
     text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--bg-surface);
+    min-width: 180px;
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Top-left corner cell: sticky both ways */
+.matrix-wrapper .matrix-table th:first-child {
+    z-index: 4;
+}
+
+.matrix-wrapper .matrix-table td:not(:first-child) {
+    min-width: 70px;
 }
 
 .matrix-cell.matrix-filled {
@@ -165,9 +192,12 @@
     color: white;
 }
 
-.matrix-table tfoot td {
+.matrix-wrapper .matrix-table tfoot td {
     background: var(--bg-surface);
     font-weight: 600;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

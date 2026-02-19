@@ -296,14 +296,18 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
-    max-width: 220px;
+    min-width: 180px;
+    max-width: 280px;
     overflow: hidden;
     text-overflow: ellipsis;
     background: var(--bg-surface);
+    position: sticky;
+    left: 0;
+    z-index: 1;
 }
 
 .matrix-cell {
-    min-width: 44px;
+    min-width: 56px;
     font-weight: 500;
     font-size: 12px;
     transition: background 0.15s;

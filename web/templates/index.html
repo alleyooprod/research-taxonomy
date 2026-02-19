@@ -291,6 +291,7 @@
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-map" onclick="showTab('map')">Map</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-reports" onclick="showTab('reports')">Research</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-canvas" onclick="showTab('canvas')">Canvas</button>
+                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-discovery" onclick="showTab('discovery')" id="discoveryTabBtn" class="hidden">Discovery</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" onclick="showTab('process')">Process</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" onclick="showTab('export')">Export</button>
             </nav>
@@ -819,6 +820,53 @@
 
             <!-- Process Tab -->
             <section id="tab-process" class="tab-content" role="tabpanel" aria-label="Process">
+                <!-- AI Setup Panel -->
+                <div class="ai-setup-panel" id="aiSetupPanel">
+                    <div class="ai-setup-header" onclick="toggleAiSetup()">
+                        <h3><span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:4px">settings</span> AI Setup</h3>
+                        <span class="ai-setup-summary" id="aiSetupSummary"></span>
+                        <span class="material-symbols-outlined ai-setup-arrow" id="aiSetupArrow">expand_more</span>
+                    </div>
+                    <div class="ai-setup-body hidden" id="aiSetupBody">
+                        <div class="ai-setup-grid">
+                            <!-- Claude API Key -->
+                            <div class="ai-setup-card">
+                                <div class="ai-setup-card-header">
+                                    <span class="ai-setup-status" id="sdkStatus"></span>
+                                    <strong>Claude API (SDK)</strong>
+                                </div>
+                                <p class="hint-text">Fastest setup. Get a key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></p>
+                                <div class="ai-setup-key-row">
+                                    <input type="password" id="aiSetupApiKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+                                    <button class="btn btn-sm" onclick="saveAiApiKey()">Save Key</button>
+                                </div>
+                                <div class="ai-setup-key-status" id="apiKeyStatus"></div>
+                                <button class="btn btn-sm" onclick="testAiBackend('claude_sdk')" id="testSdkBtn">Test Connection</button>
+                            </div>
+                            <!-- Claude CLI -->
+                            <div class="ai-setup-card">
+                                <div class="ai-setup-card-header">
+                                    <span class="ai-setup-status" id="cliStatus"></span>
+                                    <strong>Claude CLI</strong>
+                                </div>
+                                <p class="hint-text">Uses your Claude subscription. Supports web search.</p>
+                                <div class="ai-setup-key-status" id="cliPathStatus"></div>
+                                <button class="btn btn-sm" onclick="testAiBackend('claude_cli')" id="testCliBtn">Test Connection</button>
+                            </div>
+                            <!-- Gemini CLI -->
+                            <div class="ai-setup-card">
+                                <div class="ai-setup-card-header">
+                                    <span class="ai-setup-status" id="geminiStatus"></span>
+                                    <strong>Gemini CLI</strong>
+                                </div>
+                                <p class="hint-text">Google AI. Requires Node.js. Run <code>npx @google/gemini-cli</code> in terminal to authenticate.</p>
+                                <div class="ai-setup-key-status" id="geminiPathStatus"></div>
+                                <button class="btn btn-sm" onclick="testAiBackend('gemini')" id="testGeminiBtn">Test Connection</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- AI Discovery -->
                 <div class="ai-discovery-section">
                     <h3>AI Company Discovery</h3>
@@ -891,6 +939,105 @@
                 <p class="hint-text">Click a batch to see full details.</p>
                 <div id="batchList"></div>
                 <div id="batchDetailView" class="hidden"></div>
+            </section>
+
+            <!-- Discovery Tab -->
+            <section id="tab-discovery" class="tab-content" role="tabpanel" aria-label="Discovery">
+                <div class="discovery-header">
+                    <h2>Product Discovery</h2>
+                    <p class="discovery-subtitle">Feature landscape analysis, gap identification, and competitive intelligence</p>
+                </div>
+
+                <!-- Context Files -->
+                <div class="discovery-section">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryContexts')">
+                        <h3>Context Files</h3>
+                        <span id="discoveryContexts-toggle" class="section-arrow">&#9660;</span>
+                    </div>
+                    <div id="discoveryContexts">
+                        <div class="context-upload-area" id="contextDropZone">
+                            <p>Drag & drop a markdown/text file here, or</p>
+                            <input type="file" id="contextFileInput" accept=".md,.txt,.markdown" style="display:none">
+                            <button class="btn" onclick="document.getElementById('contextFileInput').click()">Choose File</button>
+                        </div>
+                        <div id="contextsList" class="contexts-list"></div>
+                    </div>
+                </div>
+
+                <!-- Dimensions -->
+                <div class="discovery-section">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryDimensions')">
+                        <h3>Research Dimensions</h3>
+                        <span id="discoveryDimensions-toggle" class="section-arrow">&#9660;</span>
+                    </div>
+                    <div id="discoveryDimensions">
+                        <div class="dimensions-toolbar">
+                            <button class="btn btn-primary" onclick="exploreDimensions()">Explore New Dimensions</button>
+                            <button class="btn" onclick="showAddDimensionModal()">Add Manual</button>
+                        </div>
+                        <div id="dimensionsList" class="dimensions-list"></div>
+                        <div id="dimensionExploreResults" class="hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Feature Landscape -->
+                <div class="discovery-section">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryLandscape')">
+                        <h3>Feature Landscape</h3>
+                        <span id="discoveryLandscape-toggle" class="section-arrow">&#9660;</span>
+                    </div>
+                    <div id="discoveryLandscape">
+                        <div class="landscape-toolbar">
+                            <select id="landscapeCategoryFilter" class="model-select-inline">
+                                <option value="">All Categories</option>
+                            </select>
+                            <span class="toolbar-spacer"></span>
+                            <span>Model:</span>
+                            <select id="landscapeModel" class="model-select-inline">
+                                <option value="claude-haiku-4-5-20251001">Haiku</option>
+                                <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
+                                <option value="claude-opus-4-6">Opus</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="generateFeatureLandscape()">Generate</button>
+                        </div>
+                        <div id="landscapeResults"></div>
+                    </div>
+                </div>
+
+                <!-- Gap Analysis -->
+                <div class="discovery-section">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryGap')">
+                        <h3>Gap Analysis</h3>
+                        <span id="discoveryGap-toggle" class="section-arrow">&#9660;</span>
+                    </div>
+                    <div id="discoveryGap">
+                        <div class="gap-toolbar">
+                            <select id="gapContextSelect" class="model-select-inline">
+                                <option value="">No context (best-in-class only)</option>
+                            </select>
+                            <span class="toolbar-spacer"></span>
+                            <span>Model:</span>
+                            <select id="gapModel" class="model-select-inline">
+                                <option value="claude-haiku-4-5-20251001">Haiku</option>
+                                <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
+                                <option value="claude-opus-4-6">Opus</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="generateGapAnalysis()">Run Analysis</button>
+                        </div>
+                        <div id="gapResults"></div>
+                    </div>
+                </div>
+
+                <!-- Past Analyses -->
+                <div class="discovery-section">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryHistory')">
+                        <h3>Analysis History</h3>
+                        <span id="discoveryHistory-toggle" class="section-arrow">&#9660;</span>
+                    </div>
+                    <div id="discoveryHistory">
+                        <div id="analysisHistoryList"></div>
+                    </div>
+                </div>
             </section>
 
             <!-- Export Tab -->
@@ -1318,6 +1465,8 @@
     <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app-settings.js') }}"></script>
     <script src="{{ url_for('static', filename='js/integrations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dimensions.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/discovery.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
 </body>
 </html>

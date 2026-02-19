@@ -71,13 +71,13 @@ function renderCategoryMatrix(companies, categories) {
     // Render HTML table
     let html = '<table class="matrix-table"><thead><tr><th class="matrix-corner"></th>';
     colValues.forEach(v => {
-        const label = v.length > 18 ? v.substring(0, 17) + '\u2026' : v;
+        const label = v.length > 24 ? v.substring(0, 23) + '\u2026' : v;
         html += `<th title="${esc(v)}">${esc(label)}</th>`;
     });
     html += '</tr></thead><tbody>';
 
     topCats.forEach(cat => {
-        const catName = cat.name.length > 28 ? cat.name.substring(0, 27) + '\u2026' : cat.name;
+        const catName = cat.name.length > 36 ? cat.name.substring(0, 35) + '\u2026' : cat.name;
         html += `<tr><td class="matrix-row-label" title="${esc(cat.name)}">${esc(catName)}</td>`;
         colValues.forEach(v => {
             const count = matrix[cat.id]?.[v] || 0;

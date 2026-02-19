@@ -195,7 +195,7 @@ function showTab(name) {
     });
     document.getElementById('tab-' + name).classList.add('active');
 
-    const tabNames = ['companies', 'taxonomy', 'map', 'reports', 'canvas', 'process', 'export'];
+    const tabNames = ['companies', 'taxonomy', 'map', 'reports', 'canvas', 'discovery', 'process', 'export'];
     const idx = tabNames.indexOf(name);
     if (idx >= 0) {
         const tabBtn = document.querySelectorAll('.tab')[idx];
@@ -216,7 +216,8 @@ function showTab(name) {
     if (name === 'map') loadMarketMap();
     if (name === 'reports') { loadSavedReports(); resumeActiveReport(); if (typeof loadSavedResearch === 'function') loadSavedResearch(); }
     if (name === 'canvas') { if (typeof loadCanvasList === 'function') loadCanvasList(); }
-    if (name === 'process') loadBatches();
+    if (name === 'discovery') { if (typeof loadDiscoveryTab === 'function') loadDiscoveryTab(); }
+    if (name === 'process') { loadBatches(); if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); }
     if (name === 'export') { loadShareTokens(); loadNotifPrefs(); }
 }
 

@@ -11,10 +11,14 @@ from datetime import datetime
 from pathlib import Path
 
 from config import DB_PATH, SEED_CATEGORIES
-from storage.repos import CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin, ResearchMixin, CanvasMixin, TemplateMixin
+from storage.repos import (
+    CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin,
+    ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin,
+)
 
 
-class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin, ResearchMixin, CanvasMixin, TemplateMixin):
+class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin,
+               ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin):
     def __init__(self, db_path=None):
         self.db_path = db_path or DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +55,7 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
                 self._migrate_phase1(conn)
                 self._migrate_phase4(conn)
                 self._migrate_phase5(conn)
+                self._migrate_phase6(conn)
 
             if "triage_results" in tables:
                 triage_cols = {r[1] for r in conn.execute("PRAGMA table_info(triage_results)").fetchall()}
@@ -262,6 +267,28 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
         if "enrichment_status" not in company_cols:
             conn.execute("ALTER TABLE companies ADD COLUMN enrichment_status TEXT")
 
+    def _migrate_phase6(self, conn):
+        """Add pricing columns to companies, features column to projects."""
+        company_cols = {r[1] for r in conn.execute("PRAGMA table_info(companies)").fetchall()}
+        pricing_cols = [
+            ("pricing_model", "TEXT"),
+            ("pricing_b2c_low", "REAL"),
+            ("pricing_b2c_high", "REAL"),
+            ("pricing_b2b_low", "REAL"),
+            ("pricing_b2b_high", "REAL"),
+            ("has_free_tier", "INTEGER DEFAULT 0"),
+            ("revenue_model", "TEXT"),
+            ("pricing_tiers", "TEXT"),
+            ("pricing_notes", "TEXT"),
+        ]
+        for col_name, col_type in pricing_cols:
+            if col_name not in company_cols:
+                conn.execute(f"ALTER TABLE companies ADD COLUMN {col_name} {col_type}")
+
+        project_cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        if "features" not in project_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN features TEXT DEFAULT '{}'")
+
     # --- Projects ---
 
     def create_project(self, name, purpose="", outcome="", seed_categories=None,
@@ -309,7 +336,7 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
 
     _PROJECT_FIELDS = {
         "name", "purpose", "outcome", "description", "seed_categories",
-        "example_links", "market_keywords", "updated_at",
+        "example_links", "market_keywords", "updated_at", "features",
     }
 
     def update_project(self, project_id, fields):

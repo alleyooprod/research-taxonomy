@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "pricing_model": { "type": "string", "enum": ["freemium", "subscription", "usage_based", "per_seat", "tiered", "custom", "one_time", "marketplace"] },
+    "pricing_b2c_low": { "type": "number", "description": "Monthly USD low end for B2C" },
+    "pricing_b2c_high": { "type": "number", "description": "Monthly USD high end for B2C" },
+    "pricing_b2b_low": { "type": "number", "description": "Monthly per-seat USD low end for B2B" },
+    "pricing_b2b_high": { "type": "number", "description": "Monthly per-seat USD high end for B2B" },
+    "has_free_tier": { "type": "boolean" },
+    "revenue_model": { "type": "string", "enum": ["SaaS", "hardware", "services", "hybrid", "marketplace_commission", "advertising"] },
+    "pricing_tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "price": { "type": "number" },
+          "features": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name", "price"]
+      }
+    },
+    "pricing_notes": { "type": "string" }
+  },
+  "required": ["pricing_model"]
+}

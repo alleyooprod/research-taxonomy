@@ -16,6 +16,27 @@
     "hq_city": { "type": "string", "description": "Headquarters city name" },
     "hq_country": { "type": "string", "description": "Headquarters country name" },
     "linkedin_url": { "type": "string", "description": "LinkedIn company page URL if findable" },
+    "pricing_model": { "type": "string", "enum": ["freemium", "subscription", "usage_based", "per_seat", "tiered", "custom", "one_time", "marketplace"], "description": "Primary pricing model" },
+    "pricing_b2c_low": { "type": "number", "description": "Monthly USD low end for B2C consumers, null if B2B only" },
+    "pricing_b2c_high": { "type": "number", "description": "Monthly USD high end for B2C consumers, null if B2B only" },
+    "pricing_b2b_low": { "type": "number", "description": "Monthly per-seat USD low end for B2B, null if B2C only" },
+    "pricing_b2b_high": { "type": "number", "description": "Monthly per-seat USD high end for B2B, null if B2C only" },
+    "has_free_tier": { "type": "boolean", "description": "Whether a free plan or freemium tier exists" },
+    "revenue_model": { "type": "string", "enum": ["SaaS", "hardware", "services", "hybrid", "marketplace_commission", "advertising"], "description": "How the company makes money" },
+    "pricing_tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "price": { "type": "number", "description": "Monthly USD price" },
+          "features": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name", "price"]
+      },
+      "description": "Up to 4 visible pricing tiers"
+    },
+    "pricing_notes": { "type": "string", "description": "10-30 word pricing caveats" },
     "tags": {
       "type": "array",
       "items": {

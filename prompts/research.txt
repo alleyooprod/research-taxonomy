@@ -23,6 +23,15 @@ Extract these fields with the specified depth:
 - tags: Array from ["competitor", "potential_partner", "adjacent_model", "infrastructure", "inspiration", "out_of_scope"]. A company can have multiple tags.
 - confidence: A number from 0.0 to 1.0 indicating how confident you are in the accuracy of this research. 1.0 = visited website + found multiple corroborating sources. 0.5 = could only access partial information. 0.0 = mostly guessing.
 
+PRICING FIELDS (look at /pricing page, product pages, app store listings, press releases):
+- pricing_model: One of: freemium, subscription, usage_based, per_seat, tiered, custom, one_time, marketplace. Pick the primary model.
+- pricing_b2c_low / pricing_b2c_high: Monthly USD price range for individual consumers. null if B2B only or not visible.
+- pricing_b2b_low / pricing_b2b_high: Monthly per-seat/per-unit USD range for business customers. null if B2C only or not visible.
+- has_free_tier: true if there is a free plan or freemium tier, false otherwise.
+- revenue_model: One of: SaaS, hardware, services, hybrid, marketplace_commission, advertising. Describes how they make money.
+- pricing_tiers: Array of up to 4 visible pricing tiers, each with {name, price (monthly USD), features (array of strings)}. null if pricing is not publicly listed.
+- pricing_notes: (10-30 words) Important caveats — enterprise pricing available, custom quotes only, regional differences, etc.
+
 QUALITY RULES:
 - NEVER return placeholder text like "Various products" or "Multiple markets"
 - If you cannot access the website, still do web search research

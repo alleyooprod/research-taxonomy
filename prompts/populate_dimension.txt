@@ -1,0 +1,19 @@
+You are extracting a specific research dimension value for a company.
+
+DIMENSION: {dimension_name}
+DESCRIPTION: {dimension_description}
+EXPECTED DATA TYPE: {data_type}
+
+COMPANY DATA:
+{company_context}
+
+INSTRUCTIONS:
+Based on the company data above, determine the value for this dimension.
+If you cannot determine the value from available data, use your knowledge or best estimate.
+
+Return a JSON object with:
+- "value": The dimension value (as a {data_type})
+- "confidence": A number from 0.0 to 1.0 indicating confidence in this value
+- "reasoning": Brief explanation (1 sentence) of how you determined this value
+
+Return ONLY the JSON object.

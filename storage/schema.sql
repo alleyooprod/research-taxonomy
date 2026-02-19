@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS projects (
     market_keywords TEXT,   -- JSON array of relevant keywords for triage
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    is_active INTEGER DEFAULT 1
+    is_active INTEGER DEFAULT 1,
+    features TEXT DEFAULT '{}'   -- JSON: {"discovery_enabled": true, "dimensions_enabled": true}
 );
 
 -- Categories table: the living taxonomy (scoped per project)
@@ -73,6 +74,16 @@ CREATE TABLE IF NOT EXISTS companies (
     relationship_status TEXT,  -- watching | to_reach_out | in_conversation | met | partner | not_relevant
     relationship_note TEXT,
     enrichment_status TEXT,    -- pending | enriching | enriched | failed
+    -- Pricing fields
+    pricing_model TEXT,        -- freemium | subscription | usage_based | per_seat | tiered | custom | one_time | marketplace
+    pricing_b2c_low REAL,      -- monthly USD low end
+    pricing_b2c_high REAL,     -- monthly USD high end
+    pricing_b2b_low REAL,      -- per-seat/month USD low end
+    pricing_b2b_high REAL,     -- per-seat/month USD high end
+    has_free_tier INTEGER DEFAULT 0,
+    revenue_model TEXT,        -- SaaS | hardware | services | hybrid | marketplace_commission | advertising
+    pricing_tiers TEXT,        -- JSON: [{"name":"Basic","price":29,"features":["..."]}]
+    pricing_notes TEXT,        -- free-text caveats
     UNIQUE(project_id, url)
 );
 
@@ -300,6 +311,64 @@ CREATE TABLE IF NOT EXISTS canvases (
 );
 
 CREATE INDEX IF NOT EXISTS idx_canvases_project ON canvases(project_id);
+
+-- Research dimensions: EAV schema for dynamic company attributes
+CREATE TABLE IF NOT EXISTS research_dimensions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    description TEXT,
+    data_type TEXT DEFAULT 'text',  -- text | number | boolean | enum | json
+    enum_values TEXT,               -- JSON array for enum type
+    source TEXT,                    -- ai_discovered | user_defined
+    ai_prompt TEXT,                 -- prompt used to populate this dimension
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(project_id, slug)
+);
+
+CREATE TABLE IF NOT EXISTS company_dimensions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    dimension_id INTEGER NOT NULL REFERENCES research_dimensions(id) ON DELETE CASCADE,
+    value TEXT,
+    confidence REAL,
+    source TEXT,                    -- ai | manual
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(company_id, dimension_id)
+);
+
+-- Product discovery: context files and analyses
+CREATE TABLE IF NOT EXISTS project_contexts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    filename TEXT,
+    content TEXT NOT NULL,
+    context_type TEXT DEFAULT 'roadmap',  -- roadmap | feature_list | product_spec
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS discovery_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    analysis_type TEXT NOT NULL,    -- feature_landscape | gap_analysis | competitive_matrix
+    title TEXT,
+    parameters TEXT,                -- JSON config
+    result TEXT,                    -- JSON result
+    context_id INTEGER REFERENCES project_contexts(id) ON DELETE SET NULL,
+    status TEXT DEFAULT 'pending',  -- pending | running | completed | failed
+    error_message TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_dimensions_project ON research_dimensions(project_id);
+CREATE INDEX IF NOT EXISTS idx_company_dimensions_company ON company_dimensions(company_id);
+CREATE INDEX IF NOT EXISTS idx_company_dimensions_dimension ON company_dimensions(dimension_id);
+CREATE INDEX IF NOT EXISTS idx_contexts_project ON project_contexts(project_id);
+CREATE INDEX IF NOT EXISTS idx_analyses_project ON discovery_analyses(project_id);
+CREATE INDEX IF NOT EXISTS idx_analyses_type ON discovery_analyses(analysis_type);
 
 -- Composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_companies_active ON companies(project_id, is_deleted, category_id);

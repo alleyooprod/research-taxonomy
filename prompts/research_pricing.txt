@@ -1,0 +1,25 @@
+You are researching the pricing and business model for a specific company.
+
+Company: {name}
+Website: {url}
+
+INSTRUCTIONS:
+1. Fetch the company's /pricing page (or equivalent: /plans, /packages, /subscribe)
+2. Check app store listings (iOS App Store, Google Play) for subscription pricing
+3. Search the web for: "{name}" pricing plans cost subscription
+4. Look for press releases or reviews mentioning pricing
+
+Extract these fields:
+- pricing_model: One of: freemium, subscription, usage_based, per_seat, tiered, custom, one_time, marketplace
+- pricing_b2c_low / pricing_b2c_high: Monthly USD price range for individual consumers. null if B2B only.
+- pricing_b2b_low / pricing_b2b_high: Monthly per-seat/per-unit USD range for business customers. null if B2C only.
+- has_free_tier: true if a free plan exists, false otherwise
+- revenue_model: One of: SaaS, hardware, services, hybrid, marketplace_commission, advertising
+- pricing_tiers: Array of up to 4 tiers, each with {name, price (monthly USD), features[]}. null if not publicly listed.
+- pricing_notes: Important caveats (enterprise pricing, custom quotes, regional differences)
+
+RULES:
+- If pricing is not publicly available, set pricing_model to "custom" and note "Pricing not publicly listed" in pricing_notes
+- Convert annual prices to monthly equivalent (divide by 12)
+- Use USD — convert other currencies if needed
+- Do not fabricate pricing — if uncertain, note it in pricing_notes

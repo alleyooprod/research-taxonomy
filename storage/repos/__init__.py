@@ -6,3 +6,5 @@ from storage.repos.settings import SettingsMixin
 from storage.repos.research import ResearchMixin
 from storage.repos.canvas import CanvasMixin
 from storage.repos.templates import TemplateMixin
+from storage.repos.dimensions import DimensionsMixin
+from storage.repos.discovery import DiscoveryMixin

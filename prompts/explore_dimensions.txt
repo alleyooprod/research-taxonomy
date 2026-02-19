@@ -1,0 +1,33 @@
+You are analyzing a market taxonomy database to propose new research dimensions that would provide valuable insights.
+
+CURRENT TAXONOMY CATEGORIES:
+{categories}
+
+SAMPLE COMPANIES ({total_companies} total):
+{sample_companies}
+
+INSTRUCTIONS:
+Propose 5-10 novel research dimensions that would be valuable for market analysis. Each dimension should capture a specific attribute that could be consistently measured across all companies.
+
+Good dimensions are:
+- Specific and measurable (not vague like "quality")
+- Relevant to market/competitive analysis
+- Consistently applicable across most companies in the taxonomy
+- Not already captured (name, funding, geography, etc. are already tracked)
+
+Examples of good dimensions:
+- "HIPAA Compliance Status" (enum: certified, in_progress, not_applicable, unknown)
+- "API Availability" (boolean: whether the company offers an API)
+- "Patient/User Volume" (text: estimated monthly active users)
+- "Integration Ecosystem Size" (number: count of third-party integrations)
+- "Clinical Evidence Level" (enum: RCT, observational, case_study, none)
+
+Return a JSON array where each element has:
+- "name": Human-readable dimension name
+- "description": 1-2 sentence description of what this dimension captures
+- "data_type": One of "text", "number", "boolean", "enum"
+- "enum_values": Array of possible values (only for enum type, otherwise null)
+- "rationale": Why this dimension would be valuable for market analysis
+- "ai_prompt": A brief instruction for how an AI should extract this value from company data
+
+Return ONLY the JSON array.

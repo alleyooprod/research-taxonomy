@@ -158,12 +158,18 @@ async function toggleCategoryCompanies(catId, clickedEl) {
         `).join('') : '<p class="hint-text" style="padding:6px 0;font-size:12px">No companies in this category yet.</p>'}
     </div>`;
 
-    // Insert after the clicked element's parent container
-    const parent = clickedEl.closest('.category-card') || clickedEl.closest('.sub-cat');
-    if (parent) {
-        parent.insertAdjacentHTML('beforeend', html);
-        // Rotate arrow to indicate expanded
-        const arrow = parent.querySelector('.sub-cat-arrow, .cat-expand-arrow');
+    // Insert company list visibly below the clicked element
+    const subCatEl = clickedEl.closest('.sub-cat');
+    const cardEl = clickedEl.closest('.category-card');
+    if (subCatEl) {
+        // Subcategory: insert AFTER the flex row as a sibling (not inside the narrow flex row)
+        subCatEl.insertAdjacentHTML('afterend', html);
+        const arrow = subCatEl.querySelector('.sub-cat-arrow');
+        if (arrow) arrow.style.transform = 'rotate(90deg)';
+    } else if (cardEl) {
+        // Top-level category: insert inside the block card container
+        cardEl.insertAdjacentHTML('beforeend', html);
+        const arrow = cardEl.querySelector('.cat-expand-arrow');
         if (arrow) arrow.style.transform = 'rotate(90deg)';
     }
 }

@@ -264,6 +264,16 @@ class Pipeline:
             "hq_city": research.get("hq_city"),
             "hq_country": research.get("hq_country"),
             "linkedin_url": research.get("linkedin_url"),
+            # Pricing fields from research
+            "pricing_model": research.get("pricing_model"),
+            "pricing_b2c_low": research.get("pricing_b2c_low"),
+            "pricing_b2c_high": research.get("pricing_b2c_high"),
+            "pricing_b2b_low": research.get("pricing_b2b_low"),
+            "pricing_b2b_high": research.get("pricing_b2b_high"),
+            "has_free_tier": research.get("has_free_tier"),
+            "revenue_model": research.get("revenue_model"),
+            "pricing_tiers": research.get("pricing_tiers"),
+            "pricing_notes": research.get("pricing_notes"),
         }
 
         company_id = self.db.upsert_company(company_data)

@@ -1,0 +1,41 @@
+You are a senior market analyst creating a comprehensive feature landscape analysis.
+
+TAXONOMY CATEGORIES: {categories}
+TOTAL COMPANIES: {total_companies}
+SCOPE: {category_filter}
+
+COMPANY DATA:
+{company_data}
+
+INSTRUCTIONS:
+Analyze all companies and map the complete feature landscape of this market. Identify every distinct feature area and which companies offer capabilities in each area.
+
+Return a JSON object with this structure:
+{{
+    "feature_areas": [
+        {{
+            "name": "Feature Area Name",
+            "description": "What this feature area covers",
+            "features": [
+                {{
+                    "name": "Specific Feature",
+                    "companies": ["Company A", "Company B"],
+                    "best_in_class": "Company A",
+                    "best_in_class_reason": "Why this company leads in this feature"
+                }}
+            ]
+        }}
+    ],
+    "coverage_summary": {{
+        "total_feature_areas": 0,
+        "total_features": 0,
+        "most_featured_company": "Company name",
+        "most_featured_count": 0,
+        "least_covered_area": "Feature area with fewest companies"
+    }},
+    "insights": [
+        "Key insight about the feature landscape",
+        "Another insight"
+    ],
+    "markdown": "A formatted markdown summary of the feature landscape analysis"
+}}

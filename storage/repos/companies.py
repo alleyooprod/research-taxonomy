@@ -37,6 +37,9 @@ class CompanyMixin:
         now = datetime.now().isoformat()
         project_id = data.get("project_id", 1)
         logo_url = data.get("logo_url") or self._derive_logo_url(data.get("url", ""))
+        pricing_tiers = data.get("pricing_tiers")
+        if pricing_tiers and not isinstance(pricing_tiers, str):
+            pricing_tiers = json.dumps(pricing_tiers)
 
         with self._get_conn() as conn:
             cursor = conn.execute(
@@ -46,8 +49,12 @@ class CompanyMixin:
                      source_url, processed_at, confidence_score,
                      logo_url, employee_range, founded_year, funding_stage,
                      total_funding_usd, hq_city, hq_country, linkedin_url,
-                     last_verified_at)
+                     last_verified_at,
+                     pricing_model, pricing_b2c_low, pricing_b2c_high,
+                     pricing_b2b_low, pricing_b2b_high, has_free_tier,
+                     revenue_model, pricing_tiers, pricing_notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?,
                         ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(project_id, url) DO UPDATE SET
                     name=excluded.name, slug=excluded.slug,
@@ -71,7 +78,16 @@ class CompanyMixin:
                     hq_city=COALESCE(excluded.hq_city, companies.hq_city),
                     hq_country=COALESCE(excluded.hq_country, companies.hq_country),
                     linkedin_url=COALESCE(excluded.linkedin_url, companies.linkedin_url),
-                    last_verified_at=excluded.last_verified_at
+                    last_verified_at=excluded.last_verified_at,
+                    pricing_model=COALESCE(excluded.pricing_model, companies.pricing_model),
+                    pricing_b2c_low=COALESCE(excluded.pricing_b2c_low, companies.pricing_b2c_low),
+                    pricing_b2c_high=COALESCE(excluded.pricing_b2c_high, companies.pricing_b2c_high),
+                    pricing_b2b_low=COALESCE(excluded.pricing_b2b_low, companies.pricing_b2b_low),
+                    pricing_b2b_high=COALESCE(excluded.pricing_b2b_high, companies.pricing_b2b_high),
+                    has_free_tier=COALESCE(excluded.has_free_tier, companies.has_free_tier),
+                    revenue_model=COALESCE(excluded.revenue_model, companies.revenue_model),
+                    pricing_tiers=COALESCE(excluded.pricing_tiers, companies.pricing_tiers),
+                    pricing_notes=COALESCE(excluded.pricing_notes, companies.pricing_notes)
                 """,
                 (
                     project_id, slug, data["name"], data["url"], data.get("what"),
@@ -83,6 +99,12 @@ class CompanyMixin:
                     data.get("founded_year"), data.get("funding_stage"),
                     data.get("total_funding_usd"), data.get("hq_city"),
                     data.get("hq_country"), data.get("linkedin_url"), now,
+                    data.get("pricing_model"), data.get("pricing_b2c_low"),
+                    data.get("pricing_b2c_high"), data.get("pricing_b2b_low"),
+                    data.get("pricing_b2b_high"),
+                    1 if data.get("has_free_tier") else (0 if data.get("has_free_tier") is not None else None),
+                    data.get("revenue_model"), pricing_tiers,
+                    data.get("pricing_notes"),
                 ),
             )
             return cursor.lastrowid or conn.execute(
@@ -199,6 +221,9 @@ class CompanyMixin:
         "hq_country", "linkedin_url", "is_starred", "is_deleted", "deleted_at",
         "status", "url", "last_verified_at", "relationship_status",
         "relationship_note", "relationship_updated_at",
+        "pricing_model", "pricing_b2c_low", "pricing_b2c_high",
+        "pricing_b2b_low", "pricing_b2b_high", "has_free_tier",
+        "revenue_model", "pricing_tiers", "pricing_notes",
     }
 
     def update_company(self, company_id, fields, save_history=True):
