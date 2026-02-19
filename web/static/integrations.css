@@ -10,25 +10,25 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    margin-top: 12px;
+    margin-top: 16px;
 }
 @media (max-width: 1100px) {
     .chart-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 }
 .chart-card {
-    background: var(--bg-container);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 12px;
+    border-radius: 0;
     padding: 16px;
     min-height: 280px;
 }
 .chart-card h4 {
-    margin: 0 0 12px;
-    font-size: 13px;
+    margin: 0 0 16px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.04em;
 }
 
 /* Taxonomy View Toggle */
@@ -36,59 +36,134 @@
 .map-view-toggle {
     display: inline-flex;
     gap: 0;
-    margin-bottom: 12px;
-    border: 1px solid var(--border-default);
-    border-radius: 8px;
-    overflow: hidden;
+    margin-bottom: 16px;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
 }
 .view-toggle-btn {
-    padding: 6px 16px;
-    font-size: 12px;
-    font-weight: 500;
-    background: var(--bg-container);
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    background: transparent;
     color: var(--text-secondary);
-    border: none;
+    border: 1px solid var(--border-default);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.1s linear;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 .view-toggle-btn:hover {
-    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    border-color: var(--text-primary);
 }
 .view-toggle-btn.active {
-    background: var(--accent-primary);
-    color: #fff;
+    background: var(--text-primary);
+    color: var(--bg-page);
+    border-color: var(--text-primary);
 }
 
 /* Map Controls Layout */
 .map-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 16px;
 }
 
-/* Leaflet geo map overrides */
+/* Leaflet geo map overrides — The Instrument style */
 #geoMap {
     border: 1px solid var(--border-default);
-    border-radius: 12px;
+    border-radius: 0;
     overflow: hidden;
 }
 .geo-marker-icon {
     background: transparent !important;
     border: none !important;
 }
+/* Black square markers */
+.geo-marker-square {
+    width: 10px;
+    height: 10px;
+    background: #000000;
+    border: 1px solid #FFFFFF;
+    box-shadow: none;
+}
+/* Instrument-style popup: white, no border-radius, 1px border */
+.leaflet-popup-instrument .leaflet-popup-content-wrapper {
+    background: #FFFFFF;
+    color: #000000;
+    border-radius: 0;
+    border: 1px solid var(--border-default);
+    box-shadow: none;
+    padding: 0;
+}
+.leaflet-popup-instrument .leaflet-popup-content {
+    margin: 8px 16px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.leaflet-popup-instrument .leaflet-popup-tip {
+    background: #FFFFFF;
+    border: 1px solid var(--border-default);
+    border-top: none;
+    border-left: none;
+    box-shadow: none;
+}
+.geo-popup-instrument strong {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: -0.02em;
+}
+.geo-popup-cat {
+    color: #666666;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+/* Minimal black/white map zoom controls */
+.leaflet-control-zoom a {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid var(--border-default) !important;
+    border-radius: 0 !important;
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 26px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+}
+.leaflet-control-zoom a:hover {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+}
+.leaflet-control-zoom {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+/* Attribution: subtle, small */
+.leaflet-control-attribution {
+    font-size: 9px !important;
+    background: rgba(255,255,255,0.7) !important;
+    color: #999999 !important;
+}
+.leaflet-control-attribution a {
+    color: #666666 !important;
+}
 
 /* SortableJS ghost/drag states */
 .sortable-ghost {
     opacity: 0.4;
-    background: var(--accent-primary-light) !important;
-    border: 2px dashed var(--accent-primary) !important;
-    border-radius: 8px;
+    background: transparent !important;
+    border: 1px dashed var(--text-primary) !important;
+    border-radius: 0;
 }
 .sortable-chosen {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: scale(1.02);
+    box-shadow: none;
+    transform: none;
 }
 .sortable-drag {
     opacity: 0.9;
@@ -101,47 +176,47 @@
     right: 24px;
     width: 44px;
     height: 44px;
-    border-radius: 50%;
-    background: var(--bg-surface);
+    border-radius: 0;
+    background: transparent;
     color: var(--text-secondary);
     border: 1px solid var(--border-default);
     cursor: pointer;
     font-size: 18px;
     font-weight: 700;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: none;
     z-index: 999;
-    transition: all 0.2s;
+    transition: all 0.1s linear;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .tour-fab:hover {
-    background: var(--accent-primary);
-    color: #fff;
-    border-color: var(--accent-primary);
-    transform: scale(1.05);
+    background: var(--text-primary);
+    color: var(--bg-page);
+    border-color: var(--text-primary);
+    transform: none;
 }
 
 /* Notyf theme overrides */
 .notyf__toast {
-    border-radius: 10px !important;
-    font-family: 'Noto Sans', sans-serif !important;
+    border-radius: 0 !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
     font-size: 13px !important;
 }
 
 /* Tagify overrides */
 .tagify {
-    --tag-bg: var(--accent-primary-light);
-    --tag-text-color: var(--accent-primary);
-    --tag-hover: var(--accent-primary-focus);
-    --tag-remove-bg: var(--accent-danger-light);
-    --tag-remove-btn-color: var(--accent-danger);
+    --tag-bg: transparent;
+    --tag-text-color: var(--text-primary);
+    --tag-hover: var(--bg-hover);
+    --tag-remove-bg: transparent;
+    --tag-remove-btn-color: #FF0000;
     border-color: var(--border-default);
-    border-radius: 8px;
+    border-radius: 0;
     min-height: 38px;
 }
 .tagify__tag {
-    border-radius: 6px;
+    border-radius: 0;
 }
 .tagify__input {
     color: var(--text-primary);
@@ -149,14 +224,15 @@
 
 /* Driver.js theme overrides */
 .driver-popover {
-    font-family: 'Noto Sans', sans-serif !important;
-    border-radius: 12px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    border-radius: 0 !important;
     border: 1px solid var(--border-default) !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+    box-shadow: none !important;
 }
 .driver-popover-title {
-    font-family: 'Newsreader', serif !important;
-    color: var(--text-heading) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.02em;
 }
 .driver-popover-description {
     color: var(--text-secondary) !important;
@@ -164,14 +240,16 @@
 }
 .driver-popover-next-btn,
 .driver-popover-prev-btn {
-    background: var(--accent-primary) !important;
-    color: #fff !important;
-    border: none !important;
-    border-radius: 6px !important;
-    font-size: 12px !important;
+    background: var(--text-primary) !important;
+    color: var(--bg-page) !important;
+    border: 1px solid var(--text-primary) !important;
+    border-radius: 0 !important;
+    font-size: 11px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 .driver-popover-prev-btn {
-    background: var(--bg-surface) !important;
+    background: transparent !important;
     color: var(--text-secondary) !important;
     border: 1px solid var(--border-default) !important;
 }
@@ -179,17 +257,17 @@
 /* Tabulator theme adjustments */
 .tabulator {
     border: 1px solid var(--border-default) !important;
-    border-radius: 10px !important;
+    border-radius: 0 !important;
     overflow: hidden;
-    font-family: 'Noto Sans', sans-serif !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
     font-size: 13px !important;
 }
 
 /* Tippy.js theme */
 .tippy-box[data-theme~='light-border'] {
-    font-family: 'Noto Sans', sans-serif;
-    font-size: 12px;
-    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 11px;
+    border-radius: 0;
 }
 
 /* Export cards update */
@@ -199,57 +277,79 @@
     gap: 16px;
 }
 
-/* Leaflet marker cluster overrides */
+/* Leaflet marker cluster overrides — The Instrument style (black/white) */
+.marker-cluster-instrument {
+    background: transparent !important;
+    border: none !important;
+}
+.marker-cluster-instrument div {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-weight: 600 !important;
+}
+.marker-cluster-instrument--small {
+    /* 32px defined in JS iconSize */
+}
+.marker-cluster-instrument--medium {
+    /* 38px defined in JS iconSize */
+}
+.marker-cluster-instrument--large {
+    /* 44px defined in JS iconSize */
+}
+/* Legacy fallback classes (if markercluster default rendering kicks in) */
 .marker-cluster-small {
-    background-color: rgba(188, 108, 90, 0.3) !important;
+    background-color: rgba(0, 0, 0, 0.08) !important;
 }
 .marker-cluster-small div {
-    background-color: rgba(188, 108, 90, 0.7) !important;
-    color: #fff !important;
-    font-family: 'Noto Sans', sans-serif;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #000000;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
 }
 .marker-cluster-medium {
-    background-color: rgba(90, 124, 90, 0.3) !important;
+    background-color: rgba(0, 0, 0, 0.12) !important;
 }
 .marker-cluster-medium div {
-    background-color: rgba(90, 124, 90, 0.7) !important;
-    color: #fff !important;
-    font-family: 'Noto Sans', sans-serif;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #000000;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
 }
 .marker-cluster-large {
-    background-color: rgba(107, 143, 163, 0.3) !important;
+    background-color: rgba(0, 0, 0, 0.16) !important;
 }
 .marker-cluster-large div {
-    background-color: rgba(107, 143, 163, 0.7) !important;
-    color: #fff !important;
-    font-family: 'Noto Sans', sans-serif;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #000000;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
 }
 
 /* Dark theme additions for new components */
 [data-theme="dark"] .chart-card {
-    background: var(--bg-container);
+    background: transparent;
     border-color: var(--border-default);
 }
 [data-theme="dark"] .view-toggle-btn {
-    background: var(--bg-container);
+    background: transparent;
     color: var(--text-secondary);
     border-color: var(--border-default);
 }
 [data-theme="dark"] .view-toggle-btn.active {
-    background: var(--accent-primary);
-    color: #fff;
+    background: var(--text-primary);
+    color: var(--bg-page);
+    border-color: var(--text-primary);
 }
 [data-theme="dark"] .tour-fab {
-    background: var(--bg-surface);
+    background: transparent;
     border-color: var(--border-default);
     color: var(--text-secondary);
 }
 [data-theme="dark"] .tour-fab:hover {
-    background: var(--accent-primary);
-    color: #fff;
+    background: var(--text-primary);
+    color: var(--bg-page);
 }
 [data-theme="dark"] .driver-popover {
     background: var(--bg-container) !important;
@@ -262,49 +362,86 @@
     color: var(--text-secondary) !important;
 }
 [data-theme="dark"] .tagify {
-    background: var(--bg-input);
+    background: transparent;
     border-color: var(--border-default);
 }
 [data-theme="dark"] #geoMap {
     border-color: var(--border-default);
 }
+[data-theme="dark"] .geo-marker-square {
+    background: #FFFFFF;
+    border-color: #1A1A1A;
+}
+[data-theme="dark"] .leaflet-popup-instrument .leaflet-popup-content-wrapper {
+    background: #0A0A0A;
+    color: #FFFFFF;
+    border-color: var(--border-default);
+}
+[data-theme="dark"] .leaflet-popup-instrument .leaflet-popup-tip {
+    background: #0A0A0A;
+    border-color: var(--border-default);
+}
+[data-theme="dark"] .geo-popup-cat {
+    color: #999999;
+}
+[data-theme="dark"] .leaflet-control-zoom a {
+    background: #0A0A0A !important;
+    color: #FFFFFF !important;
+    border-color: var(--border-default) !important;
+}
+[data-theme="dark"] .leaflet-control-zoom a:hover {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+}
+[data-theme="dark"] .leaflet-control-attribution {
+    background: rgba(0,0,0,0.6) !important;
+    color: #666666 !important;
+}
+[data-theme="dark"] .marker-cluster-instrument div,
+[data-theme="dark"] .marker-cluster-small div,
+[data-theme="dark"] .marker-cluster-medium div,
+[data-theme="dark"] .marker-cluster-large div {
+    background-color: #0A0A0A !important;
+    color: #FFFFFF !important;
+    border-color: var(--border-default) !important;
+}
 [data-theme="dark"] .notyf__toast {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    box-shadow: none !important;
 }
 
 /* ========== New Enhancement Library Styles ========== */
 
 /* mark.js search highlighting */
 .search-highlight, mark {
-    background: rgba(212, 168, 83, 0.35);
+    background: rgba(0, 0, 0, 0.08);
     color: inherit;
-    padding: 1px 2px;
-    border-radius: 2px;
+    padding: 0 2px;
+    border-radius: 0;
 }
 [data-theme="dark"] .search-highlight,
 [data-theme="dark"] mark {
-    background: rgba(212, 168, 83, 0.25);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 /* NProgress theme override */
 #nprogress .bar {
-    background: var(--accent-primary) !important;
-    height: 2px !important;
+    background: var(--text-primary) !important;
+    height: 1px !important;
 }
 #nprogress .peg {
-    box-shadow: 0 0 10px var(--accent-primary), 0 0 5px var(--accent-primary) !important;
+    box-shadow: none !important;
 }
 
 /* Diff2html theme adjustments */
 .d2h-wrapper {
-    font-family: 'Noto Sans', sans-serif !important;
-    font-size: 12px !important;
-    border-radius: 8px;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 11px !important;
+    border-radius: 0;
     overflow: hidden;
     border: 1px solid var(--border-default);
 }
 .d2h-file-header {
-    background: var(--bg-surface) !important;
+    background: transparent !important;
     border-bottom: 1px solid var(--border-default) !important;
 }
 [data-theme="dark"] .d2h-wrapper {
@@ -318,35 +455,42 @@
 
 /* Command palette */
 .cmd-palette-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10000;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000;
     display: flex; align-items: flex-start; justify-content: center; padding-top: 15vh;
 }
 .cmd-palette {
     background: var(--bg-container); border: 1px solid var(--border-default);
-    border-radius: 12px; width: 480px; max-height: 400px; overflow: hidden;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.2); display: flex; flex-direction: column;
+    border-radius: 0; width: 480px; max-height: 400px; overflow: hidden;
+    box-shadow: none; display: flex; flex-direction: column;
 }
 .cmd-palette-input {
-    padding: 14px 16px; font-size: 15px; border: none; border-bottom: 1px solid var(--border-default);
+    padding: 16px; font-size: 15px; border: none; border-bottom: 1px solid var(--border-default);
     background: transparent; color: var(--text-primary); outline: none; width: 100%;
-    font-family: 'Noto Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
 }
-.cmd-palette-list { overflow-y: auto; max-height: 300px; padding: 4px 0; }
+.cmd-palette-list { overflow-y: auto; max-height: 300px; padding: 0; }
 .cmd-palette-item {
     padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text-primary);
     display: flex; gap: 8px; align-items: center;
+    border-bottom: 1px solid var(--border-default);
 }
-.cmd-palette-item:hover, .cmd-palette-item.selected { background: var(--bg-surface-hover); }
+.cmd-palette-item:hover, .cmd-palette-item.selected { background: var(--bg-hover); }
 .cmd-palette-section {
-    font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);
-    background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted);
+    background: transparent; padding: 0 8px; border-radius: 0; letter-spacing: 0.04em;
 }
 .cmd-palette-empty { padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-/* Heatmap toggle button */
+/* Heatmap toggle button — instrument style */
 #heatmapToggleBtn.active {
-    background: var(--accent-primary);
-    color: #fff;
+    background: #000000;
+    color: #FFFFFF;
+    border-color: #000000;
+}
+[data-theme="dark"] #heatmapToggleBtn.active {
+    background: #FFFFFF;
+    color: #000000;
+    border-color: #FFFFFF;
 }
 
 /* Panzoom cursor hint */
@@ -361,8 +505,8 @@
 .gutter {
     background: var(--border-default);
     cursor: col-resize;
-    transition: background 0.2s;
+    transition: background 0.1s linear;
 }
 .gutter:hover {
-    background: var(--accent-primary);
+    background: var(--text-primary);
 }

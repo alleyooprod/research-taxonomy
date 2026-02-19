@@ -60,7 +60,7 @@ def get_taxonomy_review(review_id):
 def apply_taxonomy_review():
     from core.taxonomy import apply_taxonomy_changes
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     changes = data.get("changes", [])
     project_id = data.get("project_id")
     applied = apply_taxonomy_changes(db, changes, project_id=project_id)

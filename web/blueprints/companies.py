@@ -70,7 +70,7 @@ def add_company():
 @companies_bp.route("/api/companies/<int:company_id>", methods=["POST"])
 def update_company(company_id):
     db = current_app.db
-    fields = request.json
+    fields = request.json or {}
     project_id = fields.pop("project_id", None)
     db.update_company(company_id, fields)
     export_markdown(db, project_id=project_id)
@@ -110,7 +110,7 @@ def toggle_star(company_id):
 @companies_bp.route("/api/companies/<int:company_id>/relationship", methods=["POST"])
 def update_relationship(company_id):
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     status = data.get("status")
     note = data.get("note")
     result = db.update_relationship(company_id, status, note)
@@ -177,7 +177,7 @@ def _run_re_research(job_id, company_id, company, urls, model):
 @companies_bp.route("/api/companies/<int:company_id>/re-research", methods=["POST"])
 def re_research_company(company_id):
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     urls = data.get("urls", [])
     model = data.get("model", DEFAULT_MODEL)
 
@@ -208,7 +208,7 @@ def list_notes(company_id):
 @companies_bp.route("/api/companies/<int:company_id>/notes", methods=["POST"])
 def add_note(company_id):
     db = current_app.db
-    content = request.json.get("content", "").strip()
+    content = (request.json or {}).get("content", "").strip()
     if not content:
         return jsonify({"error": "Content is required"}), 400
     note_id = db.add_note(company_id, content)
@@ -222,7 +222,7 @@ def add_note(company_id):
 
 @companies_bp.route("/api/notes/<int:note_id>", methods=["POST"])
 def update_note(note_id):
-    content = request.json.get("content", "").strip()
+    content = (request.json or {}).get("content", "").strip()
     if not content:
         return jsonify({"error": "Content is required"}), 400
     current_app.db.update_note(note_id, content)
@@ -298,7 +298,7 @@ def list_events(company_id):
 
 @companies_bp.route("/api/companies/<int:company_id>/events", methods=["POST"])
 def add_event(company_id):
-    data = request.json
+    data = request.json or {}
     event_type = data.get("event_type", "").strip()
     description = data.get("description", "")
     event_date = data.get("event_date")
@@ -325,7 +325,7 @@ def find_duplicates():
 @companies_bp.route("/api/companies/merge", methods=["POST"])
 def merge_companies():
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     target_id = data.get("target_id")
     source_id = data.get("source_id")
     if not target_id or not source_id:
@@ -350,10 +350,12 @@ def bulk_action():
     data = request.json or {}
     action = data.get("action")
     company_ids = data.get("company_ids", [])
+    if not company_ids or len(company_ids) > 500:
+        return jsonify({"error": "Provide 1-500 company IDs"}), 400
     params = data.get("params", {})
 
-    if not action or not company_ids:
-        return jsonify({"error": "action and company_ids are required"}), 400
+    if not action:
+        return jsonify({"error": "action is required"}), 400
 
     updated = 0
 
@@ -520,7 +522,16 @@ def enrich_batch():
 def compare_companies():
     db = current_app.db
     ids = request.args.get("ids", "")
-    company_ids = [int(x) for x in ids.split(",") if x.strip()]
+    company_ids = []
+    for x in ids.split(","):
+        x = x.strip()
+        if x:
+            try:
+                company_ids.append(int(x))
+            except ValueError:
+                continue
+        if len(company_ids) >= 20:
+            break
     companies = []
     for cid in company_ids:
         c = db.get_company(cid)

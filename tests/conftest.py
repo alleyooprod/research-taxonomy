@@ -1,7 +1,7 @@
 """Shared test fixtures."""
 import pytest
 
-from config import SESSION_SECRET
+from config import generate_csrf_token
 from storage.db import Database
 from web.app import create_app
 
@@ -40,7 +40,7 @@ def client(app):
     class CSRFClient:
         def __init__(self, inner):
             self._inner = inner
-            self._csrf = SESSION_SECRET
+            self._csrf = generate_csrf_token()
 
         def get(self, *args, **kwargs):
             return self._inner.get(*args, **kwargs)

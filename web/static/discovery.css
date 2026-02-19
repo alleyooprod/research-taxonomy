@@ -2,7 +2,7 @@
 
 /* ========== Header ========== */
 .discovery-header {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .discovery-header h2 {
@@ -11,16 +11,16 @@
 
 .discovery-subtitle {
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 15px;
     margin: 0;
 }
 
 /* ========== Collapsible Sections ========== */
 .discovery-section {
-    background: var(--bg-container);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 10px;
-    margin-bottom: 12px;
+    border-radius: 0;
+    margin-bottom: 8px;
     overflow: hidden;
 }
 
@@ -28,14 +28,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 16px;
     cursor: pointer;
     user-select: none;
-    transition: background 0.15s;
+    transition: background 0.1s linear;
 }
 
 .discovery-section-header:hover {
-    background: var(--bg-surface);
+    background: var(--bg-hover);
 }
 
 .discovery-section-header h3 {
@@ -44,9 +44,9 @@
 }
 
 .section-arrow {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
-    transition: transform 0.2s;
+    transition: transform 0.1s linear;
 }
 
 .discovery-section > div:not(.discovery-section-header) {
@@ -55,18 +55,18 @@
 
 /* ========== Context Files ========== */
 .context-upload-area {
-    border: 2px dashed var(--border-medium);
-    border-radius: 8px;
+    border: 1px dashed var(--border-default);
+    border-radius: 0;
     padding: 24px;
     text-align: center;
     color: var(--text-muted);
-    transition: border-color 0.2s, background 0.2s;
-    margin-bottom: 12px;
+    transition: border-color 0.1s linear;
+    margin-bottom: 16px;
 }
 
 .context-upload-area.drag-over {
-    border-color: var(--accent-primary);
-    background: var(--accent-primary-light);
+    border-color: var(--text-primary);
+    background: transparent;
 }
 
 .context-upload-area p {
@@ -77,17 +77,18 @@
 .contexts-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0;
 }
 
 .context-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    background: var(--bg-surface);
-    border-radius: 6px;
-    gap: 12px;
+    padding: 8px 0;
+    background: transparent;
+    border-radius: 0;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-default);
 }
 
 .context-info {
@@ -110,10 +111,14 @@
 }
 
 .context-type {
-    background: var(--accent-primary-light);
-    color: var(--accent-primary);
-    padding: 2px 6px;
-    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0 8px;
+    border-radius: 0;
+    border: 1px solid var(--border-default);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 11px;
 }
 
 .context-actions {
@@ -128,7 +133,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
     font-size: 13px;
 }
@@ -139,11 +144,11 @@
 
 /* ========== Analysis Results ========== */
 .analysis-result {
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 .analysis-markdown {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.6;
 }
 
@@ -151,13 +156,14 @@
 .analysis-markdown h2,
 .analysis-markdown h3,
 .analysis-markdown h4 {
-    margin-top: 16px;
+    margin-top: 24px;
     margin-bottom: 8px;
+    letter-spacing: -0.02em;
 }
 
 .analysis-markdown table {
     font-size: 13px;
-    margin: 12px 0;
+    margin: 16px 0;
 }
 
 .analysis-markdown ul,
@@ -175,12 +181,13 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 .feature-area h4 {
     margin: 0 0 4px;
-    font-size: 14px;
+    font-size: 15px;
+    letter-spacing: -0.02em;
 }
 
 .area-desc {
@@ -196,16 +203,17 @@
 }
 
 .feature-item {
-    background: var(--bg-surface);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-radius: 0;
+    padding: 8px;
     font-size: 13px;
 }
 
 .feature-item.best-in-class {
-    border-color: var(--accent-primary);
-    background: var(--accent-primary-light);
+    border-color: var(--text-primary);
+    background: transparent;
+    font-weight: 600;
 }
 
 .feature-companies {
@@ -217,23 +225,25 @@
 
 .company-chip {
     font-size: 11px;
-    background: var(--bg-container);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 10px;
-    padding: 1px 6px;
+    border-radius: 0;
+    padding: 0 8px;
     color: var(--text-secondary);
 }
 
 .bic-badge {
     font-size: 11px;
-    color: var(--accent-primary);
+    color: var(--text-primary);
     font-weight: 600;
     margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 /* ========== Gap Analysis Results ========== */
 .gap-list {
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 .gap-list h4 {
@@ -241,16 +251,16 @@
 }
 
 .gap-item {
-    background: var(--bg-surface);
-    border-left: 3px solid var(--border-medium);
-    border-radius: 0 6px 6px 0;
-    padding: 10px 12px;
+    background: transparent;
+    border-left: 1px solid var(--border-default);
+    border-radius: 0;
+    padding: 8px 16px;
     margin-bottom: 8px;
 }
 
-.gap-item.priority-high { border-left-color: var(--accent-danger, #c0392b); }
-.gap-item.priority-med { border-left-color: var(--accent-warning, #e67e22); }
-.gap-item.priority-low { border-left-color: var(--accent-success); }
+.gap-item.priority-high { border-left-color: #FF0000; }
+.gap-item.priority-med { border-left-color: var(--text-muted); }
+.gap-item.priority-low { border-left-color: var(--border-default); }
 
 .gap-header {
     display: flex;
@@ -263,16 +273,16 @@
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.04em;
 }
 
-.priority-high .gap-priority { color: var(--accent-danger, #c0392b); }
-.priority-med .gap-priority { color: var(--accent-warning, #e67e22); }
-.priority-low .gap-priority { color: var(--accent-success); }
+.priority-high .gap-priority { color: #FF0000; }
+.priority-med .gap-priority { color: var(--text-muted); }
+.priority-low .gap-priority { color: var(--border-default); }
 
 .gap-item p {
     font-size: 13px;
-    margin: 2px 0;
+    margin: 4px 0;
     color: var(--text-secondary);
 }
 
@@ -282,7 +292,7 @@
 
 .gap-opportunity {
     color: var(--text-primary) !important;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 /* ========== Best in Class ========== */
@@ -301,14 +311,15 @@
 /* ========== Analysis Insights ========== */
 .analysis-insights {
     margin-top: 16px;
-    background: var(--bg-surface);
-    border-radius: 8px;
-    padding: 12px 16px;
+    background: transparent;
+    border-radius: 0;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-default);
 }
 
 .analysis-insights h4 {
     margin: 0 0 8px;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .analysis-insights li {
@@ -318,15 +329,16 @@
 
 .analysis-summary {
     margin-top: 16px;
-    padding: 12px 16px;
-    background: var(--accent-primary-light);
-    border-radius: 8px;
+    padding: 16px 0;
+    background: transparent;
+    border-radius: 0;
+    border-top: 1px solid var(--border-default);
 }
 
 .analysis-summary p {
     margin: 0;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 15px;
+    font-weight: 600;
     color: var(--text-primary);
 }
 
@@ -335,17 +347,18 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    background: var(--bg-surface);
-    border-radius: 6px;
-    margin-bottom: 6px;
+    padding: 8px 0;
+    background: transparent;
+    border-radius: 0;
+    margin-bottom: 0;
     cursor: pointer;
-    transition: background 0.15s;
-    gap: 12px;
+    transition: background 0.1s linear;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-default);
 }
 
 .analysis-history-card:hover {
-    background: var(--bg-surface-hover);
+    background: var(--bg-hover);
 }
 
 .analysis-history-info {
@@ -362,21 +375,25 @@
 
 .analysis-type-badge {
     font-size: 11px;
-    background: var(--accent-primary-light);
-    color: var(--accent-primary);
-    padding: 2px 6px;
-    border-radius: 8px;
-    text-transform: capitalize;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0 8px;
+    border-radius: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--border-default);
 }
 
 .analysis-status {
     font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
-.analysis-status-complete { color: var(--accent-success-text); }
-.analysis-status-running { color: var(--accent-primary); }
-.analysis-status-error { color: var(--accent-danger, #c0392b); }
+.analysis-status-complete { color: var(--text-primary); }
+.analysis-status-running { color: var(--text-secondary); }
+.analysis-status-error { color: #FF0000; }
 
 .analysis-context {
     font-size: 11px;
@@ -388,20 +405,22 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
     flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* ========== Analysis Detail Modal ========== */
 .analysis-detail-modal {
     background: var(--bg-container);
-    border-radius: 12px;
-    padding: 24px;
+    border-radius: 0;
+    padding: 32px;
     max-width: 800px;
     width: 90vw;
     max-height: 80vh;
     overflow-y: auto;
+    border: 1px solid var(--border-default);
 }
 
 .analysis-detail-modal h3 {
@@ -415,30 +434,33 @@
 /* ========== Context Preview Modal ========== */
 .context-preview-modal {
     background: var(--bg-container);
-    border-radius: 12px;
-    padding: 24px;
+    border-radius: 0;
+    padding: 32px;
     max-width: 700px;
     width: 90vw;
     max-height: 80vh;
     overflow-y: auto;
+    border: 1px solid var(--border-default);
 }
 
 .context-preview-modal h3 {
-    margin: 0 0 12px;
+    margin: 0 0 16px;
 }
 
 .context-preview-content {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.6;
     margin-bottom: 16px;
 }
 
 .context-preview-content pre {
-    background: var(--bg-surface);
-    padding: 12px;
-    border-radius: 6px;
+    background: transparent;
+    padding: 16px;
+    border-radius: 0;
     overflow-x: auto;
     font-size: 13px;
+    border: 1px solid var(--border-default);
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* ========== Loading ========== */

@@ -149,6 +149,9 @@ function initHotkeys() {
 
     hotkeys('ctrl+k,command+k', (e) => {
         e.preventDefault();
+        // Delegate to ninja-keys if available, otherwise focus search
+        const ninja = document.querySelector('ninja-keys');
+        if (ninja) { ninja.open(); return; }
         document.getElementById('searchInput')?.focus();
     });
     hotkeys('ctrl+e,command+e', (e) => {
@@ -304,7 +307,7 @@ function renderFuseResults(companies) {
             <td><span class="star-btn ${c.is_starred ? 'starred' : ''}" onclick="event.stopPropagation();toggleStar(${c.id},this)" title="Star"><span class="material-symbols-outlined">${c.is_starred ? 'star' : 'star_outline'}</span></span></td>
             <td>
                 <div class="company-name-cell">
-                    <img class="company-logo" src="${c.logo_url || 'https://logo.clearbit.com/' + extractDomain(c.url)}" alt="" onerror="this.style.display='none'">
+                    <img class="company-logo" src="${esc(c.logo_url || 'https://logo.clearbit.com/' + extractDomain(c.url))}" alt="" onerror="this.style.display='none'">
                     <strong>${esc(c.name)}</strong>
                     <span class="completeness-dot ${compClass}" title="${compPct}% complete"></span>
                     ${c.relationship_status ? '<span class="relationship-dot rel-' + c.relationship_status + '" title="' + relationshipLabel(c.relationship_status) + '"></span>' : ''}
@@ -342,11 +345,12 @@ function initAutosize() {
     });
 }
 
-// Re-apply autosize whenever modals open or tabs switch
+// Re-apply autosize and Lucide icons whenever modals open or tabs switch
 const _origShowTabAutosize = showTab;
 showTab = function(name) {
     _origShowTabAutosize(name);
     setTimeout(initAutosize, 100);
+    initLucideIcons();
 };
 
 // --- medium-zoom (Click-to-zoom on images) ---
@@ -360,11 +364,12 @@ function initMediumZoom() {
     });
 }
 
-// Refresh zoom targets after company list loads
+// Refresh zoom targets and Lucide icons after company list loads
 const _origLoadCompaniesZoom = loadCompanies;
 loadCompanies = async function() {
     await _origLoadCompaniesZoom();
     setTimeout(initMediumZoom, 200);
+    initLucideIcons();
 };
 
 // --- Flatpickr (Founded year range filter) ---
@@ -473,7 +478,7 @@ function initNProgress() {
     }
 }
 
-// --- Command Palette (lightweight, no dependencies) ---
+// --- Command Palette (delegates to ninja-keys when available, falls back to lightweight) ---
 let _cmdPaletteEl = null;
 const _cmdActions = [
     { title: 'Go to Companies', section: 'Navigation', handler: () => showTab('companies') },
@@ -498,7 +503,11 @@ const _cmdActions = [
     { title: 'Toggle Heatmap', section: 'Map Views', handler: () => toggleGeoHeatmap() },
 ];
 
-function initCommandPalette() {
+function _initLegacyCommandPalette() {
+    // Only install the legacy Cmd+K listener if ninja-keys is NOT available
+    // (keyboard.js and core.js handle Cmd+K for ninja-keys)
+    if (document.querySelector('ninja-keys')) return;
+
     document.addEventListener('keydown', (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
@@ -508,6 +517,11 @@ function initCommandPalette() {
 }
 
 function toggleCommandPalette() {
+    // Delegate to ninja-keys if available
+    const ninja = document.querySelector('ninja-keys');
+    if (ninja) { ninja.open(); return; }
+
+    // Fallback: lightweight command palette
     if (_cmdPaletteEl) { _cmdPaletteEl.remove(); _cmdPaletteEl = null; return; }
     _cmdPaletteEl = document.createElement('div');
     _cmdPaletteEl.className = 'cmd-palette-overlay';

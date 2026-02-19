@@ -152,8 +152,17 @@ function esc(str) {
 
 function escAttr(str) {
     if (!str) return '';
-    return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"')
-              .replace(/</g, '\\x3c').replace(/>/g, '\\x3e');
+    return str.replace(/\\/g, '\\\\')
+              .replace(/'/g, "\\'")
+              .replace(/"/g, '\\"')
+              .replace(/`/g, '\\`')
+              .replace(/\$/g, '\\$')
+              .replace(/</g, '\\x3c')
+              .replace(/>/g, '\\x3e')
+              .replace(/\n/g, '\\n')
+              .replace(/\r/g, '\\r')
+              .replace(/\u2028/g, '\\u2028')
+              .replace(/\u2029/g, '\\u2029');
 }
 
 function extractDomain(url) {
@@ -188,6 +197,13 @@ function relationshipLabel(status) {
 
 // --- Tab Navigation with URL State ---
 function showTab(name) {
+    const tabNames = ['companies', 'taxonomy', 'map', 'reports', 'canvas', 'discovery', 'process', 'export', 'settings'];
+
+    // Support numeric index as well as string name
+    if (typeof name === 'number') {
+        name = tabNames[name] || 'companies';
+    }
+
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(el => {
         el.classList.remove('active');
@@ -195,7 +211,6 @@ function showTab(name) {
     });
     document.getElementById('tab-' + name).classList.add('active');
 
-    const tabNames = ['companies', 'taxonomy', 'map', 'reports', 'canvas', 'discovery', 'process', 'export', 'settings'];
     const idx = tabNames.indexOf(name);
     if (idx >= 0) {
         const tabBtn = document.querySelectorAll('.tab')[idx];
@@ -220,6 +235,9 @@ function showTab(name) {
     if (name === 'process') { loadBatches(); }
     if (name === 'export') { loadShareTokens(); loadNotifPrefs(); }
     if (name === 'settings') { if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); if (typeof loadDefaultModel === 'function') loadDefaultModel(); }
+
+    // Save app state on tab change
+    if (typeof saveAppState === 'function') saveAppState();
 }
 
 // Restore tab from URL on load
@@ -256,6 +274,7 @@ function toggleTheme() {
     const next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
+    localStorage.setItem('lastThemeToggle', Date.now().toString());
     document.querySelectorAll('.theme-toggle').forEach(btn => {
         btn.innerHTML = `<span class="material-symbols-outlined">${next === 'dark' ? 'light_mode' : 'dark_mode'}</span>`;
     });
@@ -400,3 +419,457 @@ function hideTabLoading(tabName) {
     const loader = tab.querySelector('.tab-loading');
     if (loader) loader.remove();
 }
+
+// --- Native macOS-style Confirmation Dialog ---
+/**
+ * Native macOS-style confirmation dialog (replaces browser confirm())
+ * @param {Object} options
+ * @param {string} options.title - Dialog title
+ * @param {string} options.message - Dialog message
+ * @param {string} options.confirmText - Confirm button text (default: "Delete")
+ * @param {string} options.cancelText - Cancel button text (default: "Cancel")
+ * @param {string} options.type - "danger" or "warning" (default: "danger")
+ * @returns {Promise<boolean>} - true if confirmed, false if cancelled
+ */
+window.showNativeConfirm = function({ title, message, confirmText = 'Delete', cancelText = 'Cancel', type = 'danger' } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirmSheet');
+    if (!overlay) { resolve(confirm(message || title)); return; }
+
+    const iconEl = document.getElementById('confirmSheetIcon');
+    const titleEl = document.getElementById('confirmSheetTitle');
+    const msgEl = document.getElementById('confirmSheetMessage');
+    const confirmBtn = document.getElementById('confirmSheetConfirm');
+    const cancelBtn = document.getElementById('confirmSheetCancel');
+
+    titleEl.textContent = title || 'Are you sure?';
+    msgEl.textContent = message || 'This action cannot be undone.';
+    confirmBtn.textContent = confirmText;
+    cancelBtn.textContent = cancelText;
+
+    // Set icon and button style based on type
+    iconEl.className = 'confirm-sheet-icon ' + type;
+    iconEl.textContent = type === 'danger' ? '\u26a0\ufe0f' : '\u26a1';
+    confirmBtn.className = type === 'danger' ? 'confirm-btn-danger' : 'confirm-btn-primary';
+
+    overlay.style.display = 'flex';
+    // Trigger animation
+    requestAnimationFrame(() => { overlay.classList.add('visible'); });
+
+    function cleanup() {
+      overlay.classList.remove('visible');
+      setTimeout(() => { overlay.style.display = 'none'; }, 200);
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKey);
+    }
+
+    function onConfirm() { cleanup(); resolve(true); }
+    function onCancel() { cleanup(); resolve(false); }
+    function onKey(e) {
+      if (e.key === 'Escape') { onCancel(); }
+      else if (e.key === 'Enter') { onConfirm(); }
+    }
+
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKey);
+
+    // Focus the cancel button (safer default like macOS)
+    cancelBtn.focus();
+  });
+};
+
+// --- App-wide Undo/Redo System ---
+window._undoStack = [];
+window._redoStack = [];
+const MAX_UNDO = 30;
+
+/**
+ * Push an undoable action onto the stack
+ * @param {string} description - Human-readable description
+ * @param {Function} undoFn - Function to call on undo
+ * @param {Function} redoFn - Function to call on redo
+ */
+window.pushUndoAction = function(description, undoFn, redoFn) {
+  window._undoStack.push({ description, undoFn, redoFn, timestamp: Date.now() });
+  if (window._undoStack.length > MAX_UNDO) window._undoStack.shift();
+  window._redoStack = []; // Clear redo on new action
+};
+
+window.performUndo = function() {
+  const action = window._undoStack.pop();
+  if (!action) { showToast('Nothing to undo', 'info'); return; }
+  try {
+    action.undoFn();
+    window._redoStack.push(action);
+    showToast(`Undid: ${action.description}`, 'info');
+  } catch (e) {
+    console.error('Undo failed:', e);
+    showToast('Undo failed', 'error');
+  }
+};
+
+window.performRedo = function() {
+  const action = window._redoStack.pop();
+  if (!action) { showToast('Nothing to redo', 'info'); return; }
+  try {
+    action.redoFn();
+    window._undoStack.push(action);
+    showToast(`Redid: ${action.description}`, 'info');
+  } catch (e) {
+    console.error('Redo failed:', e);
+    showToast('Redo failed', 'error');
+  }
+};
+
+// --- State Restoration ---
+window.saveAppState = function() {
+  const state = {
+    activeTab: document.querySelector('.tab.active')?.dataset?.tab ||
+               document.querySelector('.tab.active')?.textContent?.trim()?.toLowerCase(),
+    tabIndex: Array.from(document.querySelectorAll('.tab')).findIndex(t => t.classList.contains('active')),
+    scrollPositions: {},
+    currentView: window.currentCompanyView || 'table',
+    sortField: window.currentSort?.field,
+    sortDir: window.currentSort?.direction,
+    detailOpen: !!document.querySelector('.detail-panel.active, .detail-panel.open, .detail-panel:not([style*="display: none"])'),
+    timestamp: Date.now()
+  };
+
+  // Save scroll positions for scrollable containers
+  document.querySelectorAll('.company-list, .category-list, .detail-panel').forEach(el => {
+    if (el.id) state.scrollPositions[el.id] = el.scrollTop;
+  });
+
+  try { localStorage.setItem('appState', JSON.stringify(state)); } catch(e) {}
+};
+
+window.restoreAppState = function() {
+  try {
+    const state = JSON.parse(localStorage.getItem('appState'));
+    if (!state || Date.now() - state.timestamp > 86400000) return; // Expire after 24h
+
+    // Restore tab
+    if (typeof state.tabIndex === 'number' && state.tabIndex >= 0) {
+      // Use setTimeout to let the app finish initializing
+      setTimeout(() => {
+        if (typeof showTab === 'function') showTab(state.tabIndex);
+      }, 100);
+    }
+
+    // Restore view mode
+    if (state.currentView && window.currentCompanyView !== undefined) {
+      window.currentCompanyView = state.currentView;
+    }
+
+    // Restore scroll positions after render
+    setTimeout(() => {
+      if (state.scrollPositions) {
+        Object.entries(state.scrollPositions).forEach(([id, pos]) => {
+          const el = document.getElementById(id);
+          if (el) el.scrollTop = pos;
+        });
+      }
+    }, 300);
+  } catch(e) {}
+};
+
+// --- About Dialog ---
+window.showAboutDialog = function() {
+  const versionEl = document.getElementById('aboutVersion');
+  const pythonEl = document.getElementById('aboutPython');
+  if (versionEl) {
+    // Try to get version from the settings tab or a global
+    const version = window.APP_VERSION || document.querySelector('[data-app-version]')?.dataset?.appVersion || '1.1.0';
+    versionEl.textContent = 'Version ' + version;
+  }
+  if (pythonEl) {
+    pythonEl.textContent = '3.14';
+  }
+  openModal('aboutModal');
+};
+
+// --- Dark Mode System Sync ---
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    const systemWantsDark = e.matches;
+    // Only auto-switch if user hasn't explicitly set a preference recently
+    const lastManualToggle = parseInt(localStorage.getItem('lastThemeToggle') || '0');
+    if (Date.now() - lastManualToggle > 3600000) { // 1 hour since manual toggle
+      document.documentElement.setAttribute('data-theme', systemWantsDark ? 'dark' : 'light');
+      localStorage.setItem('theme', systemWantsDark ? 'dark' : 'light');
+      document.querySelectorAll('.theme-toggle').forEach(btn => {
+        btn.innerHTML = `<span class="material-symbols-outlined">${systemWantsDark ? 'light_mode' : 'dark_mode'}</span>`;
+      });
+    }
+  });
+}
+
+// ========== Drag-Drop File Import ==========
+(function setupDragDrop() {
+  let dragCounter = 0;
+  const dropOverlay = document.createElement('div');
+  dropOverlay.id = 'dropOverlay';
+  dropOverlay.innerHTML = '<div class="drop-overlay-content"><div class="drop-icon">📥</div><div class="drop-text">Drop file to import</div><div class="drop-hint">Supports CSV and JSON files</div></div>';
+  dropOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;display:none;align-items:center;justify-content:center;';
+  dropOverlay.querySelector('.drop-overlay-content').style.cssText = 'background:var(--bg-primary,#fff);border-radius:16px;padding:40px 60px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);border:2px dashed var(--accent-primary,#bc6c5a);';
+  dropOverlay.querySelector('.drop-icon').style.cssText = 'font-size:48px;margin-bottom:12px;';
+  dropOverlay.querySelector('.drop-text').style.cssText = 'font-size:18px;font-weight:600;color:var(--text-primary,#333);';
+  dropOverlay.querySelector('.drop-hint').style.cssText = 'font-size:13px;color:var(--text-secondary,#666);margin-top:4px;';
+  document.body.appendChild(dropOverlay);
+
+  document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+      dropOverlay.style.display = 'flex';
+    }
+  });
+
+  document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dropOverlay.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  document.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropOverlay.style.display = 'none';
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (ext === 'csv' || ext === 'json') {
+      try {
+        const text = await file.text();
+        // Send to server for processing
+        const resp = await safeFetch('/api/import/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, content: text, type: ext })
+        });
+        if (resp.ok) {
+          const result = await resp.json();
+          showToast(`Imported ${result.count || 0} companies from ${file.name}`, 'success');
+          if (typeof loadCompanies === 'function') loadCompanies();
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          showToast(err.error || `Failed to import ${file.name}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Error reading file: ${err.message}`, 'error');
+      }
+    } else {
+      showToast('Unsupported file type. Please drop a CSV or JSON file.', 'warning');
+    }
+  });
+})();
+
+// ========== Window Focus/Blur Handling ==========
+window._appFocused = true;
+
+document.addEventListener('visibilitychange', () => {
+  window._appFocused = !document.hidden;
+
+  if (typeof onWindowFocusChange === 'function') {
+    onWindowFocusChange(!document.hidden);
+  }
+
+  // Notify pywebview desktop API if available
+  if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.on_focus_change === 'function') {
+    window.pywebview.api.on_focus_change(!document.hidden);
+  }
+
+  if (!document.hidden) {
+    // Window regained focus — refresh data if stale
+    if (typeof loadCompanies === 'function' && window._lastFocusLoss) {
+      const elapsed = Date.now() - window._lastFocusLoss;
+      if (elapsed > 60000) { // More than 1 minute away
+        loadCompanies();
+      }
+    }
+  } else {
+    window._lastFocusLoss = Date.now();
+  }
+});
+
+// ========== Share Functionality ==========
+window.shareData = async function(data) {
+  // data: { title, text, url }
+  if (navigator.share) {
+    try {
+      await navigator.share(data);
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // User cancelled
+    }
+  }
+
+  // Fallback: copy to clipboard
+  const shareText = [data.title, data.text, data.url].filter(Boolean).join('\n');
+  try {
+    await navigator.clipboard.writeText(shareText);
+    showToast('Copied to clipboard for sharing', 'success');
+  } catch (e) {
+    showToast('Failed to share', 'error');
+  }
+};
+
+// Share current company
+window.shareCompany = async function(companyId) {
+  try {
+    const resp = await safeFetch(`/api/companies/${companyId}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const company = data.company || data;
+
+    await shareData({
+      title: company.name,
+      text: company.description || `${company.name} — ${company.category_name || 'Uncategorized'}`,
+      url: company.url || ''
+    });
+  } catch (e) {
+    showToast('Failed to share company', 'error');
+  }
+};
+
+// Share current project summary
+window.shareProject = async function() {
+  if (!window.currentProjectId) return;
+  try {
+    const resp = await safeFetch(`/api/projects/${window.currentProjectId}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const project = data.project || data;
+
+    await shareData({
+      title: project.name,
+      text: `${project.name} — ${project.description || 'Market research project'}\n${project.company_count || 0} companies, ${project.category_count || 0} categories`
+    });
+  } catch (e) {
+    showToast('Failed to share project', 'error');
+  }
+};
+
+// ========== Lucide Icons ==========
+function initLucideIcons() {
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+// Call after DOMContentLoaded and after any dynamic HTML insertion
+
+function getIcon(name, size = 16) {
+    if (!window.lucide) return '';
+    return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;display:inline-block;vertical-align:middle;"></i>`;
+}
+window.getIcon = getIcon;
+
+// ========== ninja-keys Command Palette ==========
+function initCommandPalette() {
+    const ninja = document.querySelector('ninja-keys');
+    if (!ninja) return;
+
+    const actions = [
+        // Navigation
+        { id: 'tab-companies', title: 'Go to Companies', section: 'Navigation', handler: () => showTab(0) },
+        { id: 'tab-taxonomy', title: 'Go to Taxonomy', section: 'Navigation', handler: () => showTab(1) },
+        { id: 'tab-map', title: 'Go to Map', section: 'Navigation', handler: () => showTab(2) },
+        { id: 'tab-research', title: 'Go to Research', section: 'Navigation', handler: () => showTab(3) },
+        { id: 'tab-canvas', title: 'Go to Canvas', section: 'Navigation', handler: () => showTab(4) },
+        { id: 'tab-discovery', title: 'Go to Discovery', section: 'Navigation', handler: () => showTab(5) },
+        { id: 'tab-process', title: 'Go to Process', section: 'Navigation', handler: () => showTab(6) },
+        { id: 'tab-export', title: 'Go to Export', section: 'Navigation', handler: () => showTab(7) },
+        { id: 'tab-settings', title: 'Go to Settings', section: 'Navigation', handler: () => showTab(8) },
+        // Actions
+        { id: 'new-project', title: 'New Project', section: 'Actions', handler: () => document.querySelector('[onclick*="newProject"]')?.click() },
+        { id: 'search', title: 'Search Companies', section: 'Actions', handler: () => { showTab(0); document.getElementById('searchInput')?.focus(); } },
+        { id: 'export-pdf', title: 'Export as PDF', section: 'Export', handler: () => { showTab(7); } },
+        { id: 'export-excel', title: 'Export as Excel', section: 'Export', handler: () => { showTab(7); } },
+        { id: 'toggle-theme', title: 'Toggle Dark Mode', section: 'Preferences', handler: () => toggleTheme() },
+        { id: 'shortcuts', title: 'Show Keyboard Shortcuts', section: 'Help', handler: () => document.getElementById('shortcutsOverlay')?.style.display === 'flex' ? null : document.getElementById('shortcutsOverlay').style.display = 'flex' },
+    ];
+
+    ninja.data = actions;
+
+    // Style the command palette to match The Instrument
+    ninja.classList.add('instrument-palette');
+}
+
+// ========== SortableJS Drag-to-Reorder ==========
+function initSortable() {
+    if (!window.Sortable) return;
+
+    // Make category lists sortable
+    document.querySelectorAll('.sortable-list').forEach(el => {
+        Sortable.create(el, {
+            animation: 100,
+            ghostClass: 'sortable-ghost',
+            handle: '.drag-handle',
+            onEnd: function(evt) {
+                // Persist new order via API
+                const items = [...el.children].map((child, i) => ({
+                    id: child.dataset.id,
+                    sort_order: i,
+                }));
+                safeFetch('/api/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items }),
+                });
+            },
+        });
+    });
+}
+
+// ========== Driver.js Onboarding Tour ==========
+function startOnboardingTour() {
+    if (!window.driver) return;
+    const driverObj = window.driver.js.driver({
+        showProgress: true,
+        animate: false, // The Instrument: no animation
+        overlayColor: 'rgba(0,0,0,0.5)',
+        popoverClass: 'instrument-popover',
+        steps: [
+            { element: '.tabs', popover: { title: 'Navigation', description: 'Switch between different views of your market research.' } },
+            { element: '#searchInput', popover: { title: 'Search', description: 'Find companies by name, category, or description. Supports fuzzy matching.' } },
+            { popover: { title: 'Keyboard Shortcuts', description: 'Press Cmd+K for the command palette. Press ? for all shortcuts.' } },
+        ],
+    });
+    driverObj.drive();
+}
+// Show on first visit
+if (!localStorage.getItem('onboarding_done')) {
+    setTimeout(startOnboardingTour, 1000);
+    localStorage.setItem('onboarding_done', '1');
+}
+
+// ========== Choices.js Enhanced Dropdowns ==========
+function initChoicesDropdowns() {
+    if (!window.Choices) return;
+    document.querySelectorAll('select.enhanced-select').forEach(el => {
+        new Choices(el, {
+            searchEnabled: true,
+            itemSelectText: '',
+            classNames: { containerOuter: 'choices instrument-choices' },
+            shouldSort: false,
+        });
+    });
+}
+
+// --- State Save Hooks ---
+window.addEventListener('beforeunload', saveAppState);
+setInterval(saveAppState, 5000);

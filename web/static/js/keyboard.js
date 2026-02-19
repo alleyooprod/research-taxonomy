@@ -24,6 +24,14 @@ function showShortcutHelp() {
             <div class="shortcut-row"><span>Focus search</span><span class="shortcut-key">/</span></div>
             <div class="shortcut-row"><span>Toggle dark mode</span><span class="shortcut-key">D</span></div>
             <div class="shortcut-row"><span>Star selected</span><span class="shortcut-key">S</span></div>
+            <div class="shortcut-row"><span>Undo</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">Z</span></span></div>
+            <div class="shortcut-row"><span>Redo</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">\u21e7</span><span class="shortcut-key">Z</span></span></div>
+            <div class="shortcut-row"><span>Command palette</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">K</span></span></div>
+            <div class="shortcut-row"><span>Find</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">F</span></span></div>
+            <div class="shortcut-row"><span>Print</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">P</span></span></div>
+            <div class="shortcut-row"><span>Settings</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">,</span></span></div>
+            <div class="shortcut-row"><span>New project</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">N</span></span></div>
+            <div class="shortcut-row"><span>Share</span><span><span class="shortcut-key">\u2318</span><span class="shortcut-key">\u21e7</span><span class="shortcut-key">S</span></span></div>
             <div class="shortcut-row"><span>This help</span><span class="shortcut-key">?</span></div>
         </div>
     `;
@@ -52,6 +60,94 @@ function selectRow(index) {
 }
 
 document.addEventListener('keydown', (e) => {
+    // --- Cmd+K: Open ninja-keys command palette ---
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const ninja = document.querySelector('ninja-keys');
+        if (ninja) ninja.open();
+        return;
+    }
+
+    // --- macOS Native Shortcuts (checked first, regardless of focus) ---
+
+    // Cmd+Z - Undo (when NOT in canvas tab or text input)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        const activeEl = document.activeElement;
+        const isTextInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+        const isCanvasTab = document.querySelector('.tab.active')?.textContent?.trim()?.toLowerCase() === 'canvas';
+
+        if (!isTextInput && !isCanvasTab) {
+            e.preventDefault();
+            performUndo();
+            return;
+        }
+    }
+
+    // Cmd+Shift+Z - Redo
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        const activeEl = document.activeElement;
+        const isTextInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+        const isCanvasTab = document.querySelector('.tab.active')?.textContent?.trim()?.toLowerCase() === 'canvas';
+
+        if (!isTextInput && !isCanvasTab) {
+            e.preventDefault();
+            performRedo();
+            return;
+        }
+    }
+
+    // Cmd+F - Focus app search instead of browser find
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        const searchInput = document.getElementById('searchInput') || document.querySelector('input[type="search"]');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+        }
+        return;
+    }
+
+    // Cmd+P - Print current view
+    if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        window.print();
+        return;
+    }
+
+    // Cmd+, - Open settings tab
+    if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        const tabs = document.querySelectorAll('.tab');
+        const settingsIdx = Array.from(tabs).findIndex(t => t.textContent.trim().toLowerCase() === 'settings');
+        if (settingsIdx >= 0 && typeof showTab === 'function') showTab(settingsIdx);
+        return;
+    }
+
+    // Cmd+N - New project (if on project selection screen)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        const newProjectBtn = document.getElementById('newProjectBtn') || document.querySelector('[onclick*="showNewProject"]');
+        if (newProjectBtn) {
+            e.preventDefault();
+            newProjectBtn.click();
+        }
+        return;
+    }
+
+    // Cmd+Shift+S - Share current view
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        // Share the current company if detail panel is open, otherwise share project
+        const detailPanel = document.getElementById('detailPanel');
+        const isDetailOpen = detailPanel && !detailPanel.classList.contains('hidden');
+        if (isDetailOpen && window._currentCompanyId) {
+            shareCompany(window._currentCompanyId);
+        } else {
+            shareProject();
+        }
+        return;
+    }
+
+    // --- Standard Shortcuts ---
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
         if (e.key === 'Escape') { e.target.blur(); }

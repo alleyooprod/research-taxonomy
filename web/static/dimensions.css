@@ -11,14 +11,15 @@
 .dimensions-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
 }
 
 .dimension-card {
-    background: var(--bg-container);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 8px;
-    padding: 12px 16px;
+    border-radius: 0;
+    padding: 16px;
+    margin-bottom: -1px;
 }
 
 .dimension-header {
@@ -29,28 +30,32 @@
 }
 
 .dimension-header strong {
-    font-size: 14px;
+    font-size: 15px;
+    letter-spacing: -0.02em;
 }
 
 .dimension-type {
     font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 500;
+    padding: 0 8px;
+    border-radius: 0;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--border-default);
+    background: transparent;
 }
 
-.badge-text { background: var(--accent-primary-light); color: var(--accent-primary); }
-.badge-number { background: rgba(90, 130, 188, 0.1); color: #5a82bc; }
-.badge-boolean { background: var(--accent-success-light); color: var(--accent-success-text); }
-.badge-enum { background: rgba(188, 160, 90, 0.1); color: #8a7540; }
-.badge-json { background: rgba(160, 90, 188, 0.1); color: #8a4da0; }
+.badge-text { background: transparent; color: var(--text-primary); border-color: var(--border-default); }
+.badge-number { background: transparent; color: var(--text-primary); border-color: var(--border-default); }
+.badge-boolean { background: transparent; color: var(--text-primary); border-color: var(--border-default); }
+.badge-enum { background: transparent; color: var(--text-primary); border-color: var(--border-default); }
+.badge-json { background: transparent; color: var(--text-primary); border-color: var(--border-default); }
 
 .dimension-count {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
     margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .dimension-desc {
@@ -62,16 +67,16 @@
 
 .dimension-actions {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     margin-top: 8px;
 }
 
 /* ========== Explore Results ========== */
 .proposed-dimension {
-    background: var(--bg-surface);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 8px;
-    padding: 12px 16px;
+    border-radius: 0;
+    padding: 16px;
     margin-bottom: 8px;
 }
 
@@ -83,7 +88,7 @@
 }
 
 .dim-rationale {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
     margin: 4px 0 8px;
     line-height: 1.4;
@@ -92,24 +97,25 @@
 /* ========== Values Table ========== */
 .dimension-values-modal {
     background: var(--bg-container);
-    border-radius: 12px;
-    padding: 24px;
+    border-radius: 0;
+    padding: 32px;
     max-width: 640px;
     width: 90vw;
     max-height: 80vh;
     overflow-y: auto;
+    border: 1px solid var(--border-default);
 }
 
 .dim-values-table {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
-    margin: 12px 0;
+    margin: 16px 0;
 }
 
 .dim-values-table th,
 .dim-values-table td {
-    padding: 8px 10px;
+    padding: 8px;
     text-align: left;
     border-bottom: 1px solid var(--border-default);
 }
@@ -117,7 +123,7 @@
 .dim-values-table th {
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.04em;
     color: var(--text-muted);
 }
 
@@ -129,7 +135,7 @@
 .dim-values-grid {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0;
 }
 
 .dim-value-item {
@@ -138,50 +144,61 @@
     gap: 8px;
     font-size: 13px;
     padding: 4px 0;
+    border-bottom: 1px solid var(--border-default);
 }
 
 .dim-label {
-    color: var(--text-secondary);
+    color: var(--text-muted);
     min-width: 120px;
     font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .dim-value {
     color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
 }
 
 .dim-confidence {
     font-size: 11px;
     color: var(--text-muted);
     margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* ========== Add Dimension Modal ========== */
 .add-dim-modal {
     background: var(--bg-container);
-    border-radius: 12px;
-    padding: 24px;
+    border-radius: 0;
+    padding: 32px;
     max-width: 480px;
     width: 90vw;
+    border: 1px solid var(--border-default);
 }
 
 .add-dim-modal label {
     display: block;
-    font-size: 13px;
-    font-weight: 500;
-    margin: 12px 0 4px;
-    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    margin: 16px 0 4px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .add-dim-modal input,
 .add-dim-modal select,
 .add-dim-modal textarea {
     width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border-default);
-    border-radius: 6px;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid var(--border-default);
+    border-radius: 0;
     font-size: 13px;
-    background: var(--bg-input);
+    background: transparent;
     color: var(--text-primary);
 }
 

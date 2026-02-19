@@ -11,7 +11,7 @@ class TestCSRFTokens:
         assert "." in token
         ts_str, sig = token.rsplit(".", 1)
         int(ts_str)  # should be a valid integer timestamp
-        assert len(sig) == 16
+        assert len(sig) == 32
 
     def test_verify_valid_token(self):
         token = generate_csrf_token()
@@ -36,13 +36,13 @@ class TestCSRFTokens:
         token = f"{old_ts}.{sig}"
         assert verify_csrf_token(token, max_age=86400) is False
 
-    def test_static_token_still_accepted(self, client):
-        """Legacy static CSRF token (SESSION_SECRET) should still work."""
-        r = client.post("/api/projects", json={
-            "name": "CSRF Test",
-            "seed_categories": "A",
-        })
-        assert r.status_code == 200
+    def test_static_token_rejected(self, app):
+        """Legacy static CSRF token (SESSION_SECRET) should be rejected."""
+        raw_client = app.test_client()
+        r = raw_client.post("/api/projects",
+                            json={"name": "CSRF Test", "seed_categories": "A"},
+                            headers={"X-CSRF-Token": SESSION_SECRET})
+        assert r.status_code == 403
 
     def test_missing_csrf_rejected(self, app):
         """Mutating request without CSRF token should be rejected."""

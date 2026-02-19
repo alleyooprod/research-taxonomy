@@ -1,47 +1,60 @@
 """Flask web app for browsing and managing the taxonomy."""
-import logging
 import sys
 import time
 from collections import defaultdict
-from logging.handlers import RotatingFileHandler
 
+import nh3
 from flask import Flask, render_template, request, jsonify, g
+from flask_talisman import Talisman
+from loguru import logger
 
 from config import (
-    WEB_HOST, WEB_PORT, DATA_DIR, LOGS_DIR, SESSION_SECRET, APP_VERSION,
+    WEB_HOST, WEB_PORT, DATA_DIR, LOGS_DIR, APP_VERSION,
     generate_csrf_token, verify_csrf_token,
     RATE_LIMIT_WINDOW, RATE_LIMIT_MAX_REQUESTS,
 )
 from storage.db import Database
 
-logger = logging.getLogger(__name__)
+LOG_FILE = LOGS_DIR / "app.log"
 
 
 def _setup_logging():
-    """Configure file + console logging with rotation."""
+    """Configure loguru file + stderr logging with rotation."""
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    log_file = LOGS_DIR / "app.log"
-    file_handler = RotatingFileHandler(
-        str(log_file), maxBytes=5 * 1024 * 1024, backupCount=5,
+    # Remove default handler
+    logger.remove()
+    # Add file handler with rotation
+    logger.add(
+        str(LOG_FILE),
+        rotation="5 MB",
+        retention=5,
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
     )
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    ))
-    root = logging.getLogger()
-    root.addHandler(file_handler)
-    root.setLevel(logging.INFO)
+    # Add stderr for dev
+    logger.add(sys.stderr, level="INFO", format="{time:HH:mm:ss} | {level: <8} | {message}")
 
     def _exception_hook(exc_type, exc_value, exc_tb):
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_tb)
             return
-        logger.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_tb))
+        logger.exception("Unhandled exception: {}", exc_value)
 
     sys.excepthook = _exception_hook
 
+
+def sanitize_html(html):
+    """Server-side HTML sanitization for LLM output."""
+    return nh3.clean(
+        html,
+        tags={"p", "br", "strong", "em", "ul", "ol", "li", "a",
+              "h1", "h2", "h3", "h4", "h5", "h6", "code", "pre",
+              "blockquote", "table", "thead", "tbody", "tr", "th", "td",
+              "hr", "span", "div", "sup", "sub", "img"},
+        attributes={"a": {"href", "target", "rel"}, "img": {"src", "alt"}},
+    )
+
 # --- Rate limiting (in-memory, per-process) ---
+RATE_LIMIT_MAX_REQUESTS.setdefault("read", 300)
 _rate_buckets = defaultdict(list)  # key -> [timestamps]
 
 
@@ -83,6 +96,30 @@ def create_app():
         static_folder="static",
     )
 
+    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
+
+    # --- Content Security Policy via Flask-Talisman ---
+    csp = {
+        'default-src': "'self'",
+        'script-src': ["'self'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
+                        "'unsafe-eval'", "'unsafe-inline'"],
+        'style-src': ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net",
+                       "cdnjs.cloudflare.com", "fonts.googleapis.com"],
+        'font-src': ["'self'", "fonts.gstatic.com", "cdn.jsdelivr.net"],
+        'img-src': ["'self'", "data:", "blob:", "*.tile.openstreetmap.org"],
+        'connect-src': "'self'",
+        'frame-src': "'none'",
+        'object-src': "'none'",
+        'base-uri': "'self'",
+    }
+    Talisman(
+        app,
+        content_security_policy=csp,
+        force_https=False,
+        strict_transport_security=False,
+        session_cookie_secure=False,
+    )
+
     # Shared database instance (accessed via current_app.db in blueprints)
     app.db = Database()
 
@@ -104,27 +141,33 @@ def create_app():
             )
         return response
 
+    # --- Host header validation (prevent DNS rebinding) ---
+    @app.before_request
+    def _validate_host():
+        if request.path.startswith("/api/"):
+            allowed_hosts = {"127.0.0.1:5001", "localhost:5001", "127.0.0.1", "localhost"}
+            if request.host not in allowed_hosts:
+                return jsonify({"error": "Invalid host"}), 403
+
     # --- CSRF Protection (signed per-request tokens) ---
     @app.before_request
     def _csrf_check():
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return
-        if request.path.startswith("/shared/"):
-            return
         if request.path == "/healthz":
             return
         token = request.headers.get("X-CSRF-Token")
-        # Accept both signed tokens and legacy static token for backwards compat
-        if not (verify_csrf_token(token) or token == SESSION_SECRET):
+        if not verify_csrf_token(token):
             return jsonify({"error": "Invalid CSRF token"}), 403
 
     # --- Rate limiting ---
     @app.before_request
     def _rate_limit():
-        if request.method == "GET":
-            return
         client_key = request.remote_addr or "local"
-        category = "ai" if request.path.startswith("/api/ai/") else "default"
+        if request.method == "GET":
+            category = "read"
+        else:
+            category = "ai" if request.path.startswith("/api/ai/") else "default"
         if not _check_rate_limit(f"{client_key}:{category}", category):
             return jsonify({"error": "Rate limit exceeded. Please wait."}), 429
 

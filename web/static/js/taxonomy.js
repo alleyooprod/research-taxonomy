@@ -1,6 +1,11 @@
 /**
  * Taxonomy tree, review, quality dashboard, and Cytoscape graph.
+ * Graph style: "The Instrument" — monochromatic black/white/gray, rectangular nodes.
  */
+
+// Register optional Cytoscape layout plugins (loaded via CDN)
+if (window.cytoscape && window.cytoscapeDagre) cytoscape.use(cytoscapeDagre);
+if (window.cytoscape && window.cytoscapeFcose) cytoscape.use(cytoscapeFcose);
 
 let reviewChanges = [];
 let cyInstance = null;
@@ -201,7 +206,7 @@ async function showCategoryDetail(categoryId) {
         <div class="category-company-list">
             ${companies.length ? companies.map(c => `
                 <div class="cat-company-item" onclick="navigateTo('company', ${c.id}, '${escAttr(c.name)}')">
-                    <img class="company-logo" src="${c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`}" alt="" onerror="this.style.display='none'">
+                    <img class="company-logo" src="${esc(c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`)}" alt="" onerror="this.style.display='none'">
                     <span>${esc(c.name)}</span>
                     <span class="text-muted" style="font-size:11px;margin-left:auto">${esc(c.what || '').substring(0, 60)}</span>
                 </div>
@@ -508,53 +513,75 @@ function renderTaxonomyGraph(categories, companies) {
                 {
                     selector: 'node[type="root"]',
                     style: {
-                        'background-color': '#bc6c5a',
+                        'background-color': '#FFFFFF',
+                        'border-width': 2,
+                        'border-color': '#000000',
                         label: 'data(label)',
                         'text-valign': 'center',
                         'font-size': '14px',
-                        color: isDark ? '#e8e0d4' : '#3D4035',
+                        'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#CCCCCC' : '#000000',
                         width: 60, height: 60,
+                        shape: 'rectangle',
                     },
                 },
                 {
                     selector: 'node[type="category"]',
                     style: {
-                        'background-color': 'data(catColor)',
+                        'background-color': '#FFFFFF',
+                        'border-width': 1,
+                        'border-color': '#000000',
                         label: 'data(label)',
                         'text-valign': 'center',
                         'text-wrap': 'wrap',
                         'text-max-width': '100px',
-                        'font-size': '10px',
-                        color: isDark ? '#e8e0d4' : '#3D4035',
+                        'font-size': '12px',
+                        'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#CCCCCC' : '#000000',
                         width: 'mapData(count, 0, 30, 30, 70)',
                         height: 'mapData(count, 0, 30, 30, 70)',
+                        shape: 'rectangle',
                     },
                 },
                 {
                     selector: 'node[type="subcategory"]',
                     style: {
-                        'background-color': 'data(catColor)',
+                        'background-color': '#FFFFFF',
+                        'border-width': 1,
+                        'border-color': '#000000',
                         label: 'data(label)',
                         'text-valign': 'center',
                         'text-wrap': 'wrap',
                         'text-max-width': '80px',
-                        'font-size': '9px',
-                        color: isDark ? '#e8e0d4' : '#3D4035',
+                        'font-size': '12px',
+                        'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#CCCCCC' : '#000000',
                         width: 25, height: 25,
+                        shape: 'rectangle',
+                    },
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'background-color': '#000000',
+                        color: '#FFFFFF',
+                        'border-color': '#000000',
                     },
                 },
                 {
                     selector: 'edge',
                     style: {
-                        width: 2,
-                        'line-color': isDark ? '#555' : '#ccc',
-                        'target-arrow-color': isDark ? '#555' : '#ccc',
+                        width: 1,
+                        'line-color': isDark ? '#666666' : '#999999',
+                        'target-arrow-color': isDark ? '#666666' : '#999999',
                         'target-arrow-shape': 'triangle',
                         'curve-style': 'bezier',
                     },
                 },
             ],
-            layout: { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true },
+            layout: window.cytoscapeDagre
+                ? { name: 'dagre', rankDir: 'TB', nodeSep: 60, rankSep: 80, padding: 30, animate: false }
+                : { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false },
         });
 
         // Fit after layout completes + fallback timeout
@@ -704,43 +731,63 @@ async function renderKnowledgeGraph() {
                 {
                     selector: 'node[type="category"]',
                     style: {
-                        'background-color': 'data(catColor)',
+                        'background-color': '#FFFFFF',
+                        'border-width': 1,
+                        'border-color': '#000000',
                         label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
-                        'font-size': '10px', color: isDark ? '#e8e0d4' : '#3D4035',
-                        width: 30, height: 30, shape: 'round-rectangle',
+                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#CCCCCC' : '#000000',
+                        width: 30, height: 30, shape: 'rectangle',
                     },
                 },
                 {
                     selector: 'node[type="company"]',
                     style: {
-                        'background-color': '#5a7c5a',
+                        'background-color': '#FFFFFF',
+                        'border-width': 1,
+                        'border-color': '#333333',
                         label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
-                        'font-size': '9px', color: isDark ? '#c8d0c4' : '#3D4035',
-                        width: 18, height: 18,
+                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#CCCCCC' : '#000000',
+                        width: 18, height: 18, shape: 'rectangle',
                     },
                 },
                 {
                     selector: 'node[type="tag"]',
                     style: {
-                        'background-color': '#d4a853',
+                        'background-color': '#FFFFFF',
+                        'border-width': 1,
+                        'border-color': '#666666',
                         label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
-                        'font-size': '8px', color: isDark ? '#d4a853' : '#8a6d2b',
-                        width: 12, height: 12, shape: 'diamond',
+                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#999999' : '#333333',
+                        width: 12, height: 12, shape: 'rectangle',
                     },
                 },
                 {
                     selector: 'node[type="geography"]',
                     style: {
-                        'background-color': '#8b6f8b',
+                        'background-color': '#FFFFFF',
+                        'border-width': 1,
+                        'border-color': '#999999',
                         label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
-                        'font-size': '8px', color: isDark ? '#b89fb8' : '#5a4a5a',
-                        width: 14, height: 14, shape: 'hexagon',
+                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                        color: isDark ? '#999999' : '#333333',
+                        width: 14, height: 14, shape: 'rectangle',
+                    },
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'background-color': '#000000',
+                        color: '#FFFFFF',
+                        'border-color': '#000000',
                     },
                 },
                 {
                     selector: 'edge',
                     style: {
-                        width: 1, 'line-color': isDark ? '#444' : '#ddd',
+                        width: 1, 'line-color': isDark ? '#666666' : '#999999',
                         'curve-style': 'bezier', opacity: 0.6,
                     },
                 },
@@ -750,10 +797,12 @@ async function renderKnowledgeGraph() {
                 },
                 {
                     selector: '.kg-highlighted',
-                    style: { opacity: 1, 'border-width': 2, 'border-color': '#bc6c5a' },
+                    style: { opacity: 1, 'border-width': 2, 'border-color': '#000000' },
                 },
             ],
-            layout: { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 },
+            layout: window.cytoscapeFcose
+                ? { name: 'fcose', animate: false, nodeDimensionsIncludeLabels: true, idealEdgeLength: 100 }
+                : { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 },
             wheelSensitivity: 0.3,
         });
 

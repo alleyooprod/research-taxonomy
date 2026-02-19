@@ -23,7 +23,11 @@ window.onload = () => {
     initMediumZoom();
     initFlatpickr();
     initNProgress();
-    initCommandPalette();
+    initCommandPalette();           // ninja-keys (core.js)
+    _initLegacyCommandPalette();    // Fallback lightweight palette (integrations.js)
+    initLucideIcons();              // Lucide icons (core.js)
+    initSortable();                 // SortableJS drag-to-reorder (core.js)
+    initChoicesDropdowns();         // Choices.js enhanced selects (core.js)
     initOfflineDetection();
     startHeartbeat();
     loadProjects();

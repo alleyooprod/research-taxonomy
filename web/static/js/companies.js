@@ -1,10 +1,331 @@
 /**
  * Company list, detail panel, edit modal, star, sort.
+ * Integrates Tabulator (data grid) and MiniSearch (fuzzy search) when available.
  */
+
+// Fallback if showNativeConfirm hasn't been loaded yet
+const _confirm = window.showNativeConfirm || (async (opts) => confirm(opts.message || opts.title));
 
 let currentSort = { by: 'name', dir: 'asc' };
 let currentCompanyView = 'table';
 let _lastCompanies = [];
+
+function safeHref(url) {
+    if (!url) return '';
+    try {
+        const u = new URL(url, window.location.origin);
+        return ['http:', 'https:'].includes(u.protocol) ? esc(url) : '';
+    } catch { return esc(url); }
+}
+
+// --- Tabulator instance ---
+let _tabulatorTable = null;
+
+// --- MiniSearch instance ---
+let _searchIndex = null;
+
+function _buildSearchIndex(companies) {
+    if (!window.MiniSearch) return;
+    _searchIndex = new MiniSearch({
+        fields: ['name', 'what', 'target', 'geography', 'category_name'],
+        storeFields: ['id', 'name'],
+        searchOptions: { fuzzy: 0.2, prefix: true },
+        idField: 'id',
+    });
+    // MiniSearch requires unique IDs; filter duplicates just in case
+    const seen = new Set();
+    const unique = companies.filter(c => {
+        if (!c.id || seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+    });
+    _searchIndex.addAll(unique);
+}
+
+function _searchCompanies(query) {
+    if (!_searchIndex || !query || !query.trim()) return null; // null = show all
+    return new Set(_searchIndex.search(query).map(r => r.id));
+}
+
+// --- Tabulator column definitions ---
+function _getTabulatorColumns() {
+    return [
+        {
+            title: '<input type="checkbox" id="tabulatorSelectAll" title="Select all">',
+            field: '_select',
+            width: 40,
+            hozAlign: 'center',
+            headerSort: false,
+            headerHozAlign: 'center',
+            cssClass: 'tabulator-bulk-cell',
+            formatter: function(cell) {
+                const id = cell.getRow().getData().id;
+                const checked = bulkSelection.has(id) ? 'checked' : '';
+                return `<input type="checkbox" class="bulk-checkbox" data-company-id="${id}" ${checked}>`;
+            },
+            cellClick: function(e, cell) {
+                e.stopPropagation();
+                const cb = cell.getElement().querySelector('.bulk-checkbox');
+                if (!cb) return;
+                const id = cell.getRow().getData().id;
+                if (cb.checked) bulkSelection.delete(id); else bulkSelection.add(id);
+                cb.checked = !cb.checked;
+                updateBulkBar();
+            },
+        },
+        {
+            title: '',
+            field: 'is_starred',
+            width: 44,
+            hozAlign: 'center',
+            headerSort: true,
+            sorter: function(a, b) { return (a ? 1 : 0) - (b ? 1 : 0); },
+            formatter: function(cell) {
+                const starred = cell.getValue();
+                return `<span class="star-btn ${starred ? 'starred' : ''}" title="Star"><span class="material-symbols-outlined">${starred ? 'star' : 'star_outline'}</span></span>`;
+            },
+            cellClick: function(e, cell) {
+                e.stopPropagation();
+                const id = cell.getRow().getData().id;
+                const el = cell.getElement().querySelector('.star-btn');
+                if (el) toggleStar(id, el);
+            },
+        },
+        {
+            title: 'Name',
+            field: 'name',
+            minWidth: 180,
+            sorter: 'string',
+            headerFilter: 'input',
+            headerFilterPlaceholder: 'Filter name...',
+            formatter: function(cell) {
+                const c = cell.getRow().getData();
+                const logoUrl = c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`;
+                const compClass = c.completeness >= 0.7 ? 'comp-high' : c.completeness >= 0.4 ? 'comp-mid' : 'comp-low';
+                const compPct = Math.round((c.completeness || 0) * 100);
+                const relDot = c.relationship_status ? `<span class="relationship-dot rel-${c.relationship_status}" title="${relationshipLabel(c.relationship_status)}"></span>` : '';
+                return `<div class="company-name-cell">
+                    <img class="company-logo" src="${esc(logoUrl)}" alt="" onerror="this.style.display='none'">
+                    <strong>${esc(c.name)}</strong>
+                    <span class="completeness-dot ${compClass}" title="${compPct}% complete"></span>
+                    ${relDot}
+                </div>`;
+            },
+        },
+        {
+            title: 'Category',
+            field: 'category_name',
+            minWidth: 120,
+            sorter: 'string',
+            headerFilter: 'input',
+            headerFilterPlaceholder: 'Filter...',
+            formatter: function(cell) {
+                const c = cell.getRow().getData();
+                if (!c.category_id) return 'N/A';
+                return `<a class="cat-link" onclick="event.stopPropagation();navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')">${esc(c.category_name || '')}</a>`;
+            },
+        },
+        {
+            title: 'What',
+            field: 'what',
+            minWidth: 200,
+            sorter: 'string',
+            headerFilter: 'input',
+            headerFilterPlaceholder: 'Filter...',
+            formatter: function(cell) {
+                const val = cell.getValue() || '';
+                return `<div class="cell-clamp">${esc(val)}</div>`;
+            },
+        },
+        {
+            title: 'Target',
+            field: 'target',
+            minWidth: 140,
+            sorter: 'string',
+            formatter: function(cell) {
+                const val = cell.getValue() || '';
+                return `<div class="cell-clamp">${esc(val)}</div>`;
+            },
+        },
+        {
+            title: 'Geo',
+            field: 'geography',
+            minWidth: 100,
+            sorter: 'string',
+            headerFilter: 'input',
+            headerFilterPlaceholder: 'Filter...',
+            formatter: function(cell) {
+                return `<div class="cell-clamp">${esc(cell.getValue() || '')}</div>`;
+            },
+        },
+        {
+            title: 'Funding',
+            field: 'funding_stage',
+            minWidth: 90,
+            sorter: 'string',
+            headerFilter: 'list',
+            headerFilterParams: { valuesLookup: true, clearable: true },
+            headerFilterPlaceholder: 'All',
+        },
+        {
+            title: 'Employees',
+            field: 'employee_range',
+            minWidth: 90,
+            sorter: 'string',
+            headerFilter: 'list',
+            headerFilterParams: { valuesLookup: true, clearable: true },
+            headerFilterPlaceholder: 'All',
+        },
+        {
+            title: 'Model',
+            field: 'business_model',
+            minWidth: 90,
+            sorter: 'string',
+            headerFilter: 'list',
+            headerFilterParams: { valuesLookup: true, clearable: true },
+            headerFilterPlaceholder: 'All',
+        },
+        {
+            title: 'Sources',
+            field: 'source_count',
+            width: 70,
+            hozAlign: 'center',
+            sorter: 'number',
+            formatter: function(cell) {
+                return `<span class="source-count">${cell.getValue() || 0}</span>`;
+            },
+        },
+        {
+            title: 'Tags',
+            field: 'tags',
+            minWidth: 140,
+            sorter: function(a, b) {
+                return (a || []).join(',').localeCompare((b || []).join(','));
+            },
+            formatter: function(cell) {
+                const tags = cell.getValue() || [];
+                return tags.map(t => `<span class="tag tabulator-tag">${esc(t)}</span>`).join(' ');
+            },
+        },
+        {
+            title: 'Conf.',
+            field: 'confidence_score',
+            width: 80,
+            hozAlign: 'center',
+            sorter: 'number',
+            formatter: function(cell) {
+                const val = cell.getValue();
+                if (val == null) return '-';
+                const pct = Math.round(val * 100);
+                return `<div class="tabulator-confidence-bar"><div class="tabulator-confidence-fill" style="width:${pct}%"></div><span>${pct}%</span></div>`;
+            },
+        },
+    ];
+}
+
+function _initTabulator(companies) {
+    if (!window.Tabulator) return;
+
+    const container = document.getElementById('companiesGridContainer');
+    if (!container) return;
+
+    // Destroy previous instance
+    if (_tabulatorTable) {
+        try { _tabulatorTable.destroy(); } catch(e) { /* ignore */ }
+        _tabulatorTable = null;
+    }
+
+    _tabulatorTable = new Tabulator(container, {
+        data: companies,
+        layout: 'fitColumns',
+        responsiveLayout: false,
+        pagination: false,
+        height: 'calc(100vh - 300px)',
+        placeholder: _getEmptyStateHtml(),
+        movableColumns: true,
+        resizableColumns: true,
+        columns: _getTabulatorColumns(),
+        rowClick: function(e, row) {
+            // Don't trigger on checkbox or star clicks
+            const target = e.target;
+            if (target.closest('.bulk-checkbox') || target.closest('.star-btn') || target.tagName === 'INPUT') return;
+            showDetail(row.getData().id);
+        },
+        dataLoaded: function() {
+            _attachTabulatorSelectAll();
+        },
+        renderComplete: function() {
+            _attachTabulatorSelectAll();
+        },
+    });
+
+    return _tabulatorTable;
+}
+
+function _attachTabulatorSelectAll() {
+    const selectAllCb = document.getElementById('tabulatorSelectAll');
+    if (selectAllCb && !selectAllCb._bound) {
+        selectAllCb._bound = true;
+        selectAllCb.addEventListener('change', function() {
+            const checked = this.checked;
+            if (_tabulatorTable) {
+                _tabulatorTable.getRows().forEach(row => {
+                    const id = row.getData().id;
+                    if (checked) bulkSelection.add(id); else bulkSelection.delete(id);
+                });
+                _tabulatorTable.getRows().forEach(row => {
+                    const cb = row.getElement().querySelector('.bulk-checkbox');
+                    if (cb) cb.checked = checked;
+                });
+            }
+            updateBulkBar();
+        });
+    }
+}
+
+function _getEmptyStateHtml() {
+    const searchVal = document.getElementById('searchInput')?.value || '';
+    const hasFilters = searchVal || activeFilters.category_id || activeFilters.tags.length
+        || activeFilters.geography || activeFilters.funding_stage;
+    return `<div class="empty-state">
+        <div class="empty-state-content">
+            <span class="empty-state-icon"><span class="material-symbols-outlined">search</span></span>
+            <p class="empty-state-title">${hasFilters ? 'No companies match your filters' : 'No companies yet'}</p>
+            <p class="empty-state-desc">${hasFilters
+                ? 'Try adjusting your search or clearing all filters'
+                : 'Go to the Process tab to add companies'}</p>
+        </div>
+    </div>`;
+}
+
+function _updateTabulatorData(companies) {
+    if (!_tabulatorTable) return;
+    _tabulatorTable.replaceData(companies);
+}
+
+function exportTabulatorCsv() {
+    if (_tabulatorTable && currentCompanyView === 'grid') {
+        _tabulatorTable.download('csv', 'companies.csv');
+        showToast('CSV exported');
+    } else if (_lastCompanies.length) {
+        // Fallback: manual CSV export from _lastCompanies
+        const headers = ['Name', 'Category', 'What', 'Target', 'Geography', 'Funding Stage', 'Employees', 'Business Model', 'Confidence', 'URL'];
+        const rows = _lastCompanies.map(c => [
+            c.name || '', c.category_name || '', (c.what || '').replace(/"/g, '""'),
+            (c.target || '').replace(/"/g, '""'), c.geography || '', c.funding_stage || '',
+            c.employee_range || '', c.business_model || '',
+            c.confidence_score != null ? (c.confidence_score * 100).toFixed(0) + '%' : '',
+            c.url || '',
+        ]);
+        const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'companies.csv'; a.click();
+        URL.revokeObjectURL(url);
+        showToast('CSV exported');
+    }
+}
 
 function _renderPricingSection(c) {
     const hasPricing = c.pricing_model || c.revenue_model || c.pricing_b2c_low || c.pricing_b2b_low;
@@ -91,6 +412,8 @@ function clearBulkSelection() {
     document.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
     const master = document.getElementById('selectAllCheckbox');
     if (master) master.checked = false;
+    const tabulatorMaster = document.getElementById('tabulatorSelectAll');
+    if (tabulatorMaster) tabulatorMaster.checked = false;
     updateBulkBar();
 }
 
@@ -123,7 +446,13 @@ async function bulkAction(action) {
         if (!status) return;
         params.status = status;
     } else if (action === 'delete') {
-        if (!confirm(`Delete ${ids.length} companies?`)) return;
+        const confirmed = await _confirm({
+            title: `Delete ${ids.length} Companies?`,
+            message: `This will remove ${ids.length} companies from your project. This can be undone.`,
+            confirmText: `Delete ${ids.length}`,
+            type: 'danger'
+        });
+        if (!confirmed) return;
     }
 
     const res = await safeFetch('/api/companies/bulk', {
@@ -159,8 +488,11 @@ async function loadCompanies() {
     const search = document.getElementById('searchInput').value;
     const starred = document.getElementById('starredFilter').checked;
     const needsEnrichment = document.getElementById('enrichmentFilter').checked;
+
+    // When using MiniSearch for fuzzy search, still send the query to the backend
+    // but also apply client-side fuzzy filtering
     let url = `/api/companies?project_id=${currentProjectId}&`;
-    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (search && !window.MiniSearch) url += `search=${encodeURIComponent(search)}&`;
     if (activeFilters.category_id) url += `category_id=${activeFilters.category_id}&`;
     if (starred) url += `starred=1&`;
     if (needsEnrichment) url += `needs_enrichment=1&`;
@@ -183,7 +515,27 @@ async function loadCompanies() {
             return y >= activeFilters.founded_from && y <= activeFilters.founded_to;
         });
     }
+
+    // Build MiniSearch index and apply fuzzy filtering if search term exists
+    _buildSearchIndex(companies);
+    if (search && window.MiniSearch) {
+        const matchIds = _searchCompanies(search);
+        if (matchIds) {
+            companies = companies.filter(c => matchIds.has(c.id));
+        }
+    }
+
     _lastCompanies = companies;
+
+    // If in grid view (Tabulator), update that
+    if (currentCompanyView === 'grid') {
+        if (_tabulatorTable) {
+            _updateTabulatorData(companies);
+        } else {
+            _initTabulator(companies);
+        }
+        return;
+    }
 
     // If not in table view, render the alternate view
     if (currentCompanyView !== 'table') {
@@ -222,7 +574,7 @@ async function loadCompanies() {
                 <td><span class="star-btn ${c.is_starred ? 'starred' : ''}" onclick="event.stopPropagation();toggleStar(${c.id},this)" title="Star"><span class="material-symbols-outlined">${c.is_starred ? 'star' : 'star_outline'}</span></span></td>
                 <td>
                     <div class="company-name-cell">
-                        <img class="company-logo" src="${c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`}" alt="" onerror="this.style.display='none'">
+                        <img class="company-logo" src="${esc(c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`)}" alt="" onerror="this.style.display='none'">
                         <strong>${esc(c.name)}</strong>
                         <span class="completeness-dot ${compClass}" title="${compPct}% complete"></span>
                         ${c.relationship_status ? `<span class="relationship-dot rel-${c.relationship_status}" title="${relationshipLabel(c.relationship_status)}"></span>` : ''}
@@ -270,7 +622,7 @@ async function showDetail(id) {
                 ${c.sources.map(s => `
                     <div class="source-item">
                         <span class="source-type-badge source-type-${s.source_type}">${esc(s.source_type)}</span>
-                        <a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a>
+                        <a href="${safeHref(s.url)}" target="_blank">${esc(s.url)}</a>
                         <span class="source-date">${new Date(s.added_at).toLocaleDateString()}</span>
                     </div>
                 `).join('')}
@@ -284,9 +636,9 @@ async function showDetail(id) {
     document.getElementById('detailName').textContent = c.name;
     document.getElementById('detailContent').innerHTML = `
         <div class="detail-logo-row">
-            <img class="detail-logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
-            <a href="${esc(c.url)}" target="_blank">${esc(c.url)}</a>
-            ${c.linkedin_url ? `<a href="${esc(c.linkedin_url)}" target="_blank" class="linkedin-link" title="LinkedIn">in</a>` : ''}
+            <img class="detail-logo" src="${esc(logoUrl)}" alt="" onerror="this.style.display='none'">
+            <a href="${safeHref(c.url)}" target="_blank">${esc(c.url)}</a>
+            ${c.linkedin_url ? `<a href="${safeHref(c.linkedin_url)}" target="_blank" class="linkedin-link" title="LinkedIn">in</a>` : ''}
             ${c.url && typeof generateQrCode === 'function' ? `<button class="btn" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();showCompanyQr('${escAttr(c.url)}','${escAttr(c.name)}')" title="Show QR code">QR</button>` : ''}
         </div>
         <div class="detail-field"><label>What</label><p>${esc(c.what || 'N/A')}</p></div>
@@ -304,7 +656,7 @@ async function showDetail(id) {
         <div class="detail-field"><label>Geography</label><p>${esc(c.geography || 'N/A')}</p></div>
         <div class="detail-field"><label>TAM</label><p>${esc(c.tam || 'N/A')}</p></div>
         <div class="detail-field"><label>Category</label><p>${c.category_id ? `<a class="cat-link" onclick="navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')">${esc(c.category_name)}</a>` : 'N/A'} / ${esc(c.subcategory_name || 'N/A')}</p></div>
-        <div class="detail-field"><label>Tags</label><p>${(c.tags || []).join(', ') || 'None'}</p></div>
+        <div class="detail-field"><label>Tags</label><p>${(c.tags || []).map(t => esc(t)).join(', ') || 'None'}</p></div>
         <div class="detail-field"><label>Confidence</label><p>${c.confidence_score != null ? (c.confidence_score * 100).toFixed(0) + '%' : 'N/A'}</p></div>
         <div class="detail-field"><label>Processed</label><p>${c.processed_at || 'N/A'}</p></div>
         ${sourcesHtml}
@@ -426,12 +778,72 @@ function closeDetail() {
 }
 
 async function deleteCompany(id) {
-    if (!confirm('Delete this company?')) return;
+    // Get company name for the confirmation dialog
+    const companyName = document.getElementById('detailName')?.textContent || 'this company';
+    const confirmed = await _confirm({
+        title: 'Delete Company?',
+        message: `This will remove "${companyName}" from your project.`,
+        confirmText: 'Delete',
+        type: 'danger'
+    });
+    if (!confirmed) return;
     await safeFetch(`/api/companies/${id}`, { method: 'DELETE' });
     closeDetail();
     loadCompanies();
     loadStats();
+
+    // Push undo action if available
+    if (typeof pushUndoAction === 'function') {
+        pushUndoAction(
+            `Delete ${companyName}`,
+            async () => {
+                // Undo: restore the company
+                await safeFetch(`/api/companies/${id}/restore`, { method: 'POST' });
+                loadCompanies();
+                loadStats();
+            },
+            async () => {
+                // Redo: delete again
+                await safeFetch(`/api/companies/${id}`, { method: 'DELETE' });
+                loadCompanies();
+                loadStats();
+            }
+        );
+    }
 }
+
+// --- Copy company data to clipboard ---
+window.copyCompanyData = async function(companyId, format = 'text') {
+    try {
+        const resp = await safeFetch(`/api/companies/${companyId}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const company = data.company || data;
+
+        let text;
+        if (format === 'json') {
+            text = JSON.stringify(company, null, 2);
+        } else if (format === 'url') {
+            text = company.url || '';
+        } else {
+            // Plain text summary
+            const lines = [company.name];
+            if (company.url) lines.push(company.url);
+            if (company.description) lines.push(company.description);
+            if (company.what) lines.push(company.what);
+            if (company.category_name) lines.push(`Category: ${company.category_name}`);
+            if (company.funding_stage) lines.push(`Funding: ${company.funding_stage}`);
+            if (company.geography) lines.push(`Geography: ${company.geography}`);
+            text = lines.join('\n');
+        }
+
+        await navigator.clipboard.writeText(text);
+        showToast('Copied to clipboard', 'success');
+    } catch (e) {
+        console.error('Copy failed:', e);
+        showToast('Failed to copy', 'error');
+    }
+};
 
 // --- Re-Research ---
 function openReResearch(id) {
@@ -730,7 +1142,14 @@ async function showVersionDiff(companyId, newVersionId, oldVersionId) {
 }
 
 async function restoreVersion(versionId, companyId) {
-    if (!confirm('Restore this version? Current state will be saved as a version first.')) return;
+    const confirmed = await _confirm({
+        title: 'Restore Version?',
+        message: 'Current state will be saved as a version first, then this version will be restored.',
+        confirmText: 'Restore',
+        cancelText: 'Cancel',
+        type: 'warning'
+    });
+    if (!confirmed) return;
     await safeFetch(`/api/versions/${versionId}/restore`, { method: 'POST' });
     showDetail(companyId);
     loadCompanies();
@@ -820,17 +1239,39 @@ function switchCompanyView(view) {
     currentCompanyView = view;
     const table = document.getElementById('companyTable');
     const container = document.getElementById('companyViewContainer');
+    const gridContainer = document.getElementById('companiesGridContainer');
     document.querySelectorAll('.company-view-toggle .view-toggle-btn').forEach(b => b.classList.remove('active'));
 
     if (view === 'table') {
         table.classList.remove('hidden');
         container.classList.add('hidden');
+        if (gridContainer) gridContainer.classList.add('hidden');
         document.getElementById('viewTableBtn').classList.add('active');
         loadCompanies();
+    } else if (view === 'grid') {
+        // Tabulator grid view
+        table.classList.add('hidden');
+        container.classList.add('hidden');
+        if (gridContainer) {
+            gridContainer.classList.remove('hidden');
+            document.getElementById('viewGridBtn').classList.add('active');
+            if (window.Tabulator) {
+                if (!_tabulatorTable) {
+                    _initTabulator(_lastCompanies);
+                } else {
+                    _updateTabulatorData(_lastCompanies);
+                }
+            } else {
+                gridContainer.innerHTML = '<p class="hint-text" style="padding:20px">Tabulator library not loaded. Using table view instead.</p>';
+            }
+        }
     } else {
         table.classList.add('hidden');
         container.classList.remove('hidden');
-        document.getElementById(`view${view.charAt(0).toUpperCase() + view.slice(1)}Btn`).classList.add('active');
+        if (gridContainer) gridContainer.classList.add('hidden');
+        const btnId = `view${view.charAt(0).toUpperCase() + view.slice(1)}Btn`;
+        const btn = document.getElementById(btnId);
+        if (btn) btn.classList.add('active');
         renderAlternateView(_lastCompanies);
     }
 }
@@ -848,16 +1289,15 @@ function renderGalleryView(companies, container) {
         return;
     }
     container.innerHTML = `<div class="gallery-grid">${companies.map(c => {
-        const color = getCategoryColor(c.category_id) || 'var(--border-default)';
         const logoUrl = c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`;
-        return `<div class="gallery-card" onclick="showDetail(${c.id})" style="border-top:3px solid ${color}">
+        return `<div class="gallery-card" onclick="showDetail(${c.id})">
             <div class="gallery-card-header">
-                <img class="gallery-logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
+                <img class="gallery-logo" src="${esc(logoUrl)}" alt="" onerror="this.style.display='none'">
                 <div>
                     <strong>${esc(c.name)}</strong>
-                    ${c.category_name ? `<div class="gallery-cat"><span class="cat-color-dot" style="background:${color}"></span> ${esc(c.category_name)}</div>` : ''}
+                    ${c.category_name ? `<div class="gallery-cat">${esc(c.category_name)}</div>` : ''}
                 </div>
-                ${c.is_starred ? '<span class="material-symbols-outlined" style="color:var(--wheat);font-size:16px;margin-left:auto">star</span>' : ''}
+                ${c.is_starred ? '<span class="material-symbols-outlined" style="color:var(--text-primary);font-size:16px;margin-left:auto">star</span>' : ''}
             </div>
             <p class="gallery-desc">${esc((c.what || '').substring(0, 120))}</p>
             <div class="gallery-meta">
@@ -890,8 +1330,7 @@ function renderTimelineView(companies, container) {
                 <div class="timeline-year-label">${y}</div>
                 <div class="timeline-year-dots">
                     ${byYear[y].map(c => {
-                        const color = getCategoryColor(c.category_id) || '#888';
-                        return `<div class="timeline-dot" style="background:${color}" onclick="showDetail(${c.id})" title="${esc(c.name)} — ${esc(c.category_name || '')}"></div>`;
+                        return `<div class="timeline-dot" style="background:var(--text-primary)" onclick="showDetail(${c.id})" title="${esc(c.name)} — ${esc(c.category_name || '')}"></div>`;
                     }).join('')}
                 </div>
             </div>`).join('')}

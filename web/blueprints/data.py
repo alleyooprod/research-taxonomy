@@ -46,9 +46,15 @@ def import_csv():
     if not file:
         return jsonify({"error": "No file uploaded"}), 400
 
-    content = file.stream.read().decode("utf-8")
+    MAX_CSV_SIZE = 10 * 1024 * 1024  # 10 MB
+    content_bytes = file.stream.read(MAX_CSV_SIZE + 1)
+    if len(content_bytes) > MAX_CSV_SIZE:
+        return jsonify({"error": "CSV file too large (max 10MB)"}), 400
+    content = content_bytes.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(content))
     rows = list(reader)
+    if len(rows) > 10000:
+        return jsonify({"error": "Too many rows (max 10,000)"}), 400
     imported = db.import_companies_from_rows(rows, project_id)
     db.log_activity(project_id, "csv_imported",
                     f"Imported {imported} companies from CSV ({len(rows)} rows)",
@@ -136,7 +142,7 @@ def list_tags():
 @data_bp.route("/api/tags/rename", methods=["POST"])
 def rename_tag():
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     old_tag = data.get("old_tag", "").strip()
     new_tag = data.get("new_tag", "").strip()
     project_id = data.get("project_id")
@@ -153,7 +159,7 @@ def rename_tag():
 @data_bp.route("/api/tags/merge", methods=["POST"])
 def merge_tags():
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     source = data.get("source_tag", "").strip()
     target = data.get("target_tag", "").strip()
     project_id = data.get("project_id")
@@ -170,7 +176,7 @@ def merge_tags():
 @data_bp.route("/api/tags/delete", methods=["POST"])
 def delete_tag():
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     tag_name = data.get("tag", "").strip()
     project_id = data.get("project_id")
     if not tag_name:
@@ -191,7 +197,7 @@ def list_views():
 
 @data_bp.route("/api/views", methods=["POST"])
 def save_view():
-    data = request.json
+    data = request.json or {}
     project_id = data.get("project_id")
     name = data.get("name", "").strip()
     filters = data.get("filters", {})
@@ -219,7 +225,7 @@ def list_map_layouts():
 
 @data_bp.route("/api/map-layouts", methods=["POST"])
 def save_map_layout():
-    data = request.json
+    data = request.json or {}
     project_id = data.get("project_id")
     name = data.get("name", "Default")
     layout_data = data.get("layout_data", {})

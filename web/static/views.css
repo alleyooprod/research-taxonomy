@@ -4,41 +4,45 @@
 .company-view-toggle {
     display: flex;
     gap: 4px;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    align-items: center;
 }
 
 /* ========== Gallery View ========== */
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 12px;
+    gap: 1px;
+    border: 1px solid var(--border-default);
 }
 
 .gallery-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: 14px;
-    padding: 14px;
+    background: var(--bg-container);
+    border: none;
+    border-radius: 0;
+    padding: 16px;
     cursor: pointer;
-    transition: box-shadow 0.15s, transform 0.15s;
+    transition: background 0.1s linear;
+    outline: 1px solid var(--border-default);
 }
 
 .gallery-card:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateY(-1px);
+    box-shadow: none;
+    transform: none;
+    background: var(--bg-hover);
 }
 
 .gallery-card-header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 8px;
 }
 
 .gallery-logo {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 0;
     object-fit: contain;
     flex-shrink: 0;
 }
@@ -50,6 +54,8 @@
     align-items: center;
     gap: 4px;
     margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .gallery-desc {
@@ -65,7 +71,8 @@
     flex-wrap: wrap;
     font-size: 11px;
     color: var(--text-muted);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .gallery-tags {
@@ -76,7 +83,7 @@
 
 /* ========== Timeline View ========== */
 .timeline-container {
-    padding: 20px 0;
+    padding: 16px 0;
     overflow-x: auto;
 }
 
@@ -85,7 +92,7 @@
     gap: 0;
     min-width: min-content;
     align-items: flex-end;
-    border-bottom: 2px solid var(--border-default);
+    border-bottom: 1px solid var(--border-default);
     padding-bottom: 8px;
 }
 
@@ -94,14 +101,15 @@
     flex-direction: column;
     align-items: center;
     min-width: 60px;
-    padding: 0 6px;
+    padding: 0 8px;
 }
 
 .timeline-year-label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--text-muted);
     margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .timeline-year-dots {
@@ -109,15 +117,16 @@
     flex-wrap: wrap;
     gap: 4px;
     justify-content: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .timeline-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 0;
     cursor: pointer;
-    transition: transform 0.15s;
+    transition: transform 0.1s linear;
+    background: var(--text-primary);
 }
 
 .timeline-dot:hover {
@@ -141,15 +150,15 @@
 
 .matrix-wrapper .matrix-table th,
 .matrix-wrapper .matrix-table td {
-    padding: 8px 10px;
+    padding: 8px;
     border: 1px solid var(--border-default);
     text-align: center;
 }
 
 .matrix-wrapper .matrix-table th {
-    background: var(--bg-surface);
+    background: var(--bg-page);
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px;
     position: sticky;
     top: 0;
     z-index: 2;
@@ -157,6 +166,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 130px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
 }
 
 .matrix-wrapper .matrix-table td:first-child,
@@ -165,7 +177,7 @@
     position: sticky;
     left: 0;
     z-index: 3;
-    background: var(--bg-surface);
+    background: var(--bg-page);
     min-width: 180px;
     max-width: 240px;
     white-space: nowrap;
@@ -176,6 +188,7 @@
 /* Top-left corner cell: sticky both ways */
 .matrix-wrapper .matrix-table th:first-child {
     z-index: 4;
+    background: var(--bg-page);
 }
 
 .matrix-wrapper .matrix-table td:not(:first-child) {
@@ -183,17 +196,17 @@
 }
 
 .matrix-cell.matrix-filled {
-    background: var(--accent-primary-light);
+    background: var(--bg-hover);
     font-weight: 600;
 }
 
 .matrix-cell.matrix-filled:hover {
-    background: var(--accent-primary);
-    color: white;
+    background: var(--text-primary);
+    color: var(--bg-page);
 }
 
 .matrix-wrapper .matrix-table tfoot td {
-    background: var(--bg-surface);
+    background: var(--bg-page);
     font-weight: 600;
     position: sticky;
     bottom: 0;

@@ -2,6 +2,9 @@
  * URL submission, triage, batch processing, and retry logic.
  */
 
+// Fallback if showNativeConfirm hasn't been loaded yet
+const _confirmProcessing = window.showNativeConfirm || (async (opts) => confirm(opts.message || opts.title));
+
 async function submitUrls() {
     const text = document.getElementById('urlInput').value;
     if (!text.trim()) { showToast('Paste some URLs first'); return; }
@@ -384,7 +387,13 @@ function startRetryPolling(batchId) {
 }
 
 async function retryTimeouts(batchId) {
-    if (!confirm(`Retry all timed-out jobs in batch ${batchId}?`)) return;
+    const confirmed = await _confirmProcessing({
+        title: 'Retry Timed-Out Jobs?',
+        message: `This will retry all timed-out jobs in batch ${batchId}. They will be re-processed with the current model.`,
+        confirmText: 'Retry',
+        type: 'warning'
+    });
+    if (!confirmed) return;
     const btn = event.target;
     btn.disabled = true;
     btn.textContent = 'Retrying...';
@@ -411,7 +420,13 @@ async function retryTimeouts(batchId) {
 }
 
 async function retryAllErrors(batchId) {
-    if (!confirm(`Retry ALL failed jobs in batch ${batchId}?`)) return;
+    const confirmed = await _confirmProcessing({
+        title: 'Retry All Failed Jobs?',
+        message: `This will retry ALL failed jobs in batch ${batchId}. They will be re-processed with the current model.`,
+        confirmText: 'Retry All',
+        type: 'warning'
+    });
+    if (!confirmed) return;
     const btn = event.target;
     btn.disabled = true;
     btn.textContent = 'Retrying...';

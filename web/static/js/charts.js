@@ -1,22 +1,109 @@
 /**
- * Analytics dashboards: Category matrix, ECharts pie, Chart.js doughnut/bar.
- * Color scheme: monochromatic terracotta gradient + sage green accent.
+ * Analytics dashboards: Category matrix (ECharts heatmap), ECharts pie, Chart.js doughnut/bar.
+ * Color scheme: "The Instrument" — monochromatic black/white/gray.
+ * Fonts: Plus Jakarta Sans (labels), JetBrains Mono (data values/numbers).
  */
 
 let echartInstances = {};
 
-// Monochromatic palette: terracotta shades (light → dark) + sage accent
+// "The Instrument" monochromatic palette: pure black/white/gray
 const MONO_PALETTE = [
-    '#f2ddd7', '#e8c4ba', '#daa898', '#cc8c76',
-    '#bc6c5a', '#a05a4b', '#7d463a', '#5a3329',
+    '#000000', '#333333', '#666666', '#999999', '#CCCCCC', '#E5E5E5',
 ];
-const ACCENT_SAGE = '#5a7c5a';
+
+// Font families
+const FONT_LABEL = 'Plus Jakarta Sans, sans-serif';
+const FONT_DATA = 'JetBrains Mono, monospace';
 
 // Cache for matrix re-rendering on dimension change
 let _matrixCompanies = [];
 let _matrixCategories = [];
 
-// --- Category Matrix (replaces treemap) ---
+// ResizeObserver for ECharts auto-resize
+let _echartsResizeObserver = null;
+
+// --- ECharts Theme Registration ---
+
+function _initEChartsTheme() {
+    if (!window.echarts || echarts._instrumentThemeRegistered) return;
+
+    echarts.registerTheme('instrument', {
+        color: ['#000000', '#333333', '#666666', '#999999', '#CCCCCC'],
+        backgroundColor: 'transparent',
+        textStyle: {
+            fontFamily: FONT_LABEL,
+            color: '#333333',
+        },
+        title: {
+            textStyle: {
+                color: '#000000',
+                fontWeight: 600,
+                fontFamily: FONT_LABEL,
+            },
+            subtextStyle: {
+                color: '#666666',
+                fontFamily: FONT_LABEL,
+            },
+        },
+        legend: {
+            textStyle: {
+                color: '#333333',
+                fontFamily: FONT_LABEL,
+            },
+        },
+        tooltip: {
+            backgroundColor: '#ffffff',
+            borderColor: '#E5E5E5',
+            borderWidth: 1,
+            textStyle: {
+                color: '#000000',
+                fontFamily: FONT_LABEL,
+                fontSize: 12,
+            },
+        },
+        categoryAxis: {
+            axisLine: { lineStyle: { color: '#CCCCCC' } },
+            axisTick: { lineStyle: { color: '#CCCCCC' } },
+            axisLabel: { color: '#333333', fontFamily: FONT_LABEL },
+            splitLine: { lineStyle: { color: '#E5E5E5' } },
+        },
+        valueAxis: {
+            axisLine: { lineStyle: { color: '#CCCCCC' } },
+            axisTick: { lineStyle: { color: '#CCCCCC' } },
+            axisLabel: { color: '#333333', fontFamily: FONT_DATA },
+            splitLine: { lineStyle: { color: '#E5E5E5' } },
+        },
+    });
+
+    echarts._instrumentThemeRegistered = true;
+}
+
+// --- ECharts ResizeObserver ---
+
+function _setupEChartsResizeObserver() {
+    if (_echartsResizeObserver) return;
+    if (!window.ResizeObserver) return;
+
+    _echartsResizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            // Find which ECharts instance lives in this container
+            for (const [key, chart] of Object.entries(echartInstances)) {
+                if (chart && chart.getDom && chart.getDom() === entry.target) {
+                    chart.resize();
+                }
+            }
+        }
+    });
+}
+
+function _observeEChartsContainer(el) {
+    if (!_echartsResizeObserver) _setupEChartsResizeObserver();
+    if (_echartsResizeObserver && el) {
+        _echartsResizeObserver.observe(el);
+    }
+}
+
+// --- Category Matrix (ECharts heatmap with Chart.js-style HTML table fallback) ---
 
 function renderCategoryMatrix(companies, categories) {
     // Allow re-render from dimension dropdown (no args = use cache)
@@ -95,7 +182,104 @@ function renderCategoryMatrix(companies, categories) {
         Object.values(row).forEach(v => { if (v > maxVal) maxVal = v; });
     });
 
-    // Render HTML table
+    // --- ECharts heatmap (preferred) ---
+    if (window.echarts) {
+        _initEChartsTheme();
+
+        // Build ECharts heatmap data: [colIndex, rowIndex, value]
+        const heatmapData = [];
+        rowKeys.forEach((rk, ri) => {
+            colValues.forEach((cv, ci) => {
+                heatmapData.push([ci, ri, matrix[rk]?.[cv] || 0]);
+            });
+        });
+
+        // Prepare container for ECharts (needs fixed height)
+        const minHeight = Math.max(300, rowKeys.length * 36 + 80);
+        container.innerHTML = '';
+        container.style.minHeight = minHeight + 'px';
+
+        if (echartInstances.matrix) echartInstances.matrix.dispose();
+        echartInstances.matrix = echarts.init(container, 'instrument');
+
+        echartInstances.matrix.setOption({
+            tooltip: {
+                position: 'top',
+                formatter: function (params) {
+                    return `<span style="font-family:${FONT_LABEL}">${params.name}</span><br/>` +
+                           `<span style="font-family:${FONT_LABEL}">${rowKeys[params.data[1]]}</span> × ` +
+                           `<span style="font-family:${FONT_LABEL}">${colValues[params.data[0]]}</span><br/>` +
+                           `<strong style="font-family:${FONT_DATA}">${params.data[2]}</strong> companies`;
+                },
+            },
+            grid: {
+                left: '15%',
+                right: '5%',
+                top: '10%',
+                bottom: '15%',
+            },
+            xAxis: {
+                type: 'category',
+                data: colValues,
+                axisLabel: {
+                    rotate: 45,
+                    fontSize: 11,
+                    fontFamily: FONT_LABEL,
+                    color: '#333333',
+                },
+                splitArea: { show: true },
+            },
+            yAxis: {
+                type: 'category',
+                data: rowKeys,
+                axisLabel: {
+                    fontSize: 11,
+                    fontFamily: FONT_LABEL,
+                    color: '#333333',
+                },
+                splitArea: { show: true },
+            },
+            visualMap: {
+                min: 0,
+                max: maxVal,
+                calculable: true,
+                orient: 'horizontal',
+                left: 'center',
+                bottom: '0%',
+                inRange: {
+                    color: ['#ffffff', '#000000'],
+                },
+                textStyle: {
+                    fontFamily: FONT_DATA,
+                    color: '#333333',
+                },
+            },
+            series: [{
+                type: 'heatmap',
+                data: heatmapData,
+                label: {
+                    show: true,
+                    fontFamily: FONT_DATA,
+                    fontSize: 11,
+                    formatter: function (params) {
+                        return params.data[2] || '';
+                    },
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 0,
+                        borderColor: '#000000',
+                        borderWidth: 1,
+                    },
+                },
+            }],
+        });
+
+        _observeEChartsContainer(container);
+        return;
+    }
+
+    // --- HTML table fallback (when ECharts not loaded) ---
     let html = '<table class="matrix-table"><thead><tr><th class="matrix-corner"></th>';
     colValues.forEach(v => {
         html += `<th title="${esc(v)}">${esc(v)}</th>`;
@@ -106,10 +290,10 @@ function renderCategoryMatrix(companies, categories) {
         html += `<tr><td class="matrix-row-label" title="${esc(rk)}">${esc(rk)}</td>`;
         colValues.forEach(v => {
             const count = matrix[rk]?.[v] || 0;
-            const intensity = count ? Math.min(0.12 + (count / maxVal) * 0.45, 0.6) : 0;
-            const bg = count ? `rgba(188, 108, 90, ${intensity.toFixed(2)})` : 'transparent';
+            const intensity = count ? Math.min(0.12 + (count / maxVal) * 0.55, 0.7) : 0;
+            const bg = count ? `rgba(0, 0, 0, ${intensity.toFixed(2)})` : 'transparent';
             const textColor = intensity > 0.35 ? '#fff' : 'var(--text-primary)';
-            html += `<td class="matrix-cell" style="background:${bg};color:${textColor}">${count || ''}</td>`;
+            html += `<td class="matrix-cell" style="background:${bg};color:${textColor};font-family:${FONT_DATA}">${count || ''}</td>`;
         });
         html += '</tr>';
     });
@@ -121,14 +305,13 @@ function renderCategoryMatrix(companies, categories) {
 
 function renderAnalyticsDashboard(companies, categories) {
     if (!window.echarts) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const theme = isDark ? 'dark' : null;
+    _initEChartsTheme();
 
-    // Geographic Distribution (Pie — monochromatic terracotta)
+    // Geographic Distribution (Pie — monochromatic Instrument)
     const geoDiv = document.getElementById('chartGeoDist');
     if (geoDiv) {
         if (echartInstances.geoDist) echartInstances.geoDist.dispose();
-        echartInstances.geoDist = echarts.init(geoDiv, theme);
+        echartInstances.geoDist = echarts.init(geoDiv, 'instrument');
         const geoMap = {};
         companies.forEach(c => {
             const geo = c.hq_country || c.geography || 'Unknown';
@@ -139,25 +322,38 @@ function renderAnalyticsDashboard(companies, categories) {
             .sort((a, b) => b.value - a.value)
             .slice(0, 12);
 
-        // Monochromatic terracotta gradient for pie slices
+        // Monochromatic gradient for pie slices: black → light gray
         const pieColors = geoData.map((_, i) => {
             const t = geoData.length > 1 ? i / (geoData.length - 1) : 0;
-            return _lerpColor('#e8c4ba', '#7d463a', t);
+            return _lerpColor('#000000', '#CCCCCC', t);
         });
-        // Accent the top slice with sage green
-        if (pieColors.length > 0) pieColors[0] = ACCENT_SAGE;
 
         echartInstances.geoDist.setOption({
-            tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}: {c} ({d}%)',
+                textStyle: { fontFamily: FONT_LABEL },
+            },
             series: [{
                 type: 'pie',
                 radius: ['35%', '70%'],
                 data: geoData,
                 color: pieColors,
-                label: { formatter: '{b}: {c}', fontSize: 11 },
-                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.15)' } },
+                label: {
+                    formatter: '{b}: {c}',
+                    fontSize: 11,
+                    fontFamily: FONT_LABEL,
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0,0,0,0.15)',
+                    },
+                },
             }],
         });
+
+        _observeEChartsContainer(geoDiv);
     }
 
     // Render matrix
@@ -166,7 +362,7 @@ function renderAnalyticsDashboard(companies, categories) {
 
 function _chartTextColor() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    return isDark ? '#ccc5b9' : '#3D4035';
+    return isDark ? '#CCCCCC' : '#333333';
 }
 
 function _chartGridColor() {
@@ -174,14 +370,14 @@ function _chartGridColor() {
     return isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
 }
 
-// --- Chart.js Dashboards (Doughnut + Bar — monochromatic) ---
+// --- Chart.js Dashboards (Doughnut + Bar — Instrument monochromatic) ---
 
 function renderChartJsDashboard(companies) {
     if (!window.Chart) return;
     const textColor = _chartTextColor();
     const gridColor = _chartGridColor();
 
-    // Funding Stage (Doughnut — monochromatic terracotta)
+    // Funding Stage (Doughnut — Instrument monochromatic)
     const fundingCanvas = document.getElementById('chartFundingStage');
     if (fundingCanvas) {
         const ctx = fundingCanvas.getContext('2d');
@@ -192,12 +388,11 @@ function renderChartJsDashboard(companies) {
         });
         const labels = Object.keys(stageMap);
         const data = Object.values(stageMap);
-        // Monochromatic terracotta gradient for slices
+        // Monochromatic gradient: black → light gray
         const colors = labels.map((_, i) => {
             const t = labels.length > 1 ? i / (labels.length - 1) : 0;
-            return _lerpColor('#e8c4ba', '#7d463a', t);
+            return _lerpColor('#000000', '#CCCCCC', t);
         });
-        if (colors.length > 0) colors[0] = ACCENT_SAGE;
 
         if (window._chartFunding) window._chartFunding.destroy();
         window._chartFunding = new Chart(ctx, {
@@ -205,12 +400,20 @@ function renderChartJsDashboard(companies) {
             data: { labels, datasets: [{ data, backgroundColor: colors }] },
             options: {
                 responsive: true,
-                plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, color: textColor } } },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 11, family: FONT_LABEL },
+                            color: textColor,
+                        },
+                    },
+                },
             },
         });
     }
 
-    // Confidence Histogram (Bar — terracotta gradient, sage for high)
+    // Confidence Histogram (Bar — Instrument monochromatic gradient)
     const confCanvas = document.getElementById('chartConfidence');
     if (confCanvas) {
         const ctx = confCanvas.getContext('2d');
@@ -223,8 +426,8 @@ function renderChartJsDashboard(companies) {
             else if (pct < 80) buckets['60-80%']++;
             else buckets['80-100%']++;
         });
-        // Terracotta light → dark for low→mid, sage green for high
-        const barColors = ['#e8c4ba', '#daa898', '#cc8c76', '#a05a4b', ACCENT_SAGE];
+        // Instrument: light gray → black gradient for low → high
+        const barColors = ['#CCCCCC', '#999999', '#666666', '#333333', '#000000'];
 
         if (window._chartConf) window._chartConf.destroy();
         window._chartConf = new Chart(ctx, {
@@ -239,10 +442,26 @@ function renderChartJsDashboard(companies) {
             },
             options: {
                 responsive: true,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                },
                 scales: {
-                    y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor }, grid: { color: gridColor } },
-                    x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: textColor,
+                            font: { family: FONT_DATA },
+                        },
+                        grid: { color: gridColor },
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor,
+                            font: { family: FONT_LABEL },
+                        },
+                        grid: { color: gridColor },
+                    },
                 },
             },
         });
@@ -272,7 +491,7 @@ async function refreshDashboardCharts() {
     renderChartJsDashboard(companies);
 }
 
-// Resize handler for ECharts
+// Resize handler for ECharts (window-level fallback)
 window.addEventListener('resize', () => {
     Object.values(echartInstances).forEach(chart => {
         if (chart && chart.resize) chart.resize();

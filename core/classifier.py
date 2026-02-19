@@ -1,8 +1,26 @@
-"""Classify a company into the taxonomy using the LLM layer."""
+"""Classify a company into the taxonomy using the LLM layer.
+
+Uses Instructor + Pydantic validation on the SDK path when available,
+with prompt caching on the taxonomy context.  Falls back to CLI +
+dict-based validation otherwise.
+
+Classification does NOT require web tools, so the full Instructor path
+is available when the SDK is configured.
+"""
 import json
+import logging
 
 from config import PROMPTS_DIR, CLASSIFY_TIMEOUT
-from core.llm import run_cli
+from core.llm import run_cli, instructor_available, run_instructor, run_sdk_cached
+
+logger = logging.getLogger(__name__)
+
+# Optional: Pydantic model for structured validation
+try:
+    from core.models import ClassificationResult, PYDANTIC_AVAILABLE
+except ImportError:
+    ClassificationResult = None
+    PYDANTIC_AVAILABLE = False
 
 
 def classify_company(company_data, taxonomy_tree, model="claude-opus-4-6"):
@@ -14,6 +32,12 @@ def classify_company(company_data, taxonomy_tree, model="claude-opus-4-6"):
         model: Claude model to use.
 
     Returns dict with category, subcategory, is_new_category, confidence, reasoning.
+
+    Strategy:
+      1. If Instructor is available, use it with ClassificationResult model
+         and prompt caching on the taxonomy context.
+      2. Otherwise, use SDK with prompt caching (if SDK available).
+      3. Fall back to CLI with json_schema (original path).
     """
     prompt_template = (PROMPTS_DIR / "classify.txt").read_text()
 
@@ -26,10 +50,46 @@ def classify_company(company_data, taxonomy_tree, model="claude-opus-4-6"):
         taxonomy_tree=taxonomy_tree,
     )
 
+    # --- Path 1: Instructor (SDK + Pydantic validation + prompt caching) ---
+    if instructor_available() and ClassificationResult is not None:
+        try:
+            # Split prompt: taxonomy context (cacheable) + company question
+            context = f"TAXONOMY:\n{taxonomy_tree}"
+            question = prompt_template.format(
+                company_json=company_json,
+                taxonomy_tree="{see context above}",
+            )
+
+            result, meta = run_instructor(
+                question, model,
+                response_model=ClassificationResult,
+                timeout=CLASSIFY_TIMEOUT,
+                max_retries=3,
+                context=context,
+            )
+            structured = result.model_dump()
+            logger.info(
+                "Instructor classification: %s -> %s (%.2f confidence, %dms)",
+                clean_data.get("name", "?"), structured.get("category", "?"),
+                structured.get("confidence", 0), meta.get("duration_ms", 0),
+            )
+            return structured
+        except Exception as e:
+            logger.warning("Instructor classification failed, falling back: %s", e)
+
+    # --- Path 2: SDK with prompt caching (no Instructor) ---
     schema = (PROMPTS_DIR / "schemas" / "company_classification.json").read_text()
 
-    response = run_cli(prompt, model, timeout=CLASSIFY_TIMEOUT,
-                       json_schema=schema)
+    try:
+        response = run_sdk_cached(
+            prompt, model, timeout=CLASSIFY_TIMEOUT,
+            json_schema=schema,
+            context=f"TAXONOMY:\n{taxonomy_tree}",
+        )
+    except Exception:
+        # Final fallback: plain run_cli
+        response = run_cli(prompt, model, timeout=CLASSIFY_TIMEOUT,
+                           json_schema=schema)
 
     structured = response.get("structured_output")
     if not structured:
@@ -39,7 +99,15 @@ def classify_company(company_data, taxonomy_tree, model="claude-opus-4-6"):
         except (json.JSONDecodeError, TypeError):
             raise ValueError(f"No structured classification output. Raw: {raw[:300]}")
 
-    # Validate required fields
+    # Validate with Pydantic when available (non-fatal)
+    if PYDANTIC_AVAILABLE and ClassificationResult is not None:
+        try:
+            validated = ClassificationResult.model_validate(structured)
+            return validated.model_dump()
+        except Exception as e:
+            logger.debug("Pydantic classification validation failed: %s", e)
+
+    # Dict-based fallback validation
     if not isinstance(structured, dict):
         raise ValueError("Classification output is not a dict")
     if "confidence" in structured and structured["confidence"] is not None:
@@ -62,7 +130,7 @@ def build_taxonomy_tree_string(db, project_id=None):
     for cat in sorted(top_level, key=lambda x: x["name"]):
         line = f"- {cat['name']} ({cat['company_count']} companies)"
         if cat.get("scope_note"):
-            line += f" — {cat['scope_note']}"
+            line += f" \u2014 {cat['scope_note']}"
         lines.append(line)
         if cat.get("inclusion_criteria"):
             lines.append(f"  Includes: {cat['inclusion_criteria']}")
@@ -73,7 +141,7 @@ def build_taxonomy_tree_string(db, project_id=None):
         for sub in sorted(subs, key=lambda x: x["name"]):
             sub_line = f"  - {sub['name']} ({sub['company_count']} companies)"
             if sub.get("scope_note"):
-                sub_line += f" — {sub['scope_note']}"
+                sub_line += f" \u2014 {sub['scope_note']}"
             lines.append(sub_line)
 
     return "\n".join(lines)

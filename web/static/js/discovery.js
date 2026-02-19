@@ -116,7 +116,7 @@ async function previewContext(ctxId) {
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `<div class="context-preview-modal">
         <h3>${esc(ctx.name)}</h3>
-        <div class="context-preview-content">${typeof marked !== 'undefined' ? marked.parse(ctx.content) : '<pre>' + esc(ctx.content) + '</pre>'}</div>
+        <div class="context-preview-content">${typeof marked !== 'undefined' ? sanitize(marked.parse(ctx.content)) : '<pre>' + esc(ctx.content) + '</pre>'}</div>
         <button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button>
     </div>`;
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
@@ -233,7 +233,7 @@ async function loadAnalysis(analysisId, targetElementId) {
 
     // Render markdown if available
     if (result.markdown) {
-        const rendered = typeof marked !== 'undefined' ? marked.parse(result.markdown) : '<pre>' + esc(result.markdown) + '</pre>';
+        const rendered = typeof marked !== 'undefined' ? sanitize(marked.parse(result.markdown)) : '<pre>' + esc(result.markdown) + '</pre>';
         el.innerHTML = `<div class="analysis-result">
             <div class="analysis-markdown">${rendered}</div>
             ${renderStructuredResult(result, analysis.analysis_type)}
@@ -344,7 +344,7 @@ async function showAnalysisDetail(analysisId) {
 
     let content = '';
     if (result?.markdown) {
-        content = typeof marked !== 'undefined' ? marked.parse(result.markdown) : '<pre>' + esc(result.markdown) + '</pre>';
+        content = typeof marked !== 'undefined' ? sanitize(marked.parse(result.markdown)) : '<pre>' + esc(result.markdown) + '</pre>';
     } else if (result) {
         content = renderStructuredResult(result, analysis.analysis_type);
     } else {

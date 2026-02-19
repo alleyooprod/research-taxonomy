@@ -1,4 +1,8 @@
 /* Master stylesheet — imports all feature CSS files */
+/* Design System: The Instrument — Plus Jakarta Sans + JetBrains Mono */
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
 @import url("base.css");
 @import url("layout.css");
 @import url("companies.css");
@@ -14,3 +18,4 @@
 @import url("app-settings.css");
 @import url("dimensions.css");
 @import url("discovery.css");
+@import url("print.css");

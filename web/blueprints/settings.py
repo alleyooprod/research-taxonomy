@@ -74,8 +74,8 @@ def shared_view(token):
 @settings_bp.route("/api/activity")
 def get_activity():
     project_id = request.args.get("project_id", type=int)
-    limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    limit = min(max(request.args.get("limit", 50, type=int), 1), 500)
+    offset = max(request.args.get("offset", 0, type=int), 0)
     return jsonify(current_app.db.get_activity(project_id, limit=limit, offset=offset))
 
 
@@ -148,9 +148,22 @@ def update_app_settings():
         "git_sync_enabled", "git_remote_url", "auto_backup_enabled",
         "update_check_enabled",
     }
-    for key in allowed_keys:
-        if key in data:
-            settings[key] = data[key]
+    updates = {key: data[key] for key in allowed_keys if key in data}
+
+    _SETTINGS_VALIDATORS = {
+        "llm_backend": lambda v: v in ("cli", "sdk"),
+        "git_sync_enabled": lambda v: isinstance(v, bool),
+        "auto_backup_enabled": lambda v: isinstance(v, bool),
+        "update_check_enabled": lambda v: isinstance(v, bool),
+        "git_remote_url": lambda v: isinstance(v, str) and len(v) < 500,
+        "anthropic_api_key": lambda v: isinstance(v, str),
+    }
+    for key, value in list(updates.items()):
+        validator = _SETTINGS_VALIDATORS.get(key)
+        if validator and not validator(value):
+            return jsonify({"error": f"Invalid value for {key}"}), 400
+
+    settings.update(updates)
     save_app_settings(settings)
     return jsonify({"ok": True})
 
@@ -205,6 +218,17 @@ def restore_backup(filename):
     backup_path = BACKUP_DIR / filename
     if not backup_path.exists():
         return jsonify({"error": "Backup not found"}), 404
+    # Verify backup is a valid SQLite database
+    import sqlite3 as _sqlite3
+    try:
+        _conn = _sqlite3.connect(str(backup_path))
+        result = _conn.execute("PRAGMA integrity_check").fetchone()
+        _conn.close()
+        if result[0] != "ok":
+            return jsonify({"error": "Backup file is corrupted"}), 400
+    except Exception:
+        return jsonify({"error": "Invalid backup file"}), 400
+
     try:
         # Create a safety backup of current DB before restoring
         safety = BACKUP_DIR / f"taxonomy_pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"

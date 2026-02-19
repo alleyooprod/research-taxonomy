@@ -1,5 +1,6 @@
 """Auto-commit and push to main after meaningful events."""
 import logging
+import re
 import subprocess
 import threading
 from datetime import datetime
@@ -50,8 +51,13 @@ def sync_to_git(message=None):
         if not has_changes():
             return
 
+        # Sanitize commit message
+        message = re.sub(r'[\x00-\x1f\x7f]', '', str(message)).strip()[:200]
+        if not message:
+            message = "Auto-sync"
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        commit_msg = f"{message or 'Auto-save'} [{timestamp}]"
+        commit_msg = f"{message} [{timestamp}]"
 
         # Stage everything
         ok, _ = _run_git("add", "-A")

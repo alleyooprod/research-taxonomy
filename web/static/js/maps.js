@@ -1,5 +1,6 @@
 /**
  * Market map (drag-drop tiles), compare companies, geographic map (Leaflet).
+ * Includes marker clustering, heatmap toggle, and Turf.js geographic utilities.
  */
 
 let compareSelection = new Set();
@@ -7,6 +8,7 @@ let leafletMap = null;
 let markerClusterGroup = null;
 let _heatLayer = null;
 let _geoHeatmapOn = false;
+let _geoCompaniesCache = []; // cache companies for heatmap toggle and turf operations
 
 async function loadMarketMap() {
     const [compRes, taxRes] = await Promise.all([
@@ -196,72 +198,196 @@ async function renderGeoMap() {
         return;
     }
 
+    // --- Task 4: Grayscale CartoDB tile layer with label overlay ---
     if (!leafletMap) {
-        leafletMap = L.map('geoMap').setView([30, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 18,
+        leafletMap = L.map('geoMap', { zoomControl: false }).setView([30, 0], 2);
+        // Base: grayscale tiles without labels
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+            maxZoom: 19,
+            subdomains: 'abcd',
         }).addTo(leafletMap);
+        // Overlay: labels only, rendered on top of markers
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            pane: 'overlayPane',
+        }).addTo(leafletMap);
+        // Minimal black/white zoom control, bottom-right
+        L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
     }
 
+    // --- Task 1: Marker clustering with custom instrument-style icons ---
     if (markerClusterGroup) leafletMap.removeLayer(markerClusterGroup);
-    markerClusterGroup = L.markerClusterGroup ? L.markerClusterGroup() : L.layerGroup();
+
+    if (L.markerClusterGroup) {
+        markerClusterGroup = L.markerClusterGroup({
+            chunkedLoading: true,
+            maxClusterRadius: 50,
+            iconCreateFunction: function(cluster) {
+                const count = cluster.getChildCount();
+                const size = count < 10 ? 'small' : count < 50 ? 'medium' : 'large';
+                const px = size === 'small' ? 32 : size === 'medium' ? 38 : 44;
+                return L.divIcon({
+                    html: '<div style="font-family:\'Plus Jakarta Sans\',\'JetBrains Mono\',sans-serif;font-size:12px;font-weight:600;color:#000;background:#fff;border:1px solid #000;width:' + px + 'px;height:' + px + 'px;display:flex;align-items:center;justify-content:center;">' + count + '</div>',
+                    className: 'marker-cluster-instrument marker-cluster-instrument--' + size,
+                    iconSize: [px, px],
+                });
+            },
+        });
+    } else {
+        markerClusterGroup = L.layerGroup();
+    }
 
     const res = await safeFetch(`/api/companies?project_id=${currentProjectId}`);
     const companies = await res.json();
+    _geoCompaniesCache = companies;
 
-    const fallbackPalette = ['#bc6c5a','#5a7c5a','#6b8fa3','#d4a853','#8b6f8b','#5a8c8c','#a67c52','#7c8c5a','#c4786e','#4a6a4a'];
-    let colorIdx = 0;
-    const catColorsFallback = {};
-
+    // --- Task 4: Simple black square markers, instrument-style popups ---
     companies.forEach(c => {
         const coords = getCoords(c);
         if (!coords) return;
         const cat = c.category_name || 'Unknown';
-        // Prefer saved category color, fall back to palette
-        let color = getCategoryColor(c.category_id);
-        if (!color) {
-            if (!catColorsFallback[cat]) catColorsFallback[cat] = fallbackPalette[colorIdx++ % fallbackPalette.length];
-            color = catColorsFallback[cat];
-        }
 
         const icon = L.divIcon({
-            html: `<div style="background:${color};width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>`,
+            html: '<div class="geo-marker-square"></div>',
             className: 'geo-marker-icon',
-            iconSize: [16, 16],
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
         });
-        const marker = L.marker([coords[0] + (Math.random()-0.5)*0.5, coords[1] + (Math.random()-0.5)*0.5], { icon });
-        marker.bindPopup(`<strong>${esc(c.name)}</strong><br>${esc(cat)}<br>${esc(c.geography || '')}`);
+        const marker = L.marker(
+            [coords[0] + (Math.random() - 0.5) * 0.5, coords[1] + (Math.random() - 0.5) * 0.5],
+            { icon }
+        );
+        marker.bindPopup(
+            `<div class="geo-popup-instrument"><strong>${esc(c.name)}</strong><br><span class="geo-popup-cat">${esc(cat)}</span>${c.geography ? '<br>' + esc(c.geography) : ''}</div>`,
+            { className: 'leaflet-popup-instrument', closeButton: false, minWidth: 120 }
+        );
         markerClusterGroup.addLayer(marker);
     });
 
     leafletMap.addLayer(markerClusterGroup);
 
-    // Build heatmap layer from company coordinates
+    // --- Task 2: Build heatmap layer (grayscale gradient) ---
     if (window.L && L.heatLayer) {
         if (_heatLayer) leafletMap.removeLayer(_heatLayer);
         const heatPoints = [];
         companies.forEach(c => {
             const coords = getCoords(c);
-            if (coords) heatPoints.push([coords[0], coords[1], 0.6]);
+            if (!coords) return;
+            // Weight by funding if available, otherwise default 0.5
+            const weight = c.total_funding_usd ? Math.min(1, Math.log10(c.total_funding_usd + 1) / 10) : 0.5;
+            heatPoints.push([coords[0], coords[1], weight]);
         });
         _heatLayer = L.heatLayer(heatPoints, {
-            radius: 30, blur: 20, maxZoom: 10,
-            gradient: { 0.2: '#2b83ba', 0.4: '#abdda4', 0.6: '#ffffbf', 0.8: '#fdae61', 1.0: '#d7191c' },
+            radius: 25, blur: 15, maxZoom: 17,
+            gradient: { 0.4: '#E5E5E5', 0.6: '#999999', 0.8: '#333333', 1: '#000000' },
         });
         if (_geoHeatmapOn) _heatLayer.addTo(leafletMap);
     }
 
+    // --- Task 3: Auto-fit map to all markers using Turf.js ---
+    _fitMapToCompanies(companies, leafletMap);
+
     setTimeout(() => leafletMap.invalidateSize(), 100);
 }
 
+// --- Task 3: Turf.js geographic utilities ---
+
+/**
+ * Auto-fit map bounds to contain all company markers.
+ * Uses turf.bbox() for precise bounding box calculation.
+ */
+function _fitMapToCompanies(companies, map) {
+    if (!window.turf) return;
+    const points = companies
+        .filter(c => getCoords(c))
+        .map(c => {
+            const coords = getCoords(c);
+            return turf.point([coords[1], coords[0]]); // turf uses [lng, lat]
+        });
+    if (points.length === 0) return;
+    const fc = turf.featureCollection(points);
+    const [minLng, minLat, maxLng, maxLat] = turf.bbox(fc);
+    map.fitBounds([[minLat, minLng], [maxLat, maxLng]], { padding: [30, 30] });
+}
+
+/**
+ * Find companies near a given lat/lng within radiusKm.
+ * Uses turf.buffer() + turf.pointsWithinPolygon().
+ * Returns array of company objects that fall within the buffer zone.
+ */
+function findCompaniesNear(lat, lng, radiusKm) {
+    if (!window.turf) return [];
+    const center = turf.point([lng, lat]);
+    const buffered = turf.buffer(center, radiusKm, { units: 'kilometers' });
+    const companies = _geoCompaniesCache || [];
+    const companyPoints = [];
+    const companyMap = {};
+
+    companies.forEach(c => {
+        const coords = getCoords(c);
+        if (!coords) return;
+        const pt = turf.point([coords[1], coords[0]], { id: c.id });
+        companyPoints.push(pt);
+        companyMap[c.id] = c;
+    });
+
+    if (companyPoints.length === 0) return [];
+    const fc = turf.featureCollection(companyPoints);
+    const within = turf.pointsWithinPolygon(fc, buffered);
+    return within.features.map(f => companyMap[f.properties.id]).filter(Boolean);
+}
+
+/**
+ * Calculate the geographic center (centroid) for companies in a given category.
+ * Returns [lat, lng] or null if no geo-located companies.
+ */
+function getCategoryCentroid(categoryId) {
+    if (!window.turf) return null;
+    const companies = (_geoCompaniesCache || []).filter(c => c.category_id === categoryId);
+    const points = companies
+        .filter(c => getCoords(c))
+        .map(c => {
+            const coords = getCoords(c);
+            return turf.point([coords[1], coords[0]]);
+        });
+    if (points.length === 0) return null;
+    const fc = turf.featureCollection(points);
+    const centroid = turf.centroid(fc);
+    const [lng, lat] = centroid.geometry.coordinates;
+    return [lat, lng];
+}
+
 function toggleGeoHeatmap() {
-    if (!_heatLayer || !leafletMap) return;
+    if (!leafletMap) return;
+
+    // If heatLayer library is not loaded, try building it from cache
+    if (!_heatLayer && window.L && L.heatLayer && _geoCompaniesCache.length) {
+        const heatPoints = [];
+        _geoCompaniesCache.forEach(c => {
+            const coords = getCoords(c);
+            if (!coords) return;
+            const weight = c.total_funding_usd ? Math.min(1, Math.log10(c.total_funding_usd + 1) / 10) : 0.5;
+            heatPoints.push([coords[0], coords[1], weight]);
+        });
+        _heatLayer = L.heatLayer(heatPoints, {
+            radius: 25, blur: 15, maxZoom: 17,
+            gradient: { 0.4: '#E5E5E5', 0.6: '#999999', 0.8: '#333333', 1: '#000000' },
+        });
+    }
+
+    if (!_heatLayer) return;
+
     _geoHeatmapOn = !_geoHeatmapOn;
     if (_geoHeatmapOn) {
         _heatLayer.addTo(leafletMap);
+        // Hide markers when heatmap is on for cleaner view
+        if (markerClusterGroup) leafletMap.removeLayer(markerClusterGroup);
     } else {
         leafletMap.removeLayer(_heatLayer);
+        // Restore markers when heatmap is off
+        if (markerClusterGroup) leafletMap.addLayer(markerClusterGroup);
     }
     const btn = document.getElementById('heatmapToggleBtn');
     if (btn) btn.classList.toggle('active', _geoHeatmapOn);

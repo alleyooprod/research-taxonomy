@@ -119,11 +119,11 @@ def _run_pipeline(batch_id, urls, workers, model, project_id):
 @processing_bp.route("/api/process", methods=["POST"])
 def start_processing():
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     text = data.get("text", "")
     urls = extract_urls_from_text(text)
     model = data.get("model", DEFAULT_MODEL)
-    workers = data.get("workers", 5)
+    workers = min(max(int(data.get("workers", 5)), 1), 20)
     project_id = data.get("project_id")
 
     if not urls:
@@ -177,7 +177,7 @@ def _run_triage(batch_id, urls, project_id, project_keywords, project_purpose):
 @processing_bp.route("/api/triage", methods=["POST"])
 def start_triage():
     db = current_app.db
-    data = request.json
+    data = request.json or {}
     text = data.get("text", "")
     urls = extract_urls_from_text(text)
     project_id = data.get("project_id")
@@ -215,7 +215,7 @@ def get_triage_status(batch_id):
 @processing_bp.route("/api/triage/<batch_id>/confirm", methods=["POST"])
 def confirm_triage(batch_id):
     db = current_app.db
-    actions = request.json.get("actions", [])
+    actions = (request.json or {}).get("actions", [])
     for action in actions:
         db.update_triage_action(
             action["triage_id"],
@@ -231,7 +231,7 @@ def process_after_triage(batch_id):
     db = current_app.db
     data = request.json or {}
     model = data.get("model", DEFAULT_MODEL)
-    workers = data.get("workers", 5)
+    workers = min(max(int(data.get("workers", 5)), 1), 20)
     project_id = data.get("project_id")
 
     confirmed = db.get_confirmed_urls(batch_id)

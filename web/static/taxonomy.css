@@ -2,11 +2,11 @@
 
 /* ========== Taxonomy ========== */
 .category-card {
-    background: var(--bg-surface);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 16px;
-    padding: 15px;
-    margin-bottom: 10px;
+    border-radius: 0;
+    padding: 16px;
+    margin-bottom: 8px;
 }
 
 .cat-header {
@@ -21,10 +21,10 @@
 .cat-color-picker {
     -webkit-appearance: none;
     appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     border: 1px solid var(--border-default);
-    border-radius: 50%;
+    border-radius: 0;
     cursor: pointer;
     padding: 0;
     flex-shrink: 0;
@@ -32,15 +32,15 @@
 }
 
 .cat-color-picker::-webkit-color-swatch-wrapper { padding: 0; }
-.cat-color-picker::-webkit-color-swatch { border: none; border-radius: 50%; }
-.cat-color-picker::-moz-color-swatch { border: none; border-radius: 50%; }
+.cat-color-picker::-webkit-color-swatch { border: none; border-radius: 0; }
+.cat-color-picker::-moz-color-swatch { border: none; border-radius: 0; }
 
 /* Category color dot (inline) */
 .cat-color-dot {
     display: inline-block;
     width: 8px;
     height: 8px;
-    border-radius: 50%;
+    border-radius: 0;
     flex-shrink: 0;
     vertical-align: middle;
 }
@@ -48,71 +48,73 @@
 .count {
     color: var(--text-muted);
     font-weight: 400;
-    font-size: 13px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .sub-categories {
     margin-top: 8px;
-    padding-left: 20px;
+    padding-left: 16px;
 }
 
 .sub-cat {
     font-size: 13px;
-    padding: 5px 6px;
+    padding: 4px 0;
     color: var(--text-secondary);
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
-    transition: background 0.1s;
+    gap: 8px;
+    transition: color 0.1s linear;
 }
 
 .sub-cat:hover {
-    background: var(--bg-hover, var(--bg-container));
+    background: transparent;
     color: var(--text-primary);
 }
 
 .sub-cat-arrow {
-    transition: transform 0.15s;
+    transition: transform 0.1s linear;
 }
 
 /* Clickable category name in header */
 .cat-name-link {
     cursor: pointer;
-    transition: color 0.15s;
+    transition: color 0.1s linear;
     flex: 1;
 }
 
 .cat-name-link:hover {
-    color: var(--accent-primary);
+    color: var(--text-secondary);
 }
 
 /* Inline company list under category */
 .cat-companies-inline {
     margin-top: 8px;
     border-top: 1px solid var(--border-default);
-    padding-top: 4px;
+    padding-top: 8px;
 }
 
 /* Indent company list when it follows a subcategory row (inserted as sibling) */
 .sub-cat + .cat-companies-inline {
-    margin-left: 20px;
+    margin-left: 16px;
 }
 
 .cat-company-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 8px;
-    border-radius: 8px;
+    padding: 4px 0;
+    border-radius: 0;
     cursor: pointer;
     font-size: 13px;
-    transition: background 0.1s;
+    transition: color 0.1s linear;
 }
 
 .cat-company-row:hover {
-    background: var(--bg-hover, var(--bg-container));
+    background: transparent;
+    color: var(--text-secondary);
 }
 
 .cat-company-row-name {
@@ -131,7 +133,7 @@
 
 /* ========== Category Scope Notes ========== */
 .cat-metadata {
-    margin-top: 10px;
+    margin-top: 8px;
     border-top: 1px solid var(--border-default);
     padding-top: 8px;
 }
@@ -140,12 +142,14 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 0;
+    padding: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .cat-metadata-toggle:hover {
@@ -161,9 +165,9 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--text-muted);
-    margin: 8px 0 3px;
+    margin: 8px 0 4px;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
 }
 
 .cat-metadata-body label:first-child {
@@ -173,10 +177,11 @@
 .cat-metadata-body textarea {
     width: 100%;
     font-size: 13px;
-    padding: 6px 8px;
-    border: 1px solid var(--border-default);
-    border-radius: 8px;
-    background: var(--bg-container);
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid var(--border-default);
+    border-radius: 0;
+    background: transparent;
     color: var(--text-primary);
     resize: vertical;
     font-family: inherit;
@@ -184,8 +189,8 @@
 
 .cat-metadata-body .btn-sm {
     margin-top: 8px;
-    font-size: 12px;
-    padding: 4px 12px;
+    font-size: 11px;
+    padding: 4px 16px;
 }
 
 /* ========== History ========== */
@@ -197,113 +202,123 @@
 
 .change-type {
     display: inline-block;
-    padding: 2px 8px;
-    background: var(--accent-primary-light);
-    color: var(--accent-primary-hover);
-    border-radius: 9999px;
+    padding: 0 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 0;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     margin-right: 8px;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--border-default);
 }
 
 .change-date {
     float: right;
-    color: var(--text-faint);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* ========== Taxonomy Review ========== */
 .review-section {
-    margin-top: 20px;
-    padding: 20px;
-    background: var(--bg-surface);
-    border-radius: 16px;
+    margin-top: 24px;
+    padding: 24px;
+    background: transparent;
+    border-radius: 0;
     border: 1px solid var(--border-default);
 }
 
 .review-analysis {
-    padding: 12px 16px;
-    background: var(--bg-container);
-    border-left: 4px solid var(--accent-primary);
-    border-radius: 12px;
-    margin-bottom: 15px;
-    font-size: 14px;
+    padding: 16px;
+    background: transparent;
+    border-left: 1px solid var(--border-default);
+    border-radius: 0;
+    margin-bottom: 16px;
+    font-size: 15px;
     line-height: 1.5;
 }
 
 .review-change {
-    padding: 10px 16px;
-    background: var(--bg-container);
-    border: 1px solid var(--border-default);
-    border-radius: 12px;
-    margin-bottom: 6px;
+    padding: 16px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-default);
+    border-radius: 0;
+    margin-bottom: 0;
 }
 
-.review-change label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
-.review-change-reason { font-size: 13px; color: var(--text-secondary); margin-left: 26px; margin-top: 4px; }
-.review-actions { display: flex; gap: 10px; margin-top: 15px; }
+.review-change label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.review-change-reason { font-size: 13px; color: var(--text-secondary); margin-left: 24px; margin-top: 4px; }
+.review-actions { display: flex; gap: 8px; margin-top: 16px; }
 
 .review-error {
-    padding: 12px;
-    background: var(--accent-danger-bg-subtle);
-    border: 1px solid var(--accent-danger-light);
-    border-radius: 12px;
-    color: var(--accent-danger-text);
-    font-size: 14px;
+    padding: 16px;
+    background: transparent;
+    border: 1px solid #FF0000;
+    border-radius: 0;
+    color: #FF0000;
+    font-size: 13px;
 }
 
 /* ========== Taxonomy Quality ========== */
 .quality-dashboard {
-    background: var(--bg-surface);
-    padding: 14px;
-    border-radius: 16px;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
     border: 1px solid var(--border-default);
     margin-bottom: 16px;
+    padding: 24px;
 }
 
 .quality-cards {
     display: flex;
-    gap: 12px;
-    margin-top: 12px;
+    gap: 16px;
+    margin-top: 16px;
     flex-wrap: wrap;
 }
 
 .quality-card {
     flex: 1;
     min-width: 120px;
-    background: var(--bg-container);
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 16px;
+    border-radius: 0;
     padding: 16px;
     text-align: center;
 }
 
 .quality-metric {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 700;
     color: var(--text-heading);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.02em;
 }
 
 .quality-label {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
     margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .quality-hint {
     font-size: 11px;
     color: var(--text-muted);
-    margin-top: 6px;
+    margin-top: 8px;
     font-style: italic;
 }
 
 .quality-issue {
-    margin-top: 12px;
-    padding: 12px 16px;
-    border-radius: 12px;
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 0;
     font-size: 13px;
-    background: var(--bg-surface);
-    border-left: 3px solid var(--text-muted);
+    background: transparent;
+    border-left: 1px solid var(--text-muted);
 }
 
 .quality-issue-header {
@@ -311,7 +326,7 @@
 }
 
 .quality-issue-desc {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
     margin: 4px 0 8px;
 }
@@ -319,44 +334,45 @@
 .quality-issue-items {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
 }
 
 .quality-chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    background: var(--bg-container);
+    gap: 8px;
+    background: transparent;
     border: 1px solid var(--border-default);
-    border-radius: 20px;
-    padding: 4px 10px;
-    font-size: 12px;
+    border-radius: 0;
+    padding: 4px 8px;
+    font-size: 11px;
 }
 
 .quality-chip-action {
-    background: var(--accent-primary);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 1px 6px;
-    font-size: 10px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--text-primary);
+    border-radius: 0;
+    padding: 0 8px;
+    font-size: 11px;
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     font-weight: 600;
 }
 
 .quality-chip-action:hover {
-    background: var(--accent-primary-hover);
+    background: var(--text-primary);
+    color: var(--bg-page);
 }
 
 .quality-warn {
-    border-left-color: var(--wheat);
-    background: var(--accent-warning-bg);
+    border-left-color: var(--text-muted);
+    background: transparent;
 }
 
 [data-theme="dark"] .quality-warn {
-    background: var(--accent-warning-bg);
+    background: transparent;
 }
 
 /* ========== Graph Loading State ========== */
@@ -368,12 +384,16 @@
     height: 100%;
     min-height: 200px;
     color: var(--text-muted);
-    font-size: 14px;
-    gap: 12px;
+    font-size: 13px;
+    gap: 16px;
 }
 
 .graph-loading a {
-    color: var(--accent-primary);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+.graph-loading a:hover {
+    text-decoration: underline;
 }
 
 /* ========== Knowledge Graph ========== */
@@ -381,14 +401,14 @@
     width: 100%;
     height: 500px;
     border: 1px solid var(--border-default);
-    border-radius: 12px;
+    border-radius: 0;
     background: var(--bg-container);
 }
 
 .kg-filter-panel {
     display: flex;
-    gap: 14px;
-    margin-bottom: 10px;
+    gap: 16px;
+    margin-bottom: 8px;
     font-size: 13px;
 }
 

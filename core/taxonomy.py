@@ -1,19 +1,44 @@
-"""Taxonomy evolution: reviews and restructures categories after each batch."""
+"""Taxonomy evolution: reviews and restructures categories after each batch.
+
+Uses Instructor + Pydantic validation on the SDK path when available,
+with prompt caching on the taxonomy context.  Falls back to CLI +
+dict-based validation otherwise.
+
+Neither evolve_taxonomy nor review_taxonomy require web tools, so the
+full Instructor path is available when the SDK is configured.
+"""
 import json
+import logging
+import re
 import threading
 
 from config import PROMPTS_DIR, EVOLVE_TIMEOUT
 from core.classifier import build_taxonomy_tree_string
-from core.llm import run_cli
+from core.llm import (
+    run_cli, instructor_available, run_instructor, run_sdk_cached,
+)
+
+logger = logging.getLogger(__name__)
 
 REVIEW_TIMEOUT = 180  # Full review is more complex, allow 3 minutes
 
 # Lock to prevent concurrent taxonomy mutations (#5)
 _taxonomy_lock = threading.Lock()
 
+# Optional: Pydantic model for structured validation
+try:
+    from core.models import TaxonomyEvolution, PYDANTIC_AVAILABLE
+except ImportError:
+    TaxonomyEvolution = None
+    PYDANTIC_AVAILABLE = False
+
 
 def _apply_single_change(db, change, project_id=None):
     """Apply one taxonomy change dict. Returns the change if successful, else None."""
+    # Accept both dict and Pydantic model
+    if hasattr(change, "model_dump"):
+        change = change.model_dump()
+
     change_type = change.get("type")
     reason = change.get("reason", "")
 
@@ -116,15 +141,27 @@ def _apply_single_change(db, change, project_id=None):
 
 
 def _parse_structured(response):
-    """Extract structured output from LLM response, falling back to parsing result text."""
+    """Extract structured output from LLM response, falling back to parsing result text.
+
+    When Pydantic is available, validates through TaxonomyEvolution model.
+    """
     structured = response.get("structured_output")
-    if structured:
-        return structured
-    raw = response.get("result", "")
-    try:
-        return json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return None
+    if not structured:
+        raw = response.get("result", "")
+        try:
+            structured = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+    # Validate through Pydantic when available (non-fatal)
+    if PYDANTIC_AVAILABLE and TaxonomyEvolution is not None and structured:
+        try:
+            validated = TaxonomyEvolution.model_validate(structured)
+            return validated.model_dump()
+        except Exception as e:
+            logger.debug("Pydantic taxonomy validation failed: %s", e)
+
+    return structured
 
 
 def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
@@ -132,6 +169,11 @@ def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
 
     Calls Claude to analyze the current taxonomy state and propose changes.
     Applies approved changes to the database.
+
+    Strategy:
+      1. Instructor + prompt caching on taxonomy context (if available).
+      2. SDK with prompt caching (if SDK available).
+      3. CLI with json_schema (original path).
     """
     taxonomy_tree = build_taxonomy_tree_string(db, project_id=project_id)
     batch_companies = db.get_batch_companies(batch_id)
@@ -147,24 +189,60 @@ def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
             f"- {c['name']}: {(c.get('what') or '')[:150]}"
         )
     new_companies_text = "\n".join(company_summaries)
+    # Wrap company data in XML delimiters for prompt injection safety
+    new_companies_delimited = f"<company_data>\n{new_companies_text}\n</company_data>"
 
     prompt_template = (PROMPTS_DIR / "evolve_taxonomy.txt").read_text()
     prompt = prompt_template.format(
         taxonomy_tree=taxonomy_tree,
-        new_companies=new_companies_text,
+        new_companies=new_companies_delimited,
         total_companies=stats["total_companies"],
     )
 
-    schema = (PROMPTS_DIR / "schemas" / "taxonomy_evolution.json").read_text()
+    structured = None
 
-    try:
-        response = run_cli(prompt, model, timeout=EVOLVE_TIMEOUT,
-                           json_schema=schema)
-    except Exception as e:
-        print(f"  Warning: Taxonomy evolution failed: {e}")
-        return []
+    # --- Path 1: Instructor (SDK + Pydantic + prompt caching) ---
+    if instructor_available() and TaxonomyEvolution is not None:
+        try:
+            context = f"TAXONOMY:\n{taxonomy_tree}"
+            question = prompt_template.format(
+                taxonomy_tree="{see context above}",
+                new_companies=new_companies_delimited,
+                total_companies=stats["total_companies"],
+            )
+            result, meta = run_instructor(
+                question, model,
+                response_model=TaxonomyEvolution,
+                timeout=EVOLVE_TIMEOUT,
+                max_retries=3,
+                context=context,
+            )
+            structured = result.model_dump()
+            logger.info("Instructor taxonomy evolution completed in %dms", meta.get("duration_ms", 0))
+        except Exception as e:
+            logger.warning("Instructor taxonomy evolution failed, falling back: %s", e)
+            structured = None
 
-    structured = _parse_structured(response)
+    # --- Path 2: SDK cached or CLI fallback ---
+    if structured is None:
+        schema = (PROMPTS_DIR / "schemas" / "taxonomy_evolution.json").read_text()
+        try:
+            response = run_sdk_cached(
+                prompt, model, timeout=EVOLVE_TIMEOUT,
+                json_schema=schema,
+                context=f"TAXONOMY:\n{taxonomy_tree}",
+            )
+            structured = _parse_structured(response)
+        except Exception as e:
+            # Final fallback: plain CLI
+            try:
+                response = run_cli(prompt, model, timeout=EVOLVE_TIMEOUT,
+                                   json_schema=schema)
+                structured = _parse_structured(response)
+            except Exception as e2:
+                print(f"  Warning: Taxonomy evolution failed: {e2}")
+                return []
+
     if not structured:
         print("  Warning: No structured taxonomy evolution output")
         return []
@@ -200,9 +278,14 @@ def evolve_taxonomy(db, batch_id, model="claude-opus-4-6", project_id=None):
 
 
 def review_taxonomy(db, model="claude-opus-4-6", project_id=None, observations=""):
-    """Full taxonomy review — proposes changes but does NOT apply them.
+    """Full taxonomy review -- proposes changes but does NOT apply them.
 
     Returns dict with 'analysis' and 'changes' for user confirmation.
+
+    Strategy:
+      1. Instructor + prompt caching (if available).
+      2. SDK with prompt caching.
+      3. CLI (original path).
     """
     taxonomy_tree = build_taxonomy_tree_string(db, project_id=project_id)
     companies = db.get_companies(project_id=project_id)
@@ -218,24 +301,66 @@ def review_taxonomy(db, model="claude-opus-4-6", project_id=None, observations="
             f"- [{cat}] {c['name']}: {(c.get('what') or '')[:120]}"
         )
     all_companies_text = "\n".join(company_lines)
+    # Wrap company data in XML delimiters for prompt injection safety
+    all_companies_delimited = f"<company_data>\n{all_companies_text}\n</company_data>"
 
     prompt_template = (PROMPTS_DIR / "review_taxonomy.txt").read_text()
     prompt = prompt_template.format(
         taxonomy_tree=taxonomy_tree,
-        all_companies=all_companies_text,
+        all_companies=all_companies_delimited,
         total_companies=stats["total_companies"],
     )
 
     if observations:
-        prompt += f"\n\nUSER OBSERVATIONS (prioritize these):\n{observations}"
+        # Sanitize: strip control chars, limit length
+        clean_obs = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', str(observations))[:2000]
+        prompt += f"\n\n<user_observations>\n{clean_obs}\n</user_observations>\nConsider the user observations above as additional context."
 
+    # --- Path 1: Instructor (SDK + Pydantic + prompt caching) ---
+    if instructor_available() and TaxonomyEvolution is not None:
+        try:
+            context = (
+                f"TAXONOMY:\n{taxonomy_tree}\n\n"
+                f"<company_data>\n{all_companies_text}\n</company_data>"
+            )
+            question = prompt_template.format(
+                taxonomy_tree="{see context above}",
+                all_companies="{see context above}",
+                total_companies=stats["total_companies"],
+            )
+            if observations:
+                clean_obs = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', str(observations))[:2000]
+                question += f"\n\n<user_observations>\n{clean_obs}\n</user_observations>\nConsider the user observations above as additional context."
+
+            result, meta = run_instructor(
+                question, model,
+                response_model=TaxonomyEvolution,
+                timeout=REVIEW_TIMEOUT,
+                max_retries=3,
+                context=context,
+            )
+            structured = result.model_dump()
+            logger.info("Instructor taxonomy review completed in %dms", meta.get("duration_ms", 0))
+            return structured
+        except Exception as e:
+            logger.warning("Instructor taxonomy review failed, falling back: %s", e)
+
+    # --- Path 2: SDK cached ---
     schema = (PROMPTS_DIR / "schemas" / "taxonomy_evolution.json").read_text()
 
     try:
-        response = run_cli(prompt, model, timeout=REVIEW_TIMEOUT,
-                           json_schema=schema)
-    except Exception as e:
-        return {"error": f"Review failed: {e}", "changes": []}
+        response = run_sdk_cached(
+            prompt, model, timeout=REVIEW_TIMEOUT,
+            json_schema=schema,
+            context=f"TAXONOMY:\n{taxonomy_tree}\n\n<company_data>\n{all_companies_text}\n</company_data>",
+        )
+    except Exception:
+        # Final fallback: plain CLI
+        try:
+            response = run_cli(prompt, model, timeout=REVIEW_TIMEOUT,
+                               json_schema=schema)
+        except Exception as e:
+            return {"error": f"Review failed: {e}", "changes": []}
 
     structured = _parse_structured(response)
     if not structured:

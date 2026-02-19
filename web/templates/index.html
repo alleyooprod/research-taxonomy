@@ -14,120 +14,202 @@
 <html lang="en" data-theme="">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="color-scheme" content="light dark">
     <title>Research Taxonomy Library</title>
+
+    <!-- Fonts: Plus Jakarta Sans (UI) + JetBrains Mono (code) + Material Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- App stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-    <!-- Tabulator CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator_midnight.min.css">
-    <!-- Tippy.js CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/themes/light-border.css">
-    <!-- Notyf CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css">
-    <!-- Driver.js CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css">
-    <!-- Tagify CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify@4.31.3/dist/tagify.css">
-    <!-- Highlight.js code syntax theme -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github.min.css">
-    <!-- Flatpickr date picker CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
-    <!-- NProgress progress bar CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.css">
-    <!-- Diff2html diff viewer CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/css/diff2html.min.css">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- CDN Stylesheets                                            -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
 
-    <!-- Existing libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.4/marked.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js" defer></script>
+    <!-- Maps: Leaflet + MarkerCluster -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" integrity="sha384-b8ANgTJvdlAnWM5YGMpKn7Kodm+1k7NYNG9zdjTCcZcKatzYHwZ0RLdWarbJJVzU" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" integrity="sha384-pmjIAcz2bAn0xukfxADbZIb3t8oRT9Sv0rvO+BR5Csr6Dhqq+nZs59P0pPKQJkEV" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" integrity="sha384-wgw+aLYNQ7dlhK47ZPK7FRACiq7ROZwgFNg0m04avm4CaXS+Z9Y7nMu8yNjBKYC+" crossorigin="anonymous">
 
-    <!-- Data Visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
-    <!-- ECharts Word Cloud extension -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js" defer></script>
-    <!-- Network/Graph -->
-    <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js" defer></script>
-    <!-- Canvas drawing engine -->
-    <script src="https://cdn.jsdelivr.net/npm/fabric@6.5.1/dist/index.min.js" defer></script>
-    <!-- Canvas layout engines & sketch style -->
-    <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js" defer></script>
-    <!-- Geographic Maps -->
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
-    <!-- Data Table -->
-    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js" defer></script>
-    <!-- Drag and Drop -->
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
-    <!-- Search -->
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" defer></script>
-    <!-- PDF Generation -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.18/build/pdfmake.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.18/build/vfs_fonts.js" defer></script>
-    <!-- Excel Export -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
-    <!-- File Download -->
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js" defer></script>
-    <!-- Security -->
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" defer></script>
-    <!-- Date Formatting -->
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.13/plugin/relativeTime.js" defer></script>
-    <!-- Tooltips -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js" defer></script>
-    <!-- Notifications -->
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" defer></script>
-    <!-- Product Tour -->
-    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js" defer></script>
-    <!-- Tags -->
-    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify@4.31.3/dist/tagify.min.js" defer></script>
-    <!-- Animation -->
-    <script src="https://cdn.jsdelivr.net/npm/motion@11.16.0/dist/motion.js" defer></script>
+    <!-- Data Grid: Tabulator -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" integrity="sha384-V4N7xA98XpwXEziukVT23ibnUCmr8LbIxUQpT4PSUD3yp1TgQyMvrAAelVOuO0C0" crossorigin="anonymous">
+
+    <!-- Tooltips: Tippy.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy.css" integrity="sha384-IBgYl+I5X6ZDZXI5zv1vsSE3VopDomz4BxSu/GlxaPHfFtcrJ3uj70z1w6srO9zU" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/themes/light-border.css" integrity="sha384-oAnSdqFEFRIeYi0SBLHb5HS5ALP/C8FjjBKFAHpjn/9cXWK3iKVrWaxJRz3t9a91" crossorigin="anonymous">
+
+    <!-- Notifications: Notyf -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css" integrity="sha384-snpJ3knpH6avB6cP1vPkNdmRzCYaCpom/3TNOyvo189BiogXYXQfXkyYpZ2/xADs" crossorigin="anonymous">
+
+    <!-- UX: Driver.js (product tour) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css" integrity="sha384-eyrYgcjChmzD338JTHFZssgJHOqqOZbajet8yZpCw8ESroLDi28BarMEKCImNGHC" crossorigin="anonymous">
+
+    <!-- UX: Choices.js (enhanced selects) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@11.0.2/public/assets/styles/choices.min.css" integrity="sha384-n0GACcBzAGKp29zpmkTj4eje26AGm3wqHG9TROENrVHXySIkFf8nwmY5IgVr5qen" crossorigin="anonymous">
+
+    <!-- Tags: Tagify -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify@4.31.3/dist/tagify.css" integrity="sha384-Usq5M9GHZHywFmpFNI+e0XtFxuS+JCFQPHBu+EyyIC5vY+WQFbJCYPCaFKSzp+gv" crossorigin="anonymous">
+
+    <!-- Code: Highlight.js theme -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github.min.css" integrity="sha384-eFTL69TLRZTkNfYZOLM+G04821K1qZao/4QLJbet1pP4tcF+fdXq/9CdqAbWRl/L" crossorigin="anonymous">
+
+    <!-- Date picker: Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt" crossorigin="anonymous">
+
+    <!-- Progress: NProgress -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.css" integrity="sha384-pwTVmaXgbbFRCYPBh1yaHpccJ0KzibGT/RTD3LUT0gjddQ1UkDxcimqlUvZaziZP" crossorigin="anonymous">
+
+    <!-- Diff viewer: diff2html -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/css/diff2html.min.css" integrity="sha384-PdRCG/+r1waybtXfuDB9Kmv2h7AGoN6WaTZ5OF+ctPeR9BGne0FaKRQnUeGV4nDL" crossorigin="anonymous">
+
+    <!-- Print styles -->
+    <link rel="stylesheet" href="/static/css/print.css" media="print">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- CDN Scripts                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Charts & Viz -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer integrity="sha384-Mx5lkUEQPM1pOJCwFtUICyX45KNojXbkWdYhkKUKsbv391mavbfoAmONbzkgYPzR" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js" defer integrity="sha384-U1KEY0DDCF4Dq6Yx1J+EZ5Hnj8X5bMn52OAcJB8C4OiAWeU4iJhJ/Tv5KhTqu8zZ" crossorigin="anonymous"></script>
+
+    <!-- Graphs: Cytoscape + layout extensions (dagre, fcose) -->
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js" defer integrity="sha384-H3uzGzTfGHUAumB8+s4GEdfFwzAceN9wCCndN8AXubWKFIPuBSWKKtWDx7RhSf/z" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js" defer integrity="sha384-u69h9ebXeSjlg6q/rb1zKTRAGu/h8deCl0409xpS/QJctMKnc4M9Fzkm01VOQdeF" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.js" defer integrity="sha384-uk5Wbjq1+KqUdHO30w7N7GrEGdzBhaJeW9o/ANF6v9+yx3M/cBmoX51C000JNCUf" crossorigin="anonymous"></script>
+
+    <!-- Canvas: Fabric.js drawing engine + layout + sketch -->
+    <script src="https://cdn.jsdelivr.net/npm/fabric@6.5.1/dist/index.min.js" defer integrity="sha384-uwizC/PmbWPkJCrTMrSBSXyEkEk8eLhbxzeLOSfquA3NAvTqOSzUr9PTojpzXK+w" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js" defer integrity="sha384-lNbBZ8yeW7Otl9YsPLeAvfxwUjrpXOnk/ujXsbt5s9wWhKWCYzMeFdZwKBpYxeDT" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js" defer integrity="sha384-1NLkwxMO2sOqcq7rQkFBhIAUJtbt8ziLxhVKVgKfFGMEU8pF+GEq5LVogviveup6" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js" defer integrity="sha384-KO35c6PFq7tFxAEx6FtATwL9vOBOmCzQYr7GM0iTr3oO22s7Jc9OkclOH4AV7jwK" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js" defer integrity="sha384-LE9qY46wSQtGLFdKk+na4saTOtmlGF3GByazLVjZXb8DPBJxCMTzshHEW0BzBszp" crossorigin="anonymous"></script>
+    <!-- Canvas: perfect-freehand (vendored locally) -->
+    <script type="module">
+        import getStroke from '/static/vendor/perfect-freehand.mjs';
+        window.getStroke = getStroke;
+    </script>
+
+    <!-- Maps: Leaflet + plugins (markercluster, heat, turf) -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" defer integrity="sha384-u5N8qJeJOO2iqNjIKTdl6KeKsEikMAmCUBPc6sC6uGpgL34aPJ4VgNhuhumedpEk" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer integrity="sha384-eXVCORTRlv4FUUgS/xmOyr66XBVraen8ATNLMESp92FKXLAMiKkerixTiBvXriZr" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js" defer integrity="sha384-mFKkGiGvT5vo1fEyGCD3hshDdKmW3wzXW/x+fWriYJArD0R3gawT6lMvLboM22c0" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js" defer integrity="sha384-V2sTNoSKrI8N2u8kNbpZ2kJh54vI+OABRWz1t5/4m+fJuVeIoIkmILoRhQ/XRqrS" crossorigin="anonymous"></script>
+
+    <!-- Data Grid & Search: Tabulator + Fuse.js + MiniSearch -->
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js" defer integrity="sha384-SKSq3cuuVWdfrjtLz9wNlqE0bMc903yMS5zGnFtwvfddplgxa1hywtiLyw1CbSHO" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" defer integrity="sha384-PCSoOZTpbkikBEtd/+uV3WNdc676i9KUf01KOA8CnJotvlx8rRrETbDuwdjqTYvt" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/minisearch@7.1.1/dist/umd/index.min.js" defer integrity="sha384-NaG2onw11DFACpXdRQsBdEloX/dyoVXm8MLdKo0dHSA3SGZU8R7B5IJHI4D0ofwR" crossorigin="anonymous"></script>
+
+    <!-- Export: pdfmake -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.18/build/pdfmake.min.js" defer integrity="sha384-PLaX7k4F4YVdUVAJKxtWURYhFKyvexLM/uv+VrBJPNluuvTrh2meFg4HNi8TDlmN" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.18/build/vfs_fonts.js" defer integrity="sha384-XVR3gHYz6FEUgHjf/cwpc7D8vspX/UeLi4U9tEAXKA+4cI9XqCxai33WL9TctdbG" crossorigin="anonymous"></script>
+    <!-- Export: Excel (xlsx + ExcelJS) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer integrity="sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz" crossorigin="anonymous"></script>
+    <!-- Export: JSZip -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+    <!-- Export: docx (Word documents) -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.1.1/dist/index.umd.cjs" defer integrity="sha384-v/YnrYkmz3+eI8DIH2w1QXTVZv+RXFqGJ44/sGx/+K6RvQJ0h9vHWfDBSlYq2DAC" crossorigin="anonymous"></script>
+    <!-- Export: marked (Markdown to HTML) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.4/marked.min.js" defer integrity="sha384-2NndlFAl0twi2nmu3w9mixodZFiN2fbxlakcYJF86bn1JeS1VB87/XqA7cqymzS+" crossorigin="anonymous"></script>
+    <!-- Export: FileSaver.js -->
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js" defer integrity="sha384-PlRSzpewlarQuj5alIadXwjNUX+2eNMKwr0f07ShWYLy8B6TjEbm7ZlcN/ScSbwy" crossorigin="anonymous"></script>
+    <!-- Export: html2canvas -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+
+    <!-- Diagrams: Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js" defer integrity="sha384-jFhLSLFn4m565eRAS0CDMWubMqOtfZWWbE8kqgGdU+VHbJ3B2G/4X8u+0BM8MtdU" crossorigin="anonymous"></script>
+
+    <!-- Security: DOMPurify -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" defer integrity="sha384-eEu5CTj3qGvu9PdJuS+YlkNi7d2XxQROAFYOr59zgObtlcux1ae1Il3u7jvdCSWu" crossorigin="anonymous"></script>
+
+    <!-- Search & Validation: validator.js -->
+    <script src="https://cdn.jsdelivr.net/npm/validator@13.12.0/validator.min.js" defer integrity="sha384-G3jMvOhKz+m+LU2WLdby9iZiZ7q9SEy45ltC1BVQg7WdaEwFeaqguod21KLhhUVM" crossorigin="anonymous"></script>
+
+    <!-- Date Formatting: Day.js -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js" defer integrity="sha384-DpVxUeeBWjUvUV1czyIHJAjh+jYUZFu2lLakbdua5vbwOrBGi1UgaKCHjTC+x3Ky" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.13/plugin/relativeTime.js" defer integrity="sha384-ssUzPQXjLHLO39a9AiuwxnnyDxIvOMUxEQpqfreUaW7jLEdDAXiF6UooZRO53F6Z" crossorigin="anonymous"></script>
+
+    <!-- Tooltips: Popper + Tippy -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" defer integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js" defer integrity="sha384-AiTRpehQ7zqeua0Ypfa6Q4ki/ddhczZxrKtiQbTQUlJIhBkTeyoZP9/W/5ulFt29" crossorigin="anonymous"></script>
+
+    <!-- Notifications: Notyf -->
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" defer integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
+
+    <!-- UX: Driver.js (product tour) -->
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js" defer integrity="sha384-BhR06AMz62Xn0o53z8itVS1vw4JslNckRFgOTa6/Dob0Agdmbbh8Dr9sDO2h18TO" crossorigin="anonymous"></script>
+
+    <!-- UX: Choices.js (enhanced selects) -->
+    <script src="https://cdn.jsdelivr.net/npm/choices.js@11.0.2/public/assets/scripts/choices.min.js" defer integrity="sha384-RW4gs5EBMnvixdJOoWLeT/qJSVHjMQOOwwxMSGVlEzuuuPWm9WVTDYPspqVrYBds" crossorigin="anonymous"></script>
+
+    <!-- UX: Lucide icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" defer integrity="sha384-hJnF5AwidE18GSWTAGHv3ByzzvfNZ1Tcx5y1UUV3WkauuMCEzBJBMSwSt/PUPXnM" crossorigin="anonymous"></script>
+
+    <!-- UX: ninja-keys (command palette web component) -->
+    <script src="https://cdn.jsdelivr.net/npm/ninja-keys@1.2.2/dist/ninja-keys.min.js" defer integrity="sha384-MOBmjJ9wSXr3Nbc9Zrites84GyyrDYleMho08qwyP3mco6Se8nkDiuAdz7W8t0Q1" crossorigin="anonymous"></script>
+
+    <!-- UX: SortableJS (drag and drop) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer integrity="sha384-HZZ/fukV+9G8gwTNjN7zQDG0Sp7MsZy5DDN6VfY3Be7V9dvQpEpR2jF2HlyFUUjU" crossorigin="anonymous"></script>
+
+    <!-- UX: Floating UI (positioning engine) -->
+    <script src="https://cdn.jsdelivr.net/npm/@floating-ui/core@1.6.3/dist/floating-ui.core.umd.min.js" defer integrity="sha384-SJoIIKe0fXtNSiN8+suBrlO3s7ddOATC1q0v9dbaGZN8/tYjo5XmqEYxHpI+jIqY" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@floating-ui/dom@1.6.3/dist/floating-ui.dom.umd.min.js" defer integrity="sha384-rTc0ZbbIMupXXE93GPQiOve/8y8pMmPvlOUT0SloHezzPddhsU3tjC0SX2D9sslf" crossorigin="anonymous"></script>
+
+    <!-- Tags: Tagify -->
+    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify@4.31.3/dist/tagify.min.js" defer integrity="sha384-324Co8zgQ3kU3YG6V9d0O50pPQ/JcLdIPKDwy+mE1x8RfJx9ZcFtV6HzXSCbMctR" crossorigin="anonymous"></script>
+
+    <!-- Animation: Motion -->
+    <script src="https://cdn.jsdelivr.net/npm/motion@11.16.0/dist/motion.js" defer integrity="sha384-YG7y+J5y8spBFifQi8cS5n5YYDVgEhFJv5CYNiA3f2NXeHGfDtJxl3Yp/MBU9Cp8" crossorigin="anonymous"></script>
+
     <!-- Confetti -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
-    <!-- Keyboard Shortcuts -->
-    <script src="https://cdn.jsdelivr.net/npm/hotkeys-js@3.13.9/dist/hotkeys.min.js" defer></script>
-    <!-- Code Syntax Highlighting (browser build — no require()) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js" defer></script>
-    <!-- Geographic Heatmap -->
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer integrity="sha384-Rv68Y7adOjMMJc1/xFMcdNvXre/HF51to4GZjBALmXr7ABnVl5V4UajJwBu7zbhN" crossorigin="anonymous"></script>
+
+    <!-- Keyboard Shortcuts: hotkeys-js -->
+    <script src="https://cdn.jsdelivr.net/npm/hotkeys-js@3.13.9/dist/hotkeys.min.js" defer integrity="sha384-53hNeodlih94YLqSA2jxctko3qeoj8OKosYoL8p9uS39KKKz7JneDiLCIK1E8bUY" crossorigin="anonymous"></script>
+
+    <!-- Code Syntax Highlighting (browser build) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js" defer integrity="sha384-GdEWAbCjn+ghjX0gLx7/N1hyTVmPAjdC2OvoAA0RyNcAOhqwtT8qnbCxWle2+uJX" crossorigin="anonymous"></script>
+
     <!-- Auto-expanding Textareas -->
-    <script src="https://cdn.jsdelivr.net/npm/autosize@6.0.1/dist/autosize.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/autosize@6.0.1/dist/autosize.min.js" defer integrity="sha384-Q9KD03bmEL9H3t9KOxcdN2YplobIplv9iv7srJG5fI9U22Pw0uvKgHwtI32TTG3U" crossorigin="anonymous"></script>
+
     <!-- Click-to-Zoom Images -->
-    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" defer></script>
-    <!-- Date Range Picker -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" defer></script>
-    <!-- NProgress slim progress bar -->
-    <script src="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.js" defer></script>
-    <!-- Diff2html rich diff viewer -->
-    <script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/js/diff2html.min.js" defer></script>
-    <!-- Split.js resizable panes -->
-    <script src="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" defer integrity="sha384-o0gqi06am9fKVfa/jWO8/UE7OxHG6t+fgq/XaASsuwT8OBsFcxN7YhjtqyTfIxtS" crossorigin="anonymous"></script>
+
+    <!-- Date Range Picker: Flatpickr -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" defer integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+
+    <!-- Progress: NProgress -->
+    <script src="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.js" defer integrity="sha384-Khp+WGU135XsFuEWvnA1WVJNvQ7T6CI9uxs+8RZes7B2JOmM5kjifb3AJ6V3JxY8" crossorigin="anonymous"></script>
+
+    <!-- Diff viewer: diff2html -->
+    <script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/js/diff2html.min.js" defer integrity="sha384-X6/ZXflvpFfCMcPkCC2/ydjb6KJqTsoQq2eGjzB5LfWgXs3VsjbfaEKKVWsfQIAy" crossorigin="anonymous"></script>
+
+    <!-- Resizable Panes: Split.js -->
+    <script src="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.js" defer integrity="sha384-q2ksSc8z6Q4ZUnxlfZj9AXZLpSdWmD3q/YrId1twTeNHh56fNh98YbJSpppzGUvL" crossorigin="anonymous"></script>
+
     <!-- Currency formatting -->
-    <script src="https://cdn.jsdelivr.net/npm/currency.js@2.0.4/dist/currency.min.js" defer></script>
-    <!-- Search result highlighting -->
-    <script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/currency.js@2.0.4/dist/currency.min.js" defer integrity="sha384-rvtOlmtdaQlETnn9WzuLmsk2dRrRmmavPGSnHVDWwXkUkN9ZB+APb+LX/7AVJCIV" crossorigin="anonymous"></script>
+
+    <!-- Search result highlighting: mark.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js" defer integrity="sha384-t9DGTa+HJ3fETmsPZ37+56VRxK0NsOgFTQ1B4fxaxA+BM48rM5oXrg0/ncF/B3VX" crossorigin="anonymous"></script>
+
     <!-- QR Code generation -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
-    <!-- Hand-drawn annotations -->
-    <script src="https://cdn.jsdelivr.net/npm/rough-notation@0.5.1/lib/rough-notation.iife.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer integrity="sha384-lQXOAyZwHXE55JFyrOMB7nY2Wv+m5ZWNtJcHrd1rceRQXAYNLak8ukN5TjBTcIwz" crossorigin="anonymous"></script>
+
+    <!-- Hand-drawn annotations: Rough Notation -->
+    <script src="https://cdn.jsdelivr.net/npm/rough-notation@0.5.1/lib/rough-notation.iife.js" defer integrity="sha384-IW2mAEaBUcGJfuKi7uhlzpZGhnDDnjI9NLtADxl9xKV6VJPzuuIqhIKyLwiAuRmu" crossorigin="anonymous"></script>
+
     <!-- Pan & zoom for any element -->
-    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js" defer integrity="sha384-ZOYffjPUyf23W5DufkQVkrN7uZvIMRRCPo64S2N2S0mFM9+bFZpn2/MQTy2O35gF" crossorigin="anonymous"></script>
 </head>
 <body>
     <a href="#mainApp" class="skip-link">Skip to main content</a>
@@ -140,7 +222,7 @@
     </div>
 
     <!-- Offline banner -->
-    <div id="offlineBanner" class="connection-banner hidden" role="alert" style="background:#4a3a20">
+    <div id="offlineBanner" class="connection-banner hidden" role="alert">
         <span class="connection-banner-icon"><span class="material-symbols-outlined">wifi_off</span></span>
         <span>You're offline — AI features are disabled. Data browsing still works.</span>
     </div>
@@ -303,7 +385,7 @@
             <!-- Companies Tab -->
             <section id="tab-companies" class="tab-content active" role="tabpanel" aria-label="Companies">
                 <div class="controls">
-                    <input type="text" id="searchInput" placeholder="Search companies... (/ to focus)" oninput="debounceSearch()">
+                    <input type="text" id="searchInput" placeholder="Search companies... (/)" oninput="debounceSearch()">
                     <select id="categoryFilter" onchange="addFilterFromSelect('category')">
                         <option value="">+ Category</option>
                     </select>
@@ -347,15 +429,24 @@
                     <button class="view-toggle-btn active" id="viewTableBtn" onclick="switchCompanyView('table')">
                         <span class="material-symbols-outlined" style="font-size:16px">table_rows</span> Table
                     </button>
+                    <button class="view-toggle-btn" id="viewGridBtn" onclick="switchCompanyView('grid')">
+                        <span class="material-symbols-outlined" style="font-size:16px">view_list</span> Grid
+                    </button>
                     <button class="view-toggle-btn" id="viewGalleryBtn" onclick="switchCompanyView('gallery')">
                         <span class="material-symbols-outlined" style="font-size:16px">grid_view</span> Gallery
                     </button>
                     <button class="view-toggle-btn" id="viewTimelineBtn" onclick="switchCompanyView('timeline')">
                         <span class="material-symbols-outlined" style="font-size:16px">timeline</span> Timeline
                     </button>
+                    <button class="view-toggle-btn" id="viewExportCsvBtn" onclick="exportTabulatorCsv()" title="Export CSV" style="margin-left:auto">
+                        <span class="material-symbols-outlined" style="font-size:16px">download</span> CSV
+                    </button>
                 </div>
 
                 <div id="companyViewContainer" class="hidden"></div>
+
+                <!-- Tabulator grid view container -->
+                <div id="companiesGridContainer" class="hidden"></div>
 
                 <table id="companyTable">
                     <thead>
@@ -394,6 +485,30 @@
                     </div>
                     <div id="detailContent"></div>
                 </div>
+
+                <!-- Skeleton loading template for company list -->
+                <template id="skeletonCompanyRow">
+                  <div class="skeleton-row">
+                    <div class="skeleton skeleton-avatar"></div>
+                    <div class="skeleton-content">
+                      <div class="skeleton skeleton-text medium"></div>
+                      <div class="skeleton skeleton-text short"></div>
+                    </div>
+                  </div>
+                </template>
+
+                <template id="skeletonDetail">
+                  <div style="padding: 20px;">
+                    <div class="skeleton skeleton-text long" style="height: 20px; margin-bottom: 16px;"></div>
+                    <div class="skeleton skeleton-text medium"></div>
+                    <div class="skeleton skeleton-text long"></div>
+                    <div class="skeleton skeleton-text short"></div>
+                    <div style="margin-top: 24px;">
+                      <div class="skeleton skeleton-text long"></div>
+                      <div class="skeleton skeleton-text medium"></div>
+                    </div>
+                  </div>
+                </template>
             </section>
 
             <!-- Taxonomy Tab -->
@@ -681,15 +796,21 @@
                     </div>
                     <div class="draw-tool-sep"></div>
                     <div class="draw-tool-group">
+                        <button class="draw-tool draw-tool-text" id="toolHandDrawn" onclick="toggleHandDrawnMode()" title="Hand-drawn style (Rough.js)">
+                            Sketch
+                        </button>
+                    </div>
+                    <div class="draw-tool-sep"></div>
+                    <div class="draw-tool-group">
                         <label class="draw-tool-label" title="Fill color">
-                            <input type="color" id="canvasFillColor" value="#bc6c5a" class="canvas-color-input" onchange="applyFillToSelected(this.value)">
+                            <input type="color" id="canvasFillColor" value="#ffffff" class="canvas-color-input" onchange="applyFillToSelected(this.value)">
                         </label>
                         <label class="draw-tool-label" title="Stroke color">
-                            <input type="color" id="canvasStrokeColor" value="#3D4035" class="canvas-color-input" onchange="applyStrokeToSelected(this.value)">
+                            <input type="color" id="canvasStrokeColor" value="#000000" class="canvas-color-input" onchange="applyStrokeToSelected(this.value)">
                         </label>
                         <select id="canvasStrokeWidth" class="draw-tool-select" title="Stroke width" onchange="applyStrokeWidthToSelected(+this.value)">
-                            <option value="1">1px</option>
-                            <option value="2" selected>2px</option>
+                            <option value="1" selected>1px</option>
+                            <option value="2">2px</option>
                             <option value="3">3px</option>
                             <option value="5">5px</option>
                             <option value="8">8px</option>
@@ -1031,6 +1152,26 @@
                         <h3>PDF Report</h3>
                         <p>Professional PDF with charts and data tables</p>
                         <button class="btn" onclick="exportFullPdf()">Download PDF</button>
+                    </div>
+                    <div class="export-card">
+                        <h3>PDF (Full Report)</h3>
+                        <p>Detailed taxonomy report with categories and company table</p>
+                        <button class="btn" onclick="exportProjectPdfFromTab()">Download Report PDF</button>
+                    </div>
+                    <div class="export-card">
+                        <h3>Excel (Styled)</h3>
+                        <p>Styled workbook with formatted headers and data</p>
+                        <button class="btn" onclick="exportProjectExcelFromTab()">Download Styled Excel</button>
+                    </div>
+                    <div class="export-card">
+                        <h3>Word (.docx)</h3>
+                        <p>Editable Word document with categories and companies</p>
+                        <button class="btn" onclick="exportProjectWordFromTab()">Download Word</button>
+                    </div>
+                    <div class="export-card">
+                        <h3>ZIP Bundle</h3>
+                        <p>All formats bundled: JSON, CSV, and more in one download</p>
+                        <button class="btn" onclick="exportProjectZipFromTab()">Download ZIP</button>
                     </div>
                 </div>
 
@@ -1520,15 +1661,24 @@
         </div>
     </div>
 
-    <!-- About Dialog -->
-    <div id="aboutModal" class="modal-overlay hidden" role="dialog" aria-modal="true" onclick="if(event.target===this)closeAboutDialog()">
-        <div class="modal modal-narrow" style="text-align:center;padding:32px">
-            <h2 style="font-family:'Newsreader',serif;font-size:28px;margin-bottom:8px">Research Taxonomy Library</h2>
-            <p id="aboutVersion" style="color:var(--text-muted);margin-bottom:16px">v1.0.0</p>
-            <p style="font-size:13px;color:var(--text-muted)">Market research taxonomy builder with AI-powered company discovery, classification, and analysis.</p>
-            <p style="font-size:12px;color:var(--text-muted);margin-top:16px">Built with Flask, SQLite, Claude &amp; Gemini</p>
-            <button class="btn" onclick="closeAboutDialog()" style="margin-top:16px">Close</button>
+    <!-- About dialog -->
+    <div id="aboutModal" class="modal" role="dialog" aria-labelledby="aboutTitle" aria-modal="true">
+      <div class="modal-content" style="max-width: 340px; border-radius: 0;">
+        <div class="about-dialog" style="text-align: center; padding: 32px 24px;">
+          <div class="app-icon" style="background: var(--text-primary); display: inline-flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 28px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; width: 56px; height: 56px; border-radius: 0; letter-spacing: -0.02em;">RT</div>
+          <div id="aboutTitle" class="app-name" style="margin-top: 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: -0.01em;">Research Taxonomy Library</div>
+          <div class="app-version" id="aboutVersion" style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);">Version loading...</div>
+          <div style="margin: 20px 0; padding: 12px 0; border-top: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+            <div>AI-powered market research &amp; taxonomy builder</div>
+            <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px;">Python <span id="aboutPython"></span> / Flask / SQLite</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px;">Claude AI / Gemini AI</div>
+          </div>
+          <div class="app-copyright" style="font-size: 11px; color: var(--text-muted);">&copy; 2024-2026</div>
+          <div style="margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="closeModal('aboutModal')" style="font-size: 12px; padding: 6px 24px; border-radius: 0;">OK</button>
+          </div>
         </div>
+      </div>
     </div>
 
     <!-- App JS modules (load order matters: core first, integrations/init last) -->
@@ -1556,5 +1706,28 @@
     <script src="{{ url_for('static', filename='js/dimensions.js') }}"></script>
     <script src="{{ url_for('static', filename='js/discovery.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
+
+    <script>
+      // Prevent pinch-zoom (native apps don't zoom)
+      document.addEventListener('wheel', function(e) {
+        if (e.ctrlKey) { e.preventDefault(); }
+      }, { passive: false });
+    </script>
+
+    <!-- Confirmation sheet -->
+    <div id="confirmSheet" class="confirm-sheet-overlay" style="display:none;">
+      <div class="confirm-sheet" style="border-radius: 0;">
+        <div id="confirmSheetIcon" class="confirm-sheet-icon danger" style="font-size: 24px;">&#9888;</div>
+        <div id="confirmSheetTitle" class="confirm-sheet-title" style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;">Are you sure?</div>
+        <div id="confirmSheetMessage" class="confirm-sheet-message">This action cannot be undone.</div>
+        <div class="confirm-sheet-actions">
+          <button id="confirmSheetConfirm" class="confirm-btn-danger" style="border-radius: 0;">Delete</button>
+          <button id="confirmSheetCancel" class="confirm-btn-cancel" style="border-radius: 0;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Command palette (ninja-keys web component) -->
+    <ninja-keys id="commandPalette" placeholder="Type a command..." hideBreadcrumbs></ninja-keys>
 </body>
 </html>

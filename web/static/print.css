@@ -1,0 +1,40 @@
+/* Feature: Print — clean printable output */
+
+@media print {
+    /* Hide all navigation and chrome */
+    .tabs, .tab, .sidebar, .top-bar, .header-actions,
+    .toast-container, .connection-banner, .update-banner,
+    .modal-overlay, .confirm-sheet-overlay, .nprogress-container,
+    .btn, button:not(.print-keep), .filter-bar, .breadcrumb,
+    .bulk-actions-bar, .empty-state-actions, footer,
+    #canvasWrapper, .canvas-toolbar {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+        font-size: 11pt;
+        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    .tab-content.active {
+        display: block !important;
+        position: static !important;
+    }
+
+    .company-detail, .research-content, .report-content {
+        box-shadow: none !important;
+        border: none !important;
+        page-break-inside: avoid;
+    }
+
+    a { color: black; text-decoration: underline; }
+    a::after { content: " (" attr(href) ")"; font-size: 9pt; }
+
+    @page {
+        margin: 2cm;
+    }
+}

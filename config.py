@@ -5,8 +5,11 @@ import secrets
 import sys
 from pathlib import Path
 
+import keyring
+
 # App version (checked by auto-update)
 APP_VERSION = "1.1.0"
+BUILD_DATE = "2026-02-19"
 
 # Paths
 BASE_DIR = Path(__file__).parent
@@ -18,6 +21,13 @@ if _is_bundled:
     DATA_DIR = _app_support
 else:
     DATA_DIR = BASE_DIR / "data"
+
+# Ensure DATA_DIR exists with restricted permissions (owner-only access)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    os.chmod(DATA_DIR, 0o700)
+except OSError:
+    pass
 
 PROMPTS_DIR = BASE_DIR / "prompts"
 LOGS_DIR = DATA_DIR / "logs"
@@ -48,7 +58,7 @@ EVOLVE_TIMEOUT = 90
 CLAUDE_BIN = "claude"
 # Set CLAUDE_SKIP_PERMISSIONS=0 to disable --dangerously-skip-permissions
 # (requires interactive permission grants for each Claude tool use)
-_skip_permissions = os.environ.get("CLAUDE_SKIP_PERMISSIONS", "1") != "0"
+_skip_permissions = os.environ.get("CLAUDE_SKIP_PERMISSIONS", "0") == "1"
 CLAUDE_COMMON_FLAGS = [
     "--output-format", "json",
     *(["--dangerously-skip-permissions"] if _skip_permissions else []),
@@ -70,7 +80,7 @@ import hmac, hashlib, time as _time
 def generate_csrf_token():
     """Generate a per-request CSRF token with timestamp."""
     ts = str(int(_time.time()))
-    sig = hmac.new(SESSION_SECRET.encode(), ts.encode(), hashlib.sha256).hexdigest()[:16]
+    sig = hmac.new(SESSION_SECRET.encode(), ts.encode(), hashlib.sha256).hexdigest()[:32]
     return f"{ts}.{sig}"
 
 def verify_csrf_token(token, max_age=86400):
@@ -84,7 +94,7 @@ def verify_csrf_token(token, max_age=86400):
         return False
     if _time.time() - ts > max_age:
         return False
-    expected = hmac.new(SESSION_SECRET.encode(), ts_str.encode(), hashlib.sha256).hexdigest()[:16]
+    expected = hmac.new(SESSION_SECRET.encode(), ts_str.encode(), hashlib.sha256).hexdigest()[:32]
     return hmac.compare_digest(sig, expected)
 
 # Rate limiting
@@ -92,6 +102,7 @@ RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = {
     "ai": 10,       # AI endpoints per window
     "default": 120,  # General endpoints per window
+    "read": 300,     # Read-only endpoints per window
 }
 
 # Taxonomy evolution thresholds
@@ -157,6 +168,29 @@ def save_app_settings(settings):
     APP_SETTINGS_FILE.write_text(json.dumps(settings, indent=2))
 
 
+def get_api_key():
+    """Get API key from Keychain, falling back to settings file."""
+    key = keyring.get_password("Research Taxonomy Library", "anthropic_api_key")
+    if not key:
+        key = load_app_settings().get("anthropic_api_key", "")
+        if key:
+            # Migrate plaintext key to Keychain
+            try:
+                save_api_key(key)
+            except Exception:
+                pass
+    return key
+
+
+def save_api_key(key):
+    """Save API key to Keychain."""
+    keyring.set_password("Research Taxonomy Library", "anthropic_api_key", key)
+    # Also update settings for backward compat
+    settings = load_app_settings()
+    settings["anthropic_api_key"] = ""  # Clear plaintext
+    save_app_settings(settings)
+
+
 def check_prerequisites():
     """Check system prerequisites and return status dict."""
     import shutil
@@ -191,10 +225,7 @@ def check_prerequisites():
     }
 
     # Anthropic API key
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    settings = load_app_settings()
-    if not api_key:
-        api_key = settings.get("anthropic_api_key", "")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "") or get_api_key()
     results["anthropic_api_key"] = {
         "configured": bool(api_key),
     }
