@@ -5,7 +5,7 @@ import time
 
 from flask import Blueprint, current_app, jsonify, request
 
-from config import DEFAULT_MODEL
+from config import DEFAULT_MODEL, RESEARCH_TIMEOUT
 from core.llm import run_cli
 from core.git_sync import sync_to_git_async
 from storage.db import Database
@@ -143,7 +143,7 @@ def _run_research(job_id, research_id, project_id, user_prompt,
     prompt = _build_prompt(user_prompt, context, scope_type)
 
     try:
-        response = run_cli(prompt, model, timeout=300, tools="WebSearch,WebFetch")
+        response = run_cli(prompt, model, timeout=RESEARCH_TIMEOUT, tools="WebSearch,WebFetch")
         result = response.get("result", "")
         duration_ms = int((time.time() - start) * 1000)
         cost_usd = response.get("cost_usd")
@@ -158,8 +158,12 @@ def _run_research(job_id, research_id, project_id, user_prompt,
             "status": "completed", "research_id": research_id,
         })
     except subprocess.TimeoutExpired:
-        research_db.update_research(research_id, {"status": "failed", "result": "Research timed out after 5 minutes."})
-        write_result("research", job_id, {"status": "error", "error": "Research timed out."})
+        timeout_min = RESEARCH_TIMEOUT // 60
+        research_db.update_research(research_id, {
+            "status": "failed",
+            "result": f"Research timed out after {timeout_min} minutes. The question may be too broad or web searches took too long. Try a more focused question or a faster model.",
+        })
+        write_result("research", job_id, {"status": "error", "error": f"Research timed out after {timeout_min} minutes."})
     except Exception as e:
         research_db.update_research(research_id, {"status": "failed", "result": str(e)[:500]})
         write_result("research", job_id, {"status": "error", "error": str(e)[:300]})

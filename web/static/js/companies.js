@@ -124,12 +124,22 @@ async function loadCompanies() {
     if (activeFilters.tags.length) url += `tags=${encodeURIComponent(activeFilters.tags.join(','))}&`;
     if (activeFilters.geography) url += `geography=${encodeURIComponent(activeFilters.geography)}&`;
     if (activeFilters.funding_stage) url += `funding_stage=${encodeURIComponent(activeFilters.funding_stage)}&`;
+    if (activeFilters.founded_from) url += `founded_from=${activeFilters.founded_from}&`;
+    if (activeFilters.founded_to) url += `founded_to=${activeFilters.founded_to}&`;
     const relFilter = document.getElementById('relationshipFilter').value;
     if (relFilter) url += `relationship_status=${encodeURIComponent(relFilter)}&`;
     url += `sort_by=${currentSort.by}&sort_dir=${currentSort.dir}&`;
 
     const res = await safeFetch(url);
-    const companies = await res.json();
+    let companies = await res.json();
+    // Client-side founded year range filter (in case backend doesn't support it)
+    if (activeFilters.founded_from && activeFilters.founded_to) {
+        companies = companies.filter(c => {
+            if (!c.founded_year) return false;
+            const y = parseInt(c.founded_year);
+            return y >= activeFilters.founded_from && y <= activeFilters.founded_to;
+        });
+    }
     _lastCompanies = companies;
 
     // If not in table view, render the alternate view
@@ -226,7 +236,7 @@ async function showDetail(id) {
     }
 
     const logoUrl = c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`;
-    const fundingAmt = c.total_funding_usd ? '$' + Number(c.total_funding_usd).toLocaleString() : null;
+    const fundingAmt = c.total_funding_usd ? (typeof formatCurrency === 'function' ? formatCurrency(c.total_funding_usd) : '$' + Number(c.total_funding_usd).toLocaleString()) : null;
 
     document.getElementById('detailName').textContent = c.name;
     document.getElementById('detailContent').innerHTML = `
@@ -234,6 +244,7 @@ async function showDetail(id) {
             <img class="detail-logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
             <a href="${esc(c.url)}" target="_blank">${esc(c.url)}</a>
             ${c.linkedin_url ? `<a href="${esc(c.linkedin_url)}" target="_blank" class="linkedin-link" title="LinkedIn">in</a>` : ''}
+            ${c.url && typeof generateQrCode === 'function' ? `<button class="btn" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();showCompanyQr('${escAttr(c.url)}','${escAttr(c.name)}')" title="Show QR code">QR</button>` : ''}
         </div>
         <div class="detail-field"><label>What</label><p>${esc(c.what || 'N/A')}</p></div>
         <div class="detail-field"><label>Target</label><p>${esc(c.target || 'N/A')}</p></div>
@@ -617,13 +628,16 @@ async function showVersionHistory(companyId) {
     if (!versions.length) {
         html += '<p style="font-size:13px;color:var(--text-muted)">No version history yet. Versions are created automatically when you edit a company.</p>';
     } else {
-        html += versions.map(v => `
+        html += versions.map((v, i) => `
             <div class="version-item">
                 <div class="version-meta">
                     <span class="version-desc">${esc(v.change_description || 'Edit')}</span>
                     <span class="version-date">${new Date(v.created_at).toLocaleString()}</span>
                 </div>
-                <button class="filter-action-btn" onclick="restoreVersion(${v.id},${companyId})">Restore</button>
+                <div style="display:flex;gap:4px">
+                    ${i < versions.length - 1 ? `<button class="filter-action-btn" onclick="showVersionDiff(${companyId},${v.id},${versions[i+1].id})">Diff</button>` : ''}
+                    <button class="filter-action-btn" onclick="restoreVersion(${v.id},${companyId})">Restore</button>
+                </div>
             </div>
         `).join('');
     }
@@ -631,11 +645,66 @@ async function showVersionHistory(companyId) {
     document.getElementById('detailContent').innerHTML = html;
 }
 
+async function showVersionDiff(companyId, newVersionId, oldVersionId) {
+    const [newRes, oldRes] = await Promise.all([
+        safeFetch(`/api/versions/${newVersionId}`),
+        safeFetch(`/api/versions/${oldVersionId}`),
+    ]);
+    const newV = await newRes.json();
+    const oldV = await oldRes.json();
+    const fields = ['name','what','target','products','geography','funding','funding_stage','total_funding_usd','employee_range','founded_year','hq_city','hq_country','tam','business_model'];
+
+    if (window.Diff2Html) {
+        // Build unified diff string
+        let diffStr = '';
+        fields.forEach(f => {
+            const oldVal = String((oldV.data && oldV.data[f]) || '');
+            const newVal = String((newV.data && newV.data[f]) || '');
+            if (oldVal !== newVal) {
+                diffStr += `--- a/${f}\n+++ b/${f}\n@@ -1 +1 @@\n-${oldVal}\n+${newVal}\n`;
+            }
+        });
+        if (!diffStr) diffStr = '--- a/no-changes\n+++ b/no-changes\n@@ -0,0 +0,0 @@\n No differences found\n';
+        const diffHtml = Diff2Html.html(diffStr, { drawFileList: false, outputFormat: 'side-by-side', matching: 'lines' });
+        document.getElementById('detailContent').innerHTML = `
+            <div class="version-history"><h3>Version Diff</h3>
+            ${diffHtml}
+            <button class="btn" onclick="showVersionHistory(${companyId})" style="margin-top:10px">Back to History</button></div>`;
+    } else {
+        // Fallback: simple text diff
+        let html = '<div class="version-history"><h3>Version Diff</h3><table class="compare-table"><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>';
+        fields.forEach(f => {
+            const oldVal = (oldV.data && oldV.data[f]) || '';
+            const newVal = (newV.data && newV.data[f]) || '';
+            if (oldVal !== newVal) {
+                html += `<tr><td><strong>${esc(f)}</strong></td><td style="color:var(--accent-danger)">${esc(String(oldVal))}</td><td style="color:var(--accent-green)">${esc(String(newVal))}</td></tr>`;
+            }
+        });
+        html += '</tbody></table><button class="btn" onclick="showVersionHistory(' + companyId + ')" style="margin-top:10px">Back to History</button></div>';
+        document.getElementById('detailContent').innerHTML = html;
+    }
+}
+
 async function restoreVersion(versionId, companyId) {
     if (!confirm('Restore this version? Current state will be saved as a version first.')) return;
     await safeFetch(`/api/versions/${versionId}/restore`, { method: 'POST' });
     showDetail(companyId);
     loadCompanies();
+}
+
+function showCompanyQr(url, name) {
+    const qrHtml = typeof generateQrCode === 'function' ? generateQrCode(url, 6) : null;
+    if (!qrHtml) { showToast('QR code library not loaded'); return; }
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `<div class="modal" style="max-width:320px;text-align:center;padding:24px">
+        <h3 style="margin:0 0 12px">${esc(name)}</h3>
+        <div style="display:inline-block;padding:12px;background:#fff;border-radius:8px">${qrHtml}</div>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">${esc(url)}</p>
+        <button class="btn" onclick="this.closest('.modal-overlay').remove()" style="margin-top:12px">Close</button>
+    </div>`;
+    document.body.appendChild(modal);
 }
 
 // --- Escape to clear bulk selection ---

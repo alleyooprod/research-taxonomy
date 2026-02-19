@@ -19,6 +19,11 @@ window.onload = () => {
     initNotyf();
     initDayjs();
     initHotkeys();
+    initAutosize();
+    initMediumZoom();
+    initFlatpickr();
+    initNProgress();
+    initCommandPalette();
     initOfflineDetection();
     startHeartbeat();
     loadProjects();

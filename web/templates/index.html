@@ -38,6 +38,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css">
     <!-- Tagify CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify@4.31.3/dist/tagify.css">
+    <!-- Highlight.js code syntax theme -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github.min.css">
+    <!-- Flatpickr date picker CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <!-- NProgress progress bar CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.css">
+    <!-- Diff2html diff viewer CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/css/diff2html.min.css">
 
     <!-- Existing libraries -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
@@ -47,8 +55,17 @@
     <!-- Data Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+    <!-- ECharts Word Cloud extension -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js" defer></script>
     <!-- Network/Graph -->
     <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js" defer></script>
+    <!-- Canvas drawing engine -->
+    <script src="https://cdn.jsdelivr.net/npm/fabric@6.5.1/dist/index.min.js" defer></script>
+    <!-- Canvas layout engines & sketch style -->
+    <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js" defer></script>
     <!-- Geographic Maps -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
@@ -85,6 +102,32 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
     <!-- Keyboard Shortcuts -->
     <script src="https://cdn.jsdelivr.net/npm/hotkeys-js@3.13.9/dist/hotkeys.min.js" defer></script>
+    <!-- Code Syntax Highlighting (browser build — no require()) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js" defer></script>
+    <!-- Geographic Heatmap -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js" defer></script>
+    <!-- Auto-expanding Textareas -->
+    <script src="https://cdn.jsdelivr.net/npm/autosize@6.0.1/dist/autosize.min.js" defer></script>
+    <!-- Click-to-Zoom Images -->
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" defer></script>
+    <!-- Date Range Picker -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" defer></script>
+    <!-- NProgress slim progress bar -->
+    <script src="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.js" defer></script>
+    <!-- Diff2html rich diff viewer -->
+    <script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/js/diff2html.min.js" defer></script>
+    <!-- Split.js resizable panes -->
+    <script src="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.js" defer></script>
+    <!-- Currency formatting -->
+    <script src="https://cdn.jsdelivr.net/npm/currency.js@2.0.4/dist/currency.min.js" defer></script>
+    <!-- Search result highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js" defer></script>
+    <!-- QR Code generation -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
+    <!-- Hand-drawn annotations -->
+    <script src="https://cdn.jsdelivr.net/npm/rough-notation@0.5.1/lib/rough-notation.iife.js" defer></script>
+    <!-- Pan & zoom for any element -->
+    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js" defer></script>
 </head>
 <body>
     <a href="#mainApp" class="skip-link">Skip to main content</a>
@@ -281,6 +324,7 @@
                         <option value="partner">Partner</option>
                         <option value="not_relevant">Not Relevant</option>
                     </select>
+                    <input type="text" id="foundedYearFilter" placeholder="Founded year range..." style="width:150px;font-size:12px" readonly>
                     <label class="filter-checkbox"><input type="checkbox" id="starredFilter" onchange="loadCompanies()"> Starred</label>
                     <label class="filter-checkbox"><input type="checkbox" id="enrichmentFilter" onchange="loadCompanies()"> Needs enrichment</label>
                     <button class="filter-action-btn" onclick="openTagManager()" title="Manage tags">Tags</button>
@@ -378,6 +422,10 @@
                                 <h4>Confidence Scores</h4>
                                 <canvas id="chartConfidence" height="250"></canvas>
                             </div>
+                            <div class="chart-card">
+                                <h4>Tag Cloud</h4>
+                                <div id="chartWordCloud" class="chart-container"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -440,6 +488,7 @@
                     </div>
                     <button class="primary-btn" onclick="loadMarketMap()">Refresh Map</button>
                     <button class="btn" onclick="exportMapPng()">Export as PNG</button>
+                    <button class="btn" id="heatmapToggleBtn" onclick="toggleGeoHeatmap()" title="Toggle density heatmap on geographic map"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">thermostat</span> Heatmap</button>
                     <button class="btn" onclick="startPresentation('map')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">slideshow</span> Present</button>
                     <span class="hint-text hint-inline">Drag companies between categories to reclassify.</span>
                 </div>
@@ -536,7 +585,8 @@
 
                         <div id="researchStatus" class="hidden">
                             <div class="progress-bar"><div id="researchProgress" class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div>
-                            <p id="researchStatusText">Researching... AI is searching the web and analyzing data. This may take 2-5 minutes.</p>
+                            <p id="researchStatusText">Researching... AI is searching the web and analyzing data. This may take 2-10 minutes.</p>
+                            <button class="btn btn-sm" onclick="cancelResearchPoll()" style="margin-top:8px">Cancel</button>
                         </div>
                     </div>
 
@@ -560,11 +610,104 @@
                         <button class="btn" style="color:var(--accent-danger)" id="deleteCanvasBtn" onclick="deleteCurrentCanvas()" disabled>Delete</button>
                     </div>
                     <div class="canvas-toolbar-right">
-                        <button class="btn" id="canvasAddNoteBtn" onclick="addCanvasNote()" disabled title="Add text note">
-                            <span class="material-symbols-outlined">note_add</span>
+                        <button class="btn" id="canvasGenDiagramBtn" onclick="openDiagramPanel()" disabled title="AI-generated diagram">
+                            <span class="material-symbols-outlined">auto_awesome</span> AI Diagram
                         </button>
-                        <button class="btn" id="canvasExportBtn" onclick="exportCanvasPng()" disabled title="Export as PNG">
-                            <span class="material-symbols-outlined">image</span> Export PNG
+                        <button class="btn" id="canvasExportPngBtn" onclick="exportCanvasPng()" disabled title="Export as PNG">
+                            <span class="material-symbols-outlined">image</span> PNG
+                        </button>
+                        <button class="btn" id="canvasExportSvgBtn" onclick="exportCanvasSvg()" disabled title="Export as SVG">
+                            <span class="material-symbols-outlined">picture_as_pdf</span> SVG
+                        </button>
+                        <button class="btn" id="canvasExportPdfBtn" onclick="exportCanvasPdf()" disabled title="Export as PDF (vector)">
+                            <span class="material-symbols-outlined">description</span> PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Drawing toolbar (shown when a canvas is loaded) -->
+                <div id="canvasDrawToolbar" class="canvas-draw-toolbar hidden">
+                    <div class="draw-tool-group">
+                        <button class="draw-tool active" id="toolSelect" onclick="setCanvasTool('select')" title="Select (V)">
+                            <span class="material-symbols-outlined">arrow_selector_tool</span>
+                        </button>
+                        <button class="draw-tool" id="toolPan" onclick="setCanvasTool('pan')" title="Pan (H)">
+                            <span class="material-symbols-outlined">pan_tool</span>
+                        </button>
+                    </div>
+                    <div class="draw-tool-sep"></div>
+                    <div class="draw-tool-group">
+                        <button class="draw-tool" id="toolPen" onclick="setCanvasTool('pen')" title="Freehand Draw (P)">
+                            <span class="material-symbols-outlined">draw</span>
+                        </button>
+                        <button class="draw-tool" id="toolLine" onclick="setCanvasTool('line')" title="Line / Arrow (L)">
+                            <span class="material-symbols-outlined">arrow_right_alt</span>
+                        </button>
+                        <button class="draw-tool" id="toolRect" onclick="setCanvasTool('rect')" title="Rectangle (R)">
+                            <span class="material-symbols-outlined">rectangle</span>
+                        </button>
+                        <button class="draw-tool" id="toolCircle" onclick="setCanvasTool('circle')" title="Circle (O)">
+                            <span class="material-symbols-outlined">circle</span>
+                        </button>
+                        <button class="draw-tool" id="toolDiamond" onclick="setCanvasTool('diamond')" title="Diamond (D)">
+                            <span class="material-symbols-outlined">diamond</span>
+                        </button>
+                        <button class="draw-tool" id="toolText" onclick="setCanvasTool('text')" title="Text (T)">
+                            <span class="material-symbols-outlined">text_fields</span>
+                        </button>
+                        <button class="draw-tool" id="toolNote" onclick="setCanvasTool('note')" title="Sticky Note (N)">
+                            <span class="material-symbols-outlined">sticky_note_2</span>
+                        </button>
+                    </div>
+                    <div class="draw-tool-sep"></div>
+                    <div class="draw-tool-group">
+                        <label class="draw-tool-label" title="Fill color">
+                            <input type="color" id="canvasFillColor" value="#bc6c5a" class="canvas-color-input" onchange="applyFillToSelected(this.value)">
+                        </label>
+                        <label class="draw-tool-label" title="Stroke color">
+                            <input type="color" id="canvasStrokeColor" value="#3D4035" class="canvas-color-input" onchange="applyStrokeToSelected(this.value)">
+                        </label>
+                        <select id="canvasStrokeWidth" class="draw-tool-select" title="Stroke width" onchange="applyStrokeWidthToSelected(+this.value)">
+                            <option value="1">1px</option>
+                            <option value="2" selected>2px</option>
+                            <option value="3">3px</option>
+                            <option value="5">5px</option>
+                            <option value="8">8px</option>
+                        </select>
+                        <select id="canvasFontSize" class="draw-tool-select" title="Font size" onchange="applyFontSizeToSelected(+this.value)">
+                            <option value="12">12</option>
+                            <option value="14" selected>14</option>
+                            <option value="18">18</option>
+                            <option value="24">24</option>
+                            <option value="32">32</option>
+                            <option value="48">48</option>
+                        </select>
+                    </div>
+                    <div class="draw-tool-sep"></div>
+                    <div class="draw-tool-group">
+                        <button class="draw-tool" onclick="deleteSelectedCanvasElements()" title="Delete (Del)">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                        <button class="draw-tool" onclick="canvasUndo()" title="Undo (Cmd+Z)">
+                            <span class="material-symbols-outlined">undo</span>
+                        </button>
+                        <button class="draw-tool" onclick="canvasRedo()" title="Redo (Cmd+Shift+Z)">
+                            <span class="material-symbols-outlined">redo</span>
+                        </button>
+                    </div>
+                    <div class="draw-tool-sep"></div>
+                    <div class="draw-tool-group">
+                        <button class="draw-tool" onclick="canvasZoom(1.2)" title="Zoom in">
+                            <span class="material-symbols-outlined">zoom_in</span>
+                        </button>
+                        <button class="draw-tool" onclick="canvasZoom(0.8)" title="Zoom out">
+                            <span class="material-symbols-outlined">zoom_out</span>
+                        </button>
+                        <button class="draw-tool" onclick="canvasFitView()" title="Fit to view">
+                            <span class="material-symbols-outlined">fit_screen</span>
+                        </button>
+                        <button class="draw-tool" id="toolGrid" onclick="toggleCanvasGrid()" title="Toggle grid (G)">
+                            <span class="material-symbols-outlined">grid_on</span>
                         </button>
                     </div>
                 </div>
@@ -577,15 +720,93 @@
                         </div>
                         <div id="canvasCompanyList" class="canvas-company-list"></div>
                     </div>
+                    <!-- AI Diagram generation panel (replaces sidebar when open) -->
+                    <div class="canvas-sidebar canvas-diagram-panel hidden" id="diagramPanel">
+                        <div class="canvas-sidebar-header">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <h4><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">auto_awesome</span> AI Diagram</h4>
+                                <button class="btn btn-sm" onclick="closeDiagramPanel()" title="Close" style="padding:2px 6px">&times;</button>
+                            </div>
+                        </div>
+                        <div class="diagram-panel-body">
+                            <label class="diagram-label">Describe your diagram:</label>
+                            <textarea id="diagramPrompt" rows="3" placeholder="e.g., Show all companies in a stacked enterprise architecture diagram grouped by subcategory..."></textarea>
+
+                            <label class="diagram-label">Categories to include:</label>
+                            <div class="diagram-cat-actions">
+                                <button class="btn btn-xs" onclick="toggleAllDiagramCategories(true)">All</button>
+                                <button class="btn btn-xs" onclick="toggleAllDiagramCategories(false)">None</button>
+                            </div>
+                            <div id="diagramCategoryList" class="diagram-checkbox-list"></div>
+
+                            <label class="diagram-label">Data fields per company:</label>
+                            <div id="diagramFieldList" class="diagram-checkbox-list">
+                                <label><input type="checkbox" value="name" checked disabled> Name</label>
+                                <label><input type="checkbox" value="url"> URL</label>
+                                <label><input type="checkbox" value="what"> What they do</label>
+                                <label><input type="checkbox" value="target"> Target market</label>
+                                <label><input type="checkbox" value="funding_stage"> Funding stage</label>
+                                <label><input type="checkbox" value="total_funding_usd"> Total funding</label>
+                                <label><input type="checkbox" value="employee_range"> Employees</label>
+                                <label><input type="checkbox" value="hq_country"> HQ Country</label>
+                                <label><input type="checkbox" value="business_model"> Business model</label>
+                                <label><input type="checkbox" value="founded_year"> Founded</label>
+                            </div>
+
+                            <label class="diagram-label">Layout style:</label>
+                            <select id="diagramLayoutStyle" class="draw-tool-select" style="width:100%;min-width:0">
+                                <option value="stacked_vertical">Stacked Vertical</option>
+                                <option value="stacked_horizontal">Stacked Horizontal</option>
+                                <option value="grid" selected>Grid</option>
+                                <option value="flow">Flow (dagre)</option>
+                                <option value="enterprise_stack">Enterprise Stack (ELK)</option>
+                            </select>
+
+                            <label class="diagram-label">Visual style:</label>
+                            <div class="diagram-style-toggle">
+                                <label><input type="radio" name="diagramVisualStyle" value="clean" checked> Clean</label>
+                                <label><input type="radio" name="diagramVisualStyle" value="sketch"> Sketch</label>
+                            </div>
+
+                            <label class="diagram-label" style="display:flex;align-items:center;gap:6px">
+                                <input type="checkbox" id="diagramClearCanvas" checked> Clear canvas first
+                            </label>
+
+                            <div class="diagram-action-row">
+                                {{ model_select('diagramModelSelect', default='sonnet') }}
+                                <button class="primary-btn" id="diagramGenBtn" onclick="startDiagramGeneration()">
+                                    <span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">auto_awesome</span> Generate
+                                </button>
+                            </div>
+
+                            <div id="diagramStatus" class="hidden" style="margin-top:6px">
+                                <div class="progress-bar"><div class="progress-fill" id="diagramProgressFill" style="width:30%;animation:pulse 2s infinite"></div></div>
+                                <p class="hint-text" id="diagramStatusText">Generating diagram layout...</p>
+                                <button class="btn btn-xs" onclick="cancelDiagramGeneration()" style="margin-top:4px">Cancel</button>
+                            </div>
+
+                            <div id="diagramError" class="hidden" style="color:var(--accent-danger);font-size:12px;margin-top:6px"></div>
+
+                            <div id="diagramPostActions" class="hidden" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                                <button class="btn btn-sm" onclick="autoArrangeDiagram()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">auto_fix_high</span> Auto-arrange</button>
+                                <button class="btn btn-sm" onclick="startDiagramGeneration()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">refresh</span> Regenerate</button>
+                                <button class="btn btn-sm" onclick="closeDiagramPanel()">Done</button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="canvas-main">
                         <div class="canvas-empty-state" id="canvasEmptyState">
                             <span class="material-symbols-outlined" style="font-size:48px;color:var(--text-muted)">dashboard</span>
                             <p>Select or create a canvas to start arranging companies visually.</p>
-                            <p class="hint-text">Drag companies from the sidebar onto the canvas. Double-click empty space to add notes.</p>
+                            <p class="hint-text">Drag companies from the sidebar. Use the toolbar to draw shapes, lines, and text.</p>
                         </div>
-                        <div id="canvasContainer" class="canvas-container hidden"></div>
+                        <div id="canvasWrapper" class="canvas-container hidden">
+                            <canvas id="fabricCanvas"></canvas>
+                        </div>
                     </div>
                 </div>
+                <!-- Canvas context menu -->
+                <div id="canvasCtxMenu" class="canvas-context-menu hidden"></div>
             </section>
 
             <!-- Process Tab -->
@@ -1080,6 +1301,7 @@
     <script src="{{ url_for('static', filename='js/research.js') }}"></script>
     <script src="{{ url_for('static', filename='js/presentation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/canvas.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/diagram.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ai.js') }}"></script>
     <script src="{{ url_for('static', filename='js/export.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>

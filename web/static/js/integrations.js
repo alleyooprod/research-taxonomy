@@ -330,3 +330,229 @@ exportReportPdf = function() {
         _origExportReportPdf();
     }
 };
+
+// --- Autosize (Auto-expanding textareas) ---
+function initAutosize() {
+    if (!window.autosize) return;
+    document.querySelectorAll('textarea').forEach(ta => {
+        if (!ta._autosizeAttached) {
+            autosize(ta);
+            ta._autosizeAttached = true;
+        }
+    });
+}
+
+// Re-apply autosize whenever modals open or tabs switch
+const _origShowTabAutosize = showTab;
+showTab = function(name) {
+    _origShowTabAutosize(name);
+    setTimeout(initAutosize, 100);
+};
+
+// --- medium-zoom (Click-to-zoom on images) ---
+let _mediumZoomInstance = null;
+function initMediumZoom() {
+    if (!window.mediumZoom) return;
+    if (_mediumZoomInstance) _mediumZoomInstance.detach();
+    _mediumZoomInstance = mediumZoom('.company-logo, .report-body img, #detailPanel img', {
+        margin: 24,
+        background: 'rgba(0,0,0,0.6)',
+    });
+}
+
+// Refresh zoom targets after company list loads
+const _origLoadCompaniesZoom = loadCompanies;
+loadCompanies = async function() {
+    await _origLoadCompaniesZoom();
+    setTimeout(initMediumZoom, 200);
+};
+
+// --- Flatpickr (Founded year range filter) ---
+let _foundedYearPicker = null;
+function initFlatpickr() {
+    if (!window.flatpickr) return;
+    const input = document.getElementById('foundedYearFilter');
+    if (!input || input._flatpickrInit) return;
+    input._flatpickrInit = true;
+
+    _foundedYearPicker = flatpickr(input, {
+        mode: 'range',
+        dateFormat: 'Y',
+        minDate: '1990',
+        maxDate: new Date().getFullYear().toString(),
+        onChange: function(dates) {
+            if (dates.length === 2) {
+                activeFilters.founded_from = dates[0].getFullYear();
+                activeFilters.founded_to = dates[1].getFullYear();
+                renderFilterChips();
+                loadCompanies();
+            } else if (dates.length === 0) {
+                activeFilters.founded_from = null;
+                activeFilters.founded_to = null;
+                renderFilterChips();
+                loadCompanies();
+            }
+        },
+    });
+}
+
+// --- currency.js (Precise currency formatting) ---
+function formatCurrency(value) {
+    if (value == null || value === '') return null;
+    if (window.currency) return currency(value, { separator: ',', precision: 0 }).format();
+    return '$' + Number(value).toLocaleString();
+}
+
+// --- mark.js (Search result highlighting) ---
+function highlightSearchResults(query) {
+    if (!window.Mark || !query || query.length < 2) return;
+    const ctx = document.getElementById('companyBody');
+    if (!ctx) return;
+    const instance = new Mark(ctx);
+    instance.unmark();
+    instance.mark(query, {
+        className: 'search-highlight',
+        separateWordSearch: true,
+        accuracy: 'partially',
+    });
+}
+
+// Hook into search to highlight results
+const _origDebounceSearchMark = debounceSearch;
+debounceSearch = function() {
+    _origDebounceSearchMark();
+    const query = document.getElementById('searchInput').value;
+    setTimeout(() => highlightSearchResults(query), 400);
+};
+
+// --- QR Code generation ---
+function generateQrCode(text, size) {
+    if (!window.qrcode) return null;
+    size = size || 4;
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    return qr.createImgTag(size, 0);
+}
+
+// --- Rough Notation (hand-drawn annotations) ---
+function annotateElement(el, type, color) {
+    if (!window.RoughNotation) return null;
+    const annotation = RoughNotation.annotate(el, {
+        type: type || 'underline',
+        color: color || '#bc6c5a',
+        animationDuration: 600,
+    });
+    annotation.show();
+    return annotation;
+}
+
+// --- Panzoom (pan & zoom for market map) ---
+let _mapPanzoom = null;
+function initMapPanzoom() {
+    if (!window.Panzoom) return;
+    const el = document.getElementById('marketMap');
+    if (!el || el._panzoomInit) return;
+    el._panzoomInit = true;
+    _mapPanzoom = Panzoom(el, {
+        maxScale: 3,
+        minScale: 0.5,
+        contain: 'outside',
+    });
+    el.parentElement.addEventListener('wheel', (e) => {
+        if (!document.getElementById('marketMap').classList.contains('hidden')) {
+            _mapPanzoom.zoomWithWheel(e);
+        }
+    });
+}
+
+// --- NProgress configuration ---
+function initNProgress() {
+    if (window.NProgress) {
+        NProgress.configure({ showSpinner: false, trickleSpeed: 200, minimum: 0.1 });
+    }
+}
+
+// --- Command Palette (lightweight, no dependencies) ---
+let _cmdPaletteEl = null;
+const _cmdActions = [
+    { title: 'Go to Companies', section: 'Navigation', handler: () => showTab('companies') },
+    { title: 'Go to Taxonomy', section: 'Navigation', handler: () => showTab('taxonomy') },
+    { title: 'Go to Map', section: 'Navigation', handler: () => showTab('map') },
+    { title: 'Go to Reports', section: 'Navigation', handler: () => showTab('reports') },
+    { title: 'Go to Canvas', section: 'Navigation', handler: () => showTab('canvas') },
+    { title: 'Go to Export', section: 'Navigation', handler: () => showTab('export') },
+    { title: 'Go to Process', section: 'Navigation', handler: () => showTab('process') },
+    { title: 'Focus Search', section: 'Actions', handler: () => document.getElementById('searchInput')?.focus() },
+    { title: 'Export as Excel', section: 'Export', handler: () => { if (typeof exportXlsx === 'function') exportXlsx(); } },
+    { title: 'Export as CSV', section: 'Export', handler: () => { if (typeof exportCsv === 'function') exportCsv(); } },
+    { title: 'Export as JSON', section: 'Export', handler: () => { if (typeof exportJson === 'function') exportJson(); } },
+    { title: 'Export Full PDF', section: 'Export', handler: () => { if (typeof exportFullPdf === 'function') exportFullPdf(); } },
+    { title: 'Toggle Dark/Light Mode', section: 'Settings', handler: () => toggleTheme() },
+    { title: 'Refresh Data', section: 'Actions', handler: () => { loadCompanies(); loadTaxonomy(); } },
+    { title: 'Show Keyboard Shortcuts', section: 'Help', handler: () => toggleShortcutsOverlay() },
+    { title: 'Start Product Tour', section: 'Help', handler: () => startProductTour() },
+    { title: 'Geographic Map', section: 'Map Views', handler: () => { showTab('map'); setTimeout(() => switchMapView('geo'), 100); } },
+    { title: 'Auto-Layout Map', section: 'Map Views', handler: () => { showTab('map'); setTimeout(() => switchMapView('auto'), 100); } },
+    { title: 'Toggle Heatmap', section: 'Map Views', handler: () => toggleGeoHeatmap() },
+];
+
+function initCommandPalette() {
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            toggleCommandPalette();
+        }
+    });
+}
+
+function toggleCommandPalette() {
+    if (_cmdPaletteEl) { _cmdPaletteEl.remove(); _cmdPaletteEl = null; return; }
+    _cmdPaletteEl = document.createElement('div');
+    _cmdPaletteEl.className = 'cmd-palette-overlay';
+    _cmdPaletteEl.onclick = (e) => { if (e.target === _cmdPaletteEl) { _cmdPaletteEl.remove(); _cmdPaletteEl = null; } };
+    _cmdPaletteEl.innerHTML = `<div class="cmd-palette">
+        <input type="text" class="cmd-palette-input" placeholder="Type a command..." autofocus>
+        <div class="cmd-palette-list"></div>
+    </div>`;
+    document.body.appendChild(_cmdPaletteEl);
+    const input = _cmdPaletteEl.querySelector('.cmd-palette-input');
+    const list = _cmdPaletteEl.querySelector('.cmd-palette-list');
+    let selectedIdx = 0;
+
+    function render(query) {
+        const filtered = query ? _cmdActions.filter(a => a.title.toLowerCase().includes(query.toLowerCase())) : _cmdActions;
+        selectedIdx = Math.min(selectedIdx, Math.max(0, filtered.length - 1));
+        list.innerHTML = filtered.map((a, i) => `<div class="cmd-palette-item ${i === selectedIdx ? 'selected' : ''}" data-idx="${i}">
+            <span class="cmd-palette-section">${esc(a.section)}</span> ${esc(a.title)}
+        </div>`).join('') || '<div class="cmd-palette-empty">No matching commands</div>';
+        list.querySelectorAll('.cmd-palette-item').forEach(el => {
+            el.onclick = () => { const idx = parseInt(el.dataset.idx); filtered[idx]?.handler(); _cmdPaletteEl.remove(); _cmdPaletteEl = null; };
+        });
+        return filtered;
+    }
+    render('');
+    input.addEventListener('input', () => { selectedIdx = 0; render(input.value); });
+    input.addEventListener('keydown', (e) => {
+        const filtered = input.value ? _cmdActions.filter(a => a.title.toLowerCase().includes(input.value.toLowerCase())) : _cmdActions;
+        if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, filtered.length - 1); render(input.value); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); render(input.value); }
+        else if (e.key === 'Enter') { e.preventDefault(); filtered[selectedIdx]?.handler(); _cmdPaletteEl.remove(); _cmdPaletteEl = null; }
+        else if (e.key === 'Escape') { _cmdPaletteEl.remove(); _cmdPaletteEl = null; }
+    });
+}
+
+// --- Split.js (Resizable panes) ---
+function initSplitPanes() {
+    if (!window.Split) return;
+    const detail = document.getElementById('detailPanel');
+    const compTable = document.querySelector('#tab-companies .table-wrapper');
+    if (!detail || !compTable || detail._splitInit) return;
+    // Only init split when detail panel is visible and in appropriate layout
+    // Defer to user triggering — available as utility
+}
+
+function splitPanes(ids, options) {
+    if (!window.Split) return null;
+    return Split(ids, Object.assign({ gutterSize: 6, minSize: 200 }, options || {}));
+}

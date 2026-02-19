@@ -40,7 +40,7 @@ function selectProject(id, name) {
     document.getElementById('newProjectForm').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
 
-    activeFilters = { category_id: null, category_name: null, tags: [], geography: null, funding_stage: null };
+    activeFilters = { category_id: null, category_name: null, tags: [], geography: null, funding_stage: null, founded_from: null, founded_to: null };
     renderFilterChips();
 
     loadStats();

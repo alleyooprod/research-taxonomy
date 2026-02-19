@@ -5,6 +5,8 @@
 let compareSelection = new Set();
 let leafletMap = null;
 let markerClusterGroup = null;
+let _heatLayer = null;
+let _geoHeatmapOn = false;
 
 async function loadMarketMap() {
     const [compRes, taxRes] = await Promise.all([
@@ -50,6 +52,7 @@ async function loadMarketMap() {
     }).join('');
 
     updateCompareBar();
+    setTimeout(initMapPanzoom, 100);
 }
 
 async function handleMapDrop(event, targetCategoryId) {
@@ -122,7 +125,7 @@ async function runComparison() {
         html += `<tr><td><strong>${labels[f] || f}</strong></td>`;
         companies.forEach(c => {
             let val = c[f];
-            if (f === 'total_funding_usd' && val) val = '$' + Number(val).toLocaleString();
+            if (f === 'total_funding_usd' && val) val = typeof formatCurrency === 'function' ? formatCurrency(val) : '$' + Number(val).toLocaleString();
             html += `<td>${esc(String(val || 'N/A'))}</td>`;
         });
         html += '</tr>';
@@ -186,9 +189,12 @@ function getCoords(company) {
 }
 
 async function renderGeoMap() {
-    if (!window.L) return;
     const container = document.getElementById('geoMap');
     if (!container) return;
+    if (!window.L) {
+        _waitForLib('map library', () => window.L, () => renderGeoMap(), container);
+        return;
+    }
 
     if (!leafletMap) {
         leafletMap = L.map('geoMap').setView([30, 0], 2);
@@ -230,7 +236,35 @@ async function renderGeoMap() {
     });
 
     leafletMap.addLayer(markerClusterGroup);
+
+    // Build heatmap layer from company coordinates
+    if (window.L && L.heatLayer) {
+        if (_heatLayer) leafletMap.removeLayer(_heatLayer);
+        const heatPoints = [];
+        companies.forEach(c => {
+            const coords = getCoords(c);
+            if (coords) heatPoints.push([coords[0], coords[1], 0.6]);
+        });
+        _heatLayer = L.heatLayer(heatPoints, {
+            radius: 30, blur: 20, maxZoom: 10,
+            gradient: { 0.2: '#2b83ba', 0.4: '#abdda4', 0.6: '#ffffbf', 0.8: '#fdae61', 1.0: '#d7191c' },
+        });
+        if (_geoHeatmapOn) _heatLayer.addTo(leafletMap);
+    }
+
     setTimeout(() => leafletMap.invalidateSize(), 100);
+}
+
+function toggleGeoHeatmap() {
+    if (!_heatLayer || !leafletMap) return;
+    _geoHeatmapOn = !_geoHeatmapOn;
+    if (_geoHeatmapOn) {
+        _heatLayer.addTo(leafletMap);
+    } else {
+        leafletMap.removeLayer(_heatLayer);
+    }
+    const btn = document.getElementById('heatmapToggleBtn');
+    if (btn) btn.classList.toggle('active', _geoHeatmapOn);
 }
 
 function switchMapView(view) {
@@ -255,13 +289,16 @@ function switchMapView(view) {
     }
 }
 
-// --- Auto-Layout Market Map (Cytoscape compound nodes) ---
+// --- Auto-Layout Market Map (structured grid) ---
 let _autoLayoutCy = null;
 
 async function renderAutoLayoutMap() {
-    if (!window.cytoscape) return;
     const container = document.getElementById('autoLayoutMap');
     if (!container) return;
+    if (!window.cytoscape) {
+        _waitForLib('graph library', () => window.cytoscape, () => renderAutoLayoutMap(), container);
+        return;
+    }
 
     const [compRes, taxRes] = await Promise.all([
         safeFetch(`/api/companies?project_id=${currentProjectId}`),
@@ -269,42 +306,107 @@ async function renderAutoLayoutMap() {
     ]);
     const companies = await compRes.json();
     const categories = await taxRes.json();
-    const topLevel = categories.filter(c => !c.parent_id);
+    const topLevel = categories.filter(c => !c.parent_id)
+        .sort((a, b) => (b.company_count || 0) - (a.company_count || 0));
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-    const elements = [];
+    if (!topLevel.length) {
+        container.innerHTML = '<div class="graph-loading"><p>No categories to display. Add categories first.</p></div>';
+        return;
+    }
 
-    // Add category parent nodes
-    topLevel.forEach(cat => {
-        const color = getCategoryColor(cat.id) || '#999';
+    // Group companies by category
+    const byCategory = {};
+    companies.forEach(c => {
+        if (!c.category_id) return;
+        if (!byCategory[c.category_id]) byCategory[c.category_id] = [];
+        byCategory[c.category_id].push(c);
+    });
+
+    // Grid layout: structured placement of categories and companies
+    const COLS = Math.min(4, topLevel.length);
+    const NODE_SIZE = 32;
+    const NODE_GAP = 10;
+    const CAT_PADDING_X = 30;
+    const CAT_PADDING_TOP = 40;
+    const CAT_PADDING_BOTTOM = 20;
+    const GRID_GAP = 50;
+
+    const elements = [];
+    let maxRowHeight = [];  // track height per row for vertical positioning
+
+    // First pass: calculate cell dimensions
+    const cellDims = topLevel.map(cat => {
+        const catCompanies = byCategory[cat.id] || [];
+        const innerCols = Math.max(2, Math.min(6, Math.ceil(Math.sqrt(catCompanies.length))));
+        const innerRows = Math.ceil(catCompanies.length / innerCols);
+        const cellW = Math.max(180, innerCols * (NODE_SIZE + NODE_GAP) + CAT_PADDING_X * 2);
+        const cellH = Math.max(100, innerRows * (NODE_SIZE + NODE_GAP) + CAT_PADDING_TOP + CAT_PADDING_BOTTOM);
+        return { cat, companies: catCompanies, innerCols, cellW, cellH };
+    });
+
+    // Calculate column widths and row heights
+    const colWidths = [];
+    const rowHeights = [];
+    for (let i = 0; i < cellDims.length; i++) {
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        colWidths[col] = Math.max(colWidths[col] || 0, cellDims[i].cellW);
+        rowHeights[row] = Math.max(rowHeights[row] || 0, cellDims[i].cellH);
+    }
+
+    // Second pass: place elements with calculated positions
+    cellDims.forEach((cell, idx) => {
+        const col = idx % COLS;
+        const row = Math.floor(idx / COLS);
+
+        // Calculate absolute X/Y for this cell's center
+        let cx = 0;
+        for (let c = 0; c < col; c++) cx += colWidths[c] + GRID_GAP;
+        cx += colWidths[col] / 2;
+
+        let cy = 0;
+        for (let r = 0; r < row; r++) cy += rowHeights[r] + GRID_GAP;
+        cy += rowHeights[row] / 2;
+
+        const color = getCategoryColor(cell.cat.id) || '#999';
+        const companyCount = cell.companies.length;
+
+        // Category parent node
         elements.push({
             group: 'nodes',
             data: {
-                id: 'cat-' + cat.id,
-                label: cat.name,
+                id: 'cat-' + cell.cat.id,
+                label: cell.cat.name + (companyCount ? ` (${companyCount})` : ''),
                 type: 'category',
                 color: color,
             },
+            position: { x: cx, y: cy },
         });
-    });
 
-    // Add company nodes as children of categories
-    companies.forEach(c => {
-        const catId = c.category_id;
-        if (!catId) return;
-        const parentExists = topLevel.some(cat => cat.id === catId);
-        if (!parentExists) return;
-        const color = getCategoryColor(catId) || '#999';
-        elements.push({
-            group: 'nodes',
-            data: {
-                id: 'co-' + c.id,
-                label: c.name,
-                parent: 'cat-' + catId,
-                type: 'company',
-                color: color,
-                companyId: c.id,
-            },
+        // Company child nodes arranged in mini-grid inside category
+        const sorted = cell.companies.sort((a, b) => a.name.localeCompare(b.name));
+        const startX = cx - (cell.innerCols * (NODE_SIZE + NODE_GAP) - NODE_GAP) / 2 + NODE_SIZE / 2;
+        const startY = cy - (rowHeights[row] - CAT_PADDING_TOP - CAT_PADDING_BOTTOM) / 2 + NODE_SIZE / 2;
+
+        sorted.forEach((c, i) => {
+            const ic = i % cell.innerCols;
+            const ir = Math.floor(i / cell.innerCols);
+            elements.push({
+                group: 'nodes',
+                data: {
+                    id: 'co-' + c.id,
+                    label: c.name,
+                    parent: 'cat-' + cell.cat.id,
+                    type: 'company',
+                    color: color,
+                    companyId: c.id,
+                },
+                position: {
+                    x: startX + ic * (NODE_SIZE + NODE_GAP),
+                    y: startY + ir * (NODE_SIZE + NODE_GAP),
+                },
+            });
         });
     });
 
@@ -320,17 +422,17 @@ async function renderAutoLayoutMap() {
                     'label': 'data(label)',
                     'text-valign': 'top',
                     'text-halign': 'center',
-                    'font-size': '14px',
+                    'font-size': '13px',
                     'font-weight': '600',
                     'color': isDark ? '#e0ddd5' : '#3D4035',
                     'background-color': 'data(color)',
-                    'background-opacity': 0.08,
+                    'background-opacity': 0.06,
                     'border-width': 2,
                     'border-color': 'data(color)',
-                    'border-opacity': 0.4,
-                    'padding': '20px',
+                    'border-opacity': 0.35,
+                    'padding': '25px',
                     'shape': 'round-rectangle',
-                    'text-margin-y': -8,
+                    'text-margin-y': -10,
                 },
             },
             {
@@ -338,38 +440,37 @@ async function renderAutoLayoutMap() {
                 style: {
                     'label': 'data(label)',
                     'background-color': 'data(color)',
-                    'background-opacity': 0.2,
-                    'color': isDark ? '#ccc' : '#555',
+                    'background-opacity': 0.18,
+                    'color': isDark ? '#bbb' : '#555',
                     'text-valign': 'center',
                     'text-halign': 'center',
-                    'font-size': '10px',
-                    'width': 40,
-                    'height': 40,
-                    'border-width': 2,
+                    'font-size': '9px',
+                    'width': NODE_SIZE,
+                    'height': NODE_SIZE,
+                    'border-width': 1.5,
                     'border-color': 'data(color)',
                     'text-wrap': 'ellipsis',
-                    'text-max-width': '60px',
+                    'text-max-width': '55px',
+                },
+            },
+            {
+                selector: 'node[type="company"]:active',
+                style: {
+                    'overlay-color': '#bc6c5a',
+                    'overlay-opacity': 0.15,
                 },
             },
         ],
-        layout: {
-            name: 'cose',
-            animate: false,
-            padding: 30,
-            nodeRepulsion: () => 8000,
-            idealEdgeLength: () => 80,
-            nodeOverlap: 20,
-            componentSpacing: 60,
-        },
+        layout: { name: 'preset' },
         wheelSensitivity: 0.3,
     });
+
+    // Fit to view with some padding
+    _autoLayoutCy.fit(undefined, 40);
 
     // Click company node to open detail
     _autoLayoutCy.on('tap', 'node[type="company"]', (e) => {
         const companyId = e.target.data('companyId');
-        if (companyId) {
-            showTab('companies');
-            showDetail(companyId);
-        }
+        if (companyId) navigateTo('company', companyId, e.target.data('label'));
     });
 }

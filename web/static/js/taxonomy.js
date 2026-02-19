@@ -53,14 +53,15 @@ async function loadTaxonomy() {
         const childHtml = children.length
             ? `<div class="sub-categories">${children.map(s => {
                 const subColor = categoryColorMap[s.id];
-                return `<div class="sub-cat">
+                return `<div class="sub-cat" onclick="toggleCategoryCompanies(${s.id}, this); event.stopPropagation();">
                     <span class="cat-color-dot" style="background:${subColor}"></span>
-                    ${esc(s.name)} <span class="count">(${s.company_count})</span>
+                    <span class="sub-cat-name">${esc(s.name)}</span> <span class="count">(${s.company_count})</span>
+                    <span class="material-symbols-outlined sub-cat-arrow" style="font-size:16px;margin-left:auto;color:var(--text-muted)">chevron_right</span>
                 </div>`;
             }).join('')}</div>`
             : '';
         const hasMetadata = cat.scope_note || cat.inclusion_criteria || cat.exclusion_criteria;
-        const metaHtml = `<div class="cat-metadata" id="catMeta-${cat.id}">
+        const metaHtml = `<div class="cat-metadata" id="catMeta-${cat.id}" onclick="event.stopPropagation()">
             <button class="cat-metadata-toggle" onclick="toggleCatMetadata(${cat.id})">
                 ${hasMetadata ? 'Scope Notes' : 'Add Scope Notes'}
                 <span class="collapse-arrow"><span class="material-symbols-outlined">${hasMetadata ? 'expand_more' : 'add'}</span></span>
@@ -78,8 +79,8 @@ async function loadTaxonomy() {
         return `<div class="category-card" style="border-left: 4px solid ${color}">
             <div class="cat-header">
                 <input type="color" class="cat-color-picker" value="${color}" title="Category color"
-                    onchange="updateCategoryColor(${cat.id}, this.value)">
-                ${esc(cat.name)} <span class="count">(${cat.company_count})</span>
+                    onchange="updateCategoryColor(${cat.id}, this.value)" onclick="event.stopPropagation()">
+                <span class="cat-name-link" onclick="toggleCategoryCompanies(${cat.id}, this)">${esc(cat.name)} <span class="count">(${cat.company_count})</span></span>
             </div>
             ${childHtml}
             ${metaHtml}
@@ -128,6 +129,43 @@ async function saveCategoryMetadata(catId) {
         body: JSON.stringify({ scope_note, inclusion_criteria, exclusion_criteria }),
     });
     showToast('Scope notes saved');
+}
+
+// --- Inline Category Company List (toggle expand/collapse) ---
+async function toggleCategoryCompanies(catId, clickedEl) {
+    const existing = document.getElementById(`catCompanies-${catId}`);
+    if (existing) {
+        existing.remove();
+        // Rotate arrow back
+        const arrow = clickedEl.closest('.category-card, .sub-cat')?.querySelector('.sub-cat-arrow, .cat-expand-arrow');
+        if (arrow) arrow.style.transform = '';
+        return;
+    }
+
+    const res = await safeFetch(`/api/categories/${catId}`);
+    const cat = await res.json();
+    if (cat.error) { showToast(cat.error); return; }
+
+    const companies = cat.companies || [];
+    const color = categoryColorMap[catId] || '#888';
+    const html = `<div class="cat-companies-inline" id="catCompanies-${catId}">
+        ${companies.length ? companies.map(c => `
+            <div class="cat-company-row" onclick="event.stopPropagation(); navigateTo('company', ${c.id}, '${escAttr(c.name)}')">
+                <span class="cat-color-dot" style="background:${color}"></span>
+                <span class="cat-company-row-name">${esc(c.name)}</span>
+                <span class="cat-company-row-desc">${esc((c.what || '').substring(0, 80))}</span>
+            </div>
+        `).join('') : '<p class="hint-text" style="padding:6px 0;font-size:12px">No companies in this category yet.</p>'}
+    </div>`;
+
+    // Insert after the clicked element's parent container
+    const parent = clickedEl.closest('.category-card') || clickedEl.closest('.sub-cat');
+    if (parent) {
+        parent.insertAdjacentHTML('beforeend', html);
+        // Rotate arrow to indicate expanded
+        const arrow = parent.querySelector('.sub-cat-arrow, .cat-expand-arrow');
+        if (arrow) arrow.style.transform = 'rotate(90deg)';
+    }
 }
 
 // --- Category Detail View ---
@@ -370,11 +408,36 @@ function prefillReviewObservation(text) {
     }
 }
 
+// --- Library loading helper (used by taxonomy.js and maps.js) ---
+function _waitForLib(libName, checkFn, callback, containerEl, maxWait = 10000) {
+    if (checkFn()) { callback(); return; }
+    containerEl.innerHTML = `<div class="graph-loading">
+        <div class="tab-loading-spinner"></div>
+        <p>Loading ${libName}...</p>
+    </div>`;
+    const start = Date.now();
+    const poll = setInterval(() => {
+        if (checkFn()) {
+            clearInterval(poll);
+            containerEl.innerHTML = '';
+            callback();
+        } else if (Date.now() - start > maxWait) {
+            clearInterval(poll);
+            containerEl.innerHTML = `<div class="graph-loading">
+                <p style="color:var(--accent-danger)">Failed to load ${libName}. <a href="#" onclick="location.reload();return false">Reload page</a></p>
+            </div>`;
+        }
+    }, 200);
+}
+
 // --- Cytoscape Graph ---
 function renderTaxonomyGraph(categories, companies) {
-    if (!window.cytoscape) return;
     const container = document.getElementById('taxonomyGraph');
     if (!container) return;
+    if (!window.cytoscape) {
+        _waitForLib('graph library', () => window.cytoscape, () => renderTaxonomyGraph(categories, companies), container);
+        return;
+    }
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
@@ -516,9 +579,12 @@ function switchTaxonomyView(view) {
 
 // --- Knowledge Graph ---
 async function renderKnowledgeGraph() {
-    if (!window.cytoscape) return;
     const container = document.getElementById('kgCanvas');
     if (!container) return;
+    if (!window.cytoscape) {
+        _waitForLib('graph library', () => window.cytoscape, () => renderKnowledgeGraph(), container);
+        return;
+    }
 
     const [catsRes, companiesRes] = await Promise.all([
         safeFetch(`/api/taxonomy?project_id=${currentProjectId}`),

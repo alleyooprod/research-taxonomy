@@ -19,6 +19,8 @@ let activeFilters = {
     tags: [],
     geography: null,
     funding_stage: null,
+    founded_from: null,
+    founded_to: null,
 };
 let savedViews = [];
 
@@ -96,6 +98,15 @@ function releaseAiLock() {
     aiLock = null;
 }
 
+// --- NProgress (slim top progress bar) ---
+let _activeFetches = 0;
+function _nprogressStart() {
+    if (window.NProgress && ++_activeFetches === 1) NProgress.start();
+}
+function _nprogressDone() {
+    if (window.NProgress && --_activeFetches <= 0) { _activeFetches = 0; NProgress.done(); }
+}
+
 // --- Safe Fetch ---
 async function safeFetch(url, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
@@ -107,8 +118,10 @@ async function safeFetch(url, options = {}) {
             options.headers['X-CSRF-Token'] = CSRF_TOKEN;
         }
     }
+    _nprogressStart();
     try {
         const response = await fetch(url, options);
+        _nprogressDone();
         if (!response.ok && response.status !== 304) {
             // Clone before reading body so the original response stays usable
             const errText = await response.clone().text().catch(() => response.statusText);
@@ -121,6 +134,7 @@ async function safeFetch(url, options = {}) {
         }
         return response;
     } catch (e) {
+        _nprogressDone();
         console.error(`Fetch failed: ${method} ${url}`, e);
         showToast(`Network error: ${e.message}`);
         // Return a mock Response so callers can safely call .json() / .text()

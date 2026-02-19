@@ -62,7 +62,7 @@ def _check_rate_limit(key, category="default"):
 def _cleanup_stale_results():
     """Remove stale async result files older than 7 days."""
     cutoff = time.time() - 86400 * 7
-    prefixes = ("report_", "discover_", "similar_", "reresearch_", "review_")
+    prefixes = ("report_", "discover_", "similar_", "reresearch_", "review_", "diagram_")
     try:
         for f in DATA_DIR.iterdir():
             if f.suffix == ".json" and f.name.startswith(prefixes):

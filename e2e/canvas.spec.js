@@ -25,8 +25,8 @@ test.describe('Canvas Tab', () => {
     test('toolbar buttons are disabled when no canvas selected', async ({ page }) => {
         await expect(page.locator('#renameCanvasBtn')).toBeDisabled();
         await expect(page.locator('#deleteCanvasBtn')).toBeDisabled();
-        await expect(page.locator('#canvasAddNoteBtn')).toBeDisabled();
-        await expect(page.locator('#canvasExportBtn')).toBeDisabled();
+        await expect(page.locator('#canvasExportPngBtn')).toBeDisabled();
+        await expect(page.locator('#canvasExportSvgBtn')).toBeDisabled();
     });
 
     test('creating a canvas adds it to the select and enables buttons', async ({ page }) => {

@@ -54,12 +54,18 @@ function removeFilter(type, value) {
     else if (type === 'tag') { activeFilters.tags = activeFilters.tags.filter(t => t !== value); }
     else if (type === 'geography') { activeFilters.geography = null; }
     else if (type === 'funding_stage') { activeFilters.funding_stage = null; }
+    else if (type === 'founded_year') {
+        activeFilters.founded_from = null;
+        activeFilters.founded_to = null;
+        if (window._foundedYearPicker) _foundedYearPicker.clear();
+    }
     renderFilterChips();
     loadCompanies();
 }
 
 function clearAllFilters() {
-    activeFilters = { category_id: null, category_name: null, tags: [], geography: null, funding_stage: null };
+    activeFilters = { category_id: null, category_name: null, tags: [], geography: null, funding_stage: null, founded_from: null, founded_to: null };
+    if (window._foundedYearPicker) _foundedYearPicker.clear();
     document.getElementById('searchInput').value = '';
     document.getElementById('starredFilter').checked = false;
     document.getElementById('enrichmentFilter').checked = false;
@@ -94,6 +100,12 @@ function renderFilterChips() {
         chips.push(`<span class="filter-chip" data-type="funding_stage">
             Stage: ${esc(activeFilters.funding_stage)}
             <span class="chip-remove" onclick="removeFilter('funding_stage')">&times;</span>
+        </span>`);
+    }
+    if (activeFilters.founded_from && activeFilters.founded_to) {
+        chips.push(`<span class="filter-chip" data-type="founded_year">
+            Founded: ${activeFilters.founded_from}–${activeFilters.founded_to}
+            <span class="chip-remove" onclick="removeFilter('founded_year')">&times;</span>
         </span>`);
     }
 

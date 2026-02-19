@@ -58,8 +58,70 @@
 
 .sub-cat {
     font-size: 13px;
-    padding: 3px 0;
+    padding: 5px 6px;
     color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.1s;
+}
+
+.sub-cat:hover {
+    background: var(--bg-hover, var(--bg-container));
+    color: var(--text-primary);
+}
+
+.sub-cat-arrow {
+    transition: transform 0.15s;
+}
+
+/* Clickable category name in header */
+.cat-name-link {
+    cursor: pointer;
+    transition: color 0.15s;
+    flex: 1;
+}
+
+.cat-name-link:hover {
+    color: var(--accent-primary);
+}
+
+/* Inline company list under category */
+.cat-companies-inline {
+    margin-top: 8px;
+    border-top: 1px solid var(--border-default);
+    padding-top: 4px;
+}
+
+.cat-company-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.1s;
+}
+
+.cat-company-row:hover {
+    background: var(--bg-hover, var(--bg-container));
+}
+
+.cat-company-row-name {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.cat-company-row-desc {
+    color: var(--text-muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: auto;
 }
 
 /* ========== Category Scope Notes ========== */
@@ -290,6 +352,23 @@
 
 [data-theme="dark"] .quality-warn {
     background: var(--accent-warning-bg);
+}
+
+/* ========== Graph Loading State ========== */
+.graph-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: var(--text-muted);
+    font-size: 14px;
+    gap: 12px;
+}
+
+.graph-loading a {
+    color: var(--accent-primary);
 }
 
 /* ========== Knowledge Graph ========== */

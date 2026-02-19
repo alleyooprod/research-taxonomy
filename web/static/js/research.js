@@ -4,8 +4,9 @@
 
 let _currentResearchMode = 'report';
 let _researchPollCount = 0;
-const _MAX_RESEARCH_POLL = 120; // 6 min at 3s
+const _MAX_RESEARCH_POLL = 240; // 12 min at 3s (must exceed backend timeout of 10 min)
 let _selectedResearchCompanyId = null;
+let _researchStartTime = null;
 
 // --- Mode switching ---
 function switchResearchMode(mode) {
@@ -258,6 +259,7 @@ async function startDeepDive() {
     }
 
     _researchPollCount = 0;
+    _researchStartTime = Date.now();
     pollResearch(data.research_id);
 }
 
@@ -266,8 +268,17 @@ async function pollResearch(researchId) {
     const data = await res.json();
 
     if (data.status === 'pending' || data.status === 'running') {
+        // Update elapsed time display
+        if (_researchStartTime) {
+            const elapsed = Math.round((Date.now() - _researchStartTime) / 1000);
+            const min = Math.floor(elapsed / 60);
+            const sec = elapsed % 60;
+            const timeStr = min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+            const statusText = document.getElementById('researchStatusText');
+            if (statusText) statusText.textContent = `Researching... ${timeStr} elapsed. AI is searching the web and analyzing data.`;
+        }
         if (++_researchPollCount > _MAX_RESEARCH_POLL) {
-            showResearchError('Research timed out. Please try again.');
+            showResearchError('Research timed out. Please try again with a more focused question.');
             return;
         }
         setTimeout(() => pollResearch(researchId), 3000);
@@ -275,6 +286,7 @@ async function pollResearch(researchId) {
     }
 
     _researchPollCount = 0;
+    _researchStartTime = null;
     document.getElementById('researchBtn').disabled = false;
     document.getElementById('researchStatus').classList.add('hidden');
 
@@ -288,11 +300,25 @@ async function pollResearch(researchId) {
 }
 
 function showResearchError(msg) {
+    _researchStartTime = null;
     document.getElementById('researchBtn').disabled = false;
     document.getElementById('researchStatus').classList.add('hidden');
     const content = document.getElementById('researchResult');
     content.classList.remove('hidden');
-    content.innerHTML = `<p class="re-research-error">${esc(msg)}</p>`;
+    content.innerHTML = `<div class="re-research-error">
+        <p>${esc(msg)}</p>
+        <button class="btn" onclick="startDeepDive()" style="margin-top:8px">
+            <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">refresh</span> Retry
+        </button>
+    </div>`;
+}
+
+function cancelResearchPoll() {
+    _researchPollCount = _MAX_RESEARCH_POLL + 1;
+    _researchStartTime = null;
+    document.getElementById('researchBtn').disabled = false;
+    document.getElementById('researchStatus').classList.add('hidden');
+    showToast('Research polling cancelled. The research may still complete on the server.');
 }
 
 // --- View research result ---
@@ -305,7 +331,12 @@ async function loadResearchDetail(researchId) {
     content.classList.remove('hidden');
 
     if (data.status === 'failed') {
-        content.innerHTML = `<p class="re-research-error">${esc(data.result || 'Research failed')}</p>`;
+        content.innerHTML = `<div class="re-research-error">
+            <p>${esc(data.result || 'Research failed')}</p>
+            <button class="btn" onclick="startDeepDive()" style="margin-top:8px">
+                <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">refresh</span> Retry
+            </button>
+        </div>`;
         return;
     }
 
@@ -316,6 +347,10 @@ async function loadResearchDetail(researchId) {
         renderer.code = function(args) {
             if (args.lang === 'mermaid') {
                 return `<div class="mermaid">${args.text}</div>`;
+            }
+            if (window.hljs && args.lang && hljs.getLanguage(args.lang)) {
+                const highlighted = hljs.highlight(args.text, { language: args.lang }).value;
+                return `<pre><code class="hljs language-${esc(args.lang)}">${highlighted}</code></pre>`;
             }
             return defaultCode(args);
         };
@@ -345,6 +380,7 @@ async function loadResearchDetail(researchId) {
     if (window.mermaid) {
         try { mermaid.run({ nodes: content.querySelectorAll('.mermaid') }); } catch (e) {}
     }
+    if (window.hljs) content.querySelectorAll('pre code:not(.hljs)').forEach(el => hljs.highlightElement(el));
 
     content.scrollIntoView({ behavior: 'smooth' });
 }

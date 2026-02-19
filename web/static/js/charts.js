@@ -141,6 +141,54 @@ function renderChartJsDashboard(companies) {
     }
 }
 
+function renderWordCloud(companies) {
+    if (!window.echarts) return;
+    const wcDiv = document.getElementById('chartWordCloud');
+    if (!wcDiv) return;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const theme = isDark ? 'dark' : null;
+
+    // Collect tags and keywords from companies
+    const wordMap = {};
+    companies.forEach(c => {
+        (c.tags || []).forEach(t => { wordMap[t] = (wordMap[t] || 0) + 3; });
+        const cat = c.category_name;
+        if (cat) wordMap[cat] = (wordMap[cat] || 0) + 1;
+    });
+
+    const wordData = Object.entries(wordMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 60);
+
+    if (!wordData.length) {
+        wcDiv.innerHTML = '<p class="hint-text" style="padding:40px;text-align:center">Add tags to companies to see the word cloud</p>';
+        return;
+    }
+
+    if (echartInstances.wordCloud) echartInstances.wordCloud.dispose();
+    echartInstances.wordCloud = echarts.init(wcDiv, theme);
+    echartInstances.wordCloud.setOption({
+        tooltip: { show: true, formatter: '{b}: {c}' },
+        series: [{
+            type: 'wordCloud',
+            shape: 'circle',
+            sizeRange: [14, 48],
+            rotationRange: [-30, 30],
+            gridSize: 8,
+            drawOutOfBound: false,
+            textStyle: {
+                fontFamily: 'Noto Sans',
+                color: function() {
+                    const palette = ['#bc6c5a','#5a7c5a','#6b8fa3','#d4a853','#8b6f8b','#5a8c8c','#a67c52'];
+                    return palette[Math.floor(Math.random() * palette.length)];
+                },
+            },
+            data: wordData,
+        }],
+    });
+}
+
 async function refreshDashboardCharts() {
     if (!currentProjectId) return;
     const [compRes, taxRes] = await Promise.all([
@@ -151,6 +199,7 @@ async function refreshDashboardCharts() {
     const categories = await taxRes.json();
     renderAnalyticsDashboard(companies, categories);
     renderChartJsDashboard(companies);
+    renderWordCloud(companies);
 }
 
 // Resize handler for ECharts

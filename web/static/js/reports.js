@@ -83,6 +83,10 @@ async function pollReport(reportId) {
             if (args.lang === 'mermaid') {
                 return `<div class="mermaid">${args.text}</div>`;
             }
+            if (window.hljs && args.lang && hljs.getLanguage(args.lang)) {
+                const highlighted = hljs.highlight(args.text, { language: args.lang }).value;
+                return `<pre><code class="hljs language-${esc(args.lang)}">${highlighted}</code></pre>`;
+            }
             return defaultCode(args);
         };
         marked.use({ renderer, breaks: true, gfm: true });
@@ -117,6 +121,7 @@ async function pollReport(reportId) {
             console.warn('Mermaid rendering failed:', e);
         }
     }
+    if (window.hljs) content.querySelectorAll('pre code:not(.hljs)').forEach(el => hljs.highlightElement(el));
 
     loadSavedReports();
 }

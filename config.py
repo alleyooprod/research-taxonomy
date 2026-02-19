@@ -39,7 +39,7 @@ MODEL_CHOICES = {
 }
 SUB_BATCH_SIZE = 5  # Auto-chunk batches larger than this
 MAX_RETRIES = 3
-RESEARCH_TIMEOUT = 300  # seconds per Claude CLI call (5 min)
+RESEARCH_TIMEOUT = 600  # seconds per Claude CLI call (10 min)
 RESEARCH_TIMEOUT_RETRIES = 2  # Auto-retry on timeout before giving up
 CLASSIFY_TIMEOUT = 60
 EVOLVE_TIMEOUT = 90
