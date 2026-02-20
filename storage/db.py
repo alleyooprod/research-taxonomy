@@ -328,7 +328,7 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
 
             # Sync entity type definitions if schema provided
             if entity_schema:
-                self.sync_entity_types(project_id, entity_schema)
+                self._sync_entity_types_with_conn(conn, project_id, entity_schema)
 
             return project_id
 

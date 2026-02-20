@@ -24,45 +24,49 @@ class EntityMixin:
         Does NOT delete types that exist in DB but not in schema (safety).
         """
         with self._get_conn() as conn:
-            for et in schema.get("entity_types", []):
-                conn.execute("""
-                    INSERT INTO entity_type_defs (project_id, slug, name, description, icon,
-                                                  parent_type_slug, attributes_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(project_id, slug) DO UPDATE SET
-                        name = excluded.name,
-                        description = excluded.description,
-                        icon = excluded.icon,
-                        parent_type_slug = excluded.parent_type_slug,
-                        attributes_json = excluded.attributes_json,
-                        updated_at = datetime('now')
-                """, (
-                    project_id,
-                    et["slug"],
-                    et["name"],
-                    et.get("description", ""),
-                    et.get("icon", "circle"),
-                    et.get("parent_type"),
-                    json.dumps(et.get("attributes", [])),
-                ))
+            self._sync_entity_types_with_conn(conn, project_id, schema)
 
-            # Sync relationship definitions
-            for rel in schema.get("relationships", []):
-                conn.execute("""
-                    INSERT INTO entity_relationship_defs (project_id, name, from_type_slug,
-                                                          to_type_slug, description)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT(project_id, name) DO UPDATE SET
-                        from_type_slug = excluded.from_type_slug,
-                        to_type_slug = excluded.to_type_slug,
-                        description = excluded.description
-                """, (
-                    project_id,
-                    rel["name"],
-                    rel["from_type"],
-                    rel["to_type"],
-                    rel.get("description", ""),
-                ))
+    def _sync_entity_types_with_conn(self, conn, project_id, schema):
+        """Internal: sync entity types using an existing connection."""
+        for et in schema.get("entity_types", []):
+            conn.execute("""
+                INSERT INTO entity_type_defs (project_id, slug, name, description, icon,
+                                              parent_type_slug, attributes_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(project_id, slug) DO UPDATE SET
+                    name = excluded.name,
+                    description = excluded.description,
+                    icon = excluded.icon,
+                    parent_type_slug = excluded.parent_type_slug,
+                    attributes_json = excluded.attributes_json,
+                    updated_at = datetime('now')
+            """, (
+                project_id,
+                et["slug"],
+                et["name"],
+                et.get("description", ""),
+                et.get("icon", "circle"),
+                et.get("parent_type"),
+                json.dumps(et.get("attributes", [])),
+            ))
+
+        # Sync relationship definitions
+        for rel in schema.get("relationships", []):
+            conn.execute("""
+                INSERT INTO entity_relationship_defs (project_id, name, from_type_slug,
+                                                      to_type_slug, description)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(project_id, name) DO UPDATE SET
+                    from_type_slug = excluded.from_type_slug,
+                    to_type_slug = excluded.to_type_slug,
+                    description = excluded.description
+            """, (
+                project_id,
+                rel["name"],
+                rel["from_type"],
+                rel["to_type"],
+                rel.get("description", ""),
+            ))
 
     def get_entity_type_defs(self, project_id):
         """Get all entity type definitions for a project."""
@@ -258,19 +262,22 @@ class EntityMixin:
         """Soft-delete an entity. If cascade, also soft-deletes children."""
         now = datetime.now().isoformat()
         with self._get_conn() as conn:
-            conn.execute("""
-                UPDATE entities SET is_deleted = 1, deleted_at = ?
-                WHERE id = ?
-            """, (now, entity_id))
+            self._delete_entity_recursive(conn, entity_id, now, cascade)
 
-            if cascade:
-                # Recursively soft-delete children
-                children = conn.execute(
-                    "SELECT id FROM entities WHERE parent_entity_id = ? AND is_deleted = 0",
-                    (entity_id,)
-                ).fetchall()
-                for child in children:
-                    self.delete_entity(child["id"], cascade=True)
+    def _delete_entity_recursive(self, conn, entity_id, now, cascade):
+        """Internal: recursive soft-delete using an existing connection."""
+        conn.execute("""
+            UPDATE entities SET is_deleted = 1, deleted_at = ?
+            WHERE id = ?
+        """, (now, entity_id))
+
+        if cascade:
+            children = conn.execute(
+                "SELECT id FROM entities WHERE parent_entity_id = ? AND is_deleted = 0",
+                (entity_id,)
+            ).fetchall()
+            for child in children:
+                self._delete_entity_recursive(conn, child["id"], now, cascade)
 
     def restore_entity(self, entity_id):
         """Restore a soft-deleted entity."""
