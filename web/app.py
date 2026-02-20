@@ -88,7 +88,7 @@ def _cleanup_stale_results():
 
 def create_app():
     _setup_logging()
-    logger.info("Starting Research Taxonomy Library v%s", APP_VERSION)
+    logger.info("Starting Research Taxonomy Library v{}", APP_VERSION)
 
     app = Flask(
         __name__,
@@ -136,7 +136,7 @@ def create_app():
         duration = time.time() - getattr(g, "request_start", time.time())
         if request.path.startswith("/api/"):
             logger.info(
-                "%s %s %s %.0fms",
+                "{} {} {} {:.0f}ms",
                 request.method, request.path, response.status_code,
                 duration * 1000,
             )
@@ -154,6 +154,7 @@ def create_app():
                 "127.0.0.1", "localhost",
             }
             if request.host not in allowed_hosts:
+                logger.warning("Host validation failed: '{}' not in {}", request.host, allowed_hosts)
                 return jsonify({"error": "Invalid host"}), 403
 
     # --- CSRF Protection (signed per-request tokens) ---

@@ -194,18 +194,23 @@ function dismissUpdateBanner() {
 // --- First-Run Onboarding ---
 
 async function checkFirstRun() {
-    const res = await safeFetch('/api/projects');
-    const projects = await res.json();
-    if (projects.length === 0) {
+    try {
+        const res = await safeFetch('/api/projects');
+        if (!res.ok) return;
+        const projects = await res.json();
+        if (!Array.isArray(projects) || projects.length !== 0) return;
         // Show onboarding
         const overlay = document.getElementById('onboardingOverlay');
         if (overlay) {
             overlay.classList.remove('hidden');
-            // Load prerequisites for the onboarding screen
             const prereqRes = await safeFetch('/api/prerequisites');
-            const prereqs = await prereqRes.json();
-            renderOnboardingPrereqs(prereqs);
+            if (prereqRes.ok) {
+                const prereqs = await prereqRes.json();
+                renderOnboardingPrereqs(prereqs);
+            }
         }
+    } catch (e) {
+        console.error('checkFirstRun error:', e);
     }
 }
 

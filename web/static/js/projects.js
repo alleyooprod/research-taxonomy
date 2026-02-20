@@ -9,25 +9,7 @@ let _customSchema = null;  // Set when AI suggests or user provides custom schem
 let _schemaTemplates = [];
 
 async function loadProjects() {
-    const res = await safeFetch('/api/projects');
-    const projects = await res.json();
-
-    let html = projects.map(p => {
-        const entitySchema = p.entity_schema ? JSON.parse(p.entity_schema) : null;
-        const typeCount = entitySchema ? entitySchema.entity_types?.length || 0 : 0;
-        const metaLabel = typeCount > 1 ? `${typeCount} entity types` : `${p.company_count} companies`;
-        return `
-        <div class="project-card" onclick="selectProject(${p.id}, '${escAttr(p.name)}')">
-            <h3>${esc(p.name)}</h3>
-            <p class="project-purpose">${esc(p.purpose || '')}</p>
-            <div class="project-meta">
-                <span>${metaLabel}</span>
-                <span>${new Date(p.created_at).toLocaleDateString()}</span>
-            </div>
-        </div>
-    `}).join('');
-
-    html += `
+    const newProjectCard = `
         <div class="project-card project-card-new" onclick="showNewProjectForm()">
             <div class="project-card-plus">+</div>
             <h3>New Project</h3>
@@ -35,7 +17,41 @@ async function loadProjects() {
         </div>
     `;
 
-    document.getElementById('projectGrid').innerHTML = html;
+    try {
+        const res = await safeFetch('/api/projects');
+        if (!res.ok) {
+            console.error('Failed to load projects:', res.status);
+            document.getElementById('projectGrid').innerHTML = newProjectCard;
+            return;
+        }
+        const projects = await res.json();
+        if (!Array.isArray(projects)) {
+            console.error('Expected array of projects, got:', typeof projects, projects);
+            document.getElementById('projectGrid').innerHTML = newProjectCard;
+            return;
+        }
+
+        let html = projects.map(p => {
+            const entitySchema = p.entity_schema ? JSON.parse(p.entity_schema) : null;
+            const typeCount = entitySchema ? entitySchema.entity_types?.length || 0 : 0;
+            const metaLabel = typeCount > 1 ? `${typeCount} entity types` : `${p.company_count} companies`;
+            return `
+            <div class="project-card" onclick="selectProject(${p.id}, '${escAttr(p.name)}')">
+                <h3>${esc(p.name)}</h3>
+                <p class="project-purpose">${esc(p.purpose || '')}</p>
+                <div class="project-meta">
+                    <span>${metaLabel}</span>
+                    <span>${new Date(p.created_at).toLocaleDateString()}</span>
+                </div>
+            </div>
+        `}).join('');
+
+        html += newProjectCard;
+        document.getElementById('projectGrid').innerHTML = html;
+    } catch (e) {
+        console.error('Error loading projects:', e);
+        document.getElementById('projectGrid').innerHTML = newProjectCard;
+    }
 }
 
 function selectProject(id, name) {
