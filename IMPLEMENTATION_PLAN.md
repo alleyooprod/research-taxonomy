@@ -1,8 +1,8 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 3 Complete — All sub-phases 3.1-3.5 done (extraction + review + features)
+> **Status:** Phase 3 Complete + Phase 2.6/2.7 done — bulk capture + capture UI
 > **Created:** 2026-02-20 (Session 10)
-> **Last Updated:** 2026-02-20 (Session 15)
+> **Last Updated:** 2026-02-20 (Session 16)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
 > **Conversation Reference:** `docs/RESEARCH_WORKBENCH_CONVERSATION.md`
 
@@ -46,7 +46,7 @@ Evolving the Research Taxonomy Library from a flat company taxonomy tool into a 
 | Design System (The Instrument) | ✅ Working | `base.css` + 12 CSS files |
 | Tippy.js Tooltips | ✅ Working | `core.js` |
 | Custom Prompt/Select Dialogs | ✅ Working | `core.js` |
-| 852 pytest tests | ✅ Passing | 28 test files |
+| 862 pytest tests | ✅ Passing | 29 test files |
 | 132 Playwright specs | ✅ Written | 24 spec files |
 | Entity schema system | ✅ Working | `core/schema.py` |
 | Entity CRUD + temporal attrs | ✅ Working | `storage/repos/entities.py` |
@@ -253,23 +253,25 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] **Tests:** 11 file storage tests + 6 validation tests + 7 type/MIME tests + 4 utility tests in `test_capture.py`
 
 #### 2.6 Bulk Capture / Market Scan
-- [ ] "Scan market" action: combine AI Discovery + scraping for all found companies
-- [ ] Runs as background job with progress tracking
-- [ ] Results flagged as "AI-populated, pending review"
-- [ ] **Files affected:** `web/blueprints/capture.py`, `core/capture.py`, background job system
+- [x] `POST /api/capture/bulk` endpoint — validates items, starts async background job via `web/async_jobs.py`
+- [x] `_run_bulk_capture()` background worker — iterates URLs, calls `capture_website()`/`capture_document()`, writes progress via `write_result()`
+- [x] `GET /api/capture/bulk/<job_id>` — polls job status (pending/running/complete) with progress counts
+- [x] 10 tests in `tests/test_api_capture.py` — 6 validation + 4 mock-based (starts job, poll pending, poll complete, default type)
+- [x] **Files:** `web/blueprints/capture.py` (3 new endpoints/functions), `tests/test_api_capture.py` (TestBulkCaptureAPI class)
 
 #### 2.7 Capture UI
-- [ ] "Research Operations" section in AI Discovery tab (or new Capture tab)
-- [ ] Shows active/completed scraping jobs
-- [ ] Configure capture sources per project
-- [ ] Manual capture trigger per entity
-- [ ] Drag-and-drop upload onto entity cards
-- [ ] Clipboard paste for screenshots
-- [ ] **Files affected:** `ai.js` or new `capture.js`, `index.html`
+- [x] Evidence Capture sub-section in Process tab — stats, action bar, job list, bulk progress
+- [x] `web/static/js/capture.js` (~300 lines) — `initCaptureUI()`, stats loading, single/bulk capture, upload, entity selector, poll loop
+- [x] `web/static/css/capture.css` (~160 lines) — stats grid, action bar, job list, bulk progress bar, responsive
+- [x] Updated `web/templates/index.html` — capture section HTML, CSS/JS includes
+- [x] Updated `web/static/js/core.js` — calls `initCaptureUI()` when Process tab shown
+- [ ] Drag-and-drop upload onto entity cards (deferred to future session)
+- [ ] Clipboard paste for screenshots (deferred to future session)
+- [x] **Files:** `web/static/js/capture.js`, `web/static/css/capture.css`, `web/templates/index.html`, `web/static/js/core.js`
 
 #### 2.8 Tests — Capture Engine
 - [x] DB-layer tests: 64 tests in `tests/test_capture.py` (file storage, validation, upload, document capture, evidence by ID)
-- [x] API-layer tests: 31 tests in `tests/test_api_capture.py` (upload, serve, delete, document capture, website capture, stats, jobs, integration)
+- [x] API-layer tests: 41 tests in `tests/test_api_capture.py` (upload, serve, delete, document capture, website capture, stats, jobs, integration, bulk capture)
 - [x] `capture` marker added to `pytest.ini` for selective running (`pytest -m capture`)
 - [x] All 447 original tests still pass after capture engine addition
 - [x] **Total: 584 tests passing** (447 original + 64 capture DB + 31 capture API + 27 scraper DB + 15 scraper API)
@@ -541,8 +543,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 13 | 2026-02-20 | Phase 2.1/2.4/2.5/2.5a/2.3: Capture engine + scrapers — file storage, website capture, document download, manual upload, App Store + Play Store scrapers (137 new tests, 584 total) | ✅ Complete |
 | 14 | 2026-02-20 | Phase 3.1/3.2/3.3: Extraction pipeline + document extractors + screenshot classification — extraction jobs/results DB, review workflow, product/pricing/generic extractors with auto-routing classifier, URL/filename/context/LLM screenshot classification, journey sequence grouping (165 new tests, 749 total) | ✅ Complete |
 | 15 | 2026-02-20 | Phase 3.4/3.5: Human review interface + feature standardisation — grouped review queue, accept/reject/edit per attribute, confidence filtering, needs-evidence flagging, bulk review, canonical vocabulary CRUD, merge, resolve, unmapped detection, AI suggest, frontend for both (103 new tests, 852 total) | ✅ Complete |
-| 16 | TBD | Phase 2.2: UI gallery scrapers (Mobbin, Screenlane, Refero) | ⬜ Not started |
-| 17 | TBD | Phase 2.6/2.7: Bulk capture + Capture UI | ⬜ Not started |
+| 16 | 2026-02-20 | Phase 2.6/2.7: Bulk capture backend (async job, poll, progress) + capture UI frontend (stats, single/bulk capture, upload, job list) — 10 new tests, 862 total | ✅ Complete |
+| 17 | TBD | Phase 2.2: UI gallery scrapers (Mobbin, Screenlane, Refero) | ⬜ Not started |
 
 ---
 

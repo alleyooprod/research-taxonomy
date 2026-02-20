@@ -730,5 +730,178 @@ def playstore_screenshots():
         include_icon=data.get("include_icon", True),
     )
 
-    status = 201 if result.success else 422
-    return jsonify(result.to_dict()), status
+    ps_status = 201 if result.success else 422
+    return jsonify(result.to_dict()), ps_status
+
+
+# ── UI Gallery Scrapers ────────────────────────────────────────
+# Generic gallery endpoint pattern: search + download for all gallery sources
+
+_GALLERY_SCRAPERS = {
+    "dribbble": {
+        "search_fn": "search_shots",
+        "download_fn": "download_shots",
+        "module": "core.scrapers.dribbble",
+        "search_param": "query",
+        "download_param": "query",
+    },
+    "scrnshts": {
+        "search_fn": "search_apps",
+        "download_fn": "download_screenshots",
+        "module": "core.scrapers.scrnshts",
+        "search_param": "query",
+        "download_param": "slug",
+    },
+    "collectui": {
+        "search_fn": "search_shots",
+        "download_fn": "download_shots",
+        "module": "core.scrapers.collectui",
+        "search_param": "query",
+        "download_param": "challenge_name",
+    },
+    "godly": {
+        "search_fn": "search_sites",
+        "download_fn": "download_screenshots",
+        "module": "core.scrapers.godly",
+        "search_param": "query",
+        "download_param": "slug",
+    },
+    "siteinspire": {
+        "search_fn": "search_sites",
+        "download_fn": "download_screenshots",
+        "module": "core.scrapers.siteinspire",
+        "search_param": "query",
+        "download_param": "site_id",
+        "download_extra": "slug",
+    },
+    "onepagelove": {
+        "search_fn": "search_sites",
+        "download_fn": "download_screenshots",
+        "module": "core.scrapers.onepagelove",
+        "search_param": "query",
+        "download_param": "slug",
+    },
+    "saaspages": {
+        "search_fn": "browse_sites",
+        "download_fn": "download_screenshots",
+        "module": "core.scrapers.saaspages",
+        "search_param": None,
+        "download_param": "slug",
+    },
+    "httpster": {
+        "search_fn": "search_sites",
+        "download_fn": "download_screenshots",
+        "module": "core.scrapers.httpster",
+        "search_param": "query",
+        "download_param": "slug",
+    },
+}
+
+
+@capture_bp.route("/api/scrape/gallery/sources")
+def gallery_sources():
+    """List all available UI gallery scraper sources."""
+    sources = []
+    for name, cfg in _GALLERY_SCRAPERS.items():
+        sources.append({
+            "name": name,
+            "search_param": cfg["search_param"],
+            "download_param": cfg["download_param"],
+        })
+    return jsonify(sources)
+
+
+@capture_bp.route("/api/scrape/gallery/<source>/search")
+def gallery_search(source):
+    """Search a UI gallery source.
+
+    Path param: source (dribbble, scrnshts, collectui, godly, siteinspire, onepagelove, saaspages, httpster)
+    Query params: q (required for most), page (optional)
+    """
+    cfg = _GALLERY_SCRAPERS.get(source)
+    if not cfg:
+        return jsonify({"error": f"Unknown gallery source: {source}"}), 400
+
+    import importlib
+    mod = importlib.import_module(cfg["module"])
+    search_fn = getattr(mod, cfg["search_fn"])
+
+    query = request.args.get("q", "").strip()
+    page = request.args.get("page", 1, type=int)
+
+    if cfg["search_param"] and not query:
+        return jsonify({"error": "q parameter is required"}), 400
+
+    try:
+        import inspect
+        sig = inspect.signature(search_fn)
+        if cfg["search_param"]:
+            kwargs = {cfg["search_param"]: query}
+            if "page" in sig.parameters:
+                kwargs["page"] = page
+        else:
+            kwargs = {"page": page} if "page" in sig.parameters else {}
+
+        results = search_fn(**kwargs)
+        return jsonify([r.to_dict() for r in results])
+    except Exception as e:
+        logger.warning("Gallery search failed (%s, q=%s): %s", source, query, e)
+        return jsonify({"error": str(e)}), 500
+
+
+@capture_bp.route("/api/scrape/gallery/<source>/download", methods=["POST"])
+def gallery_download(source):
+    """Download screenshots from a gallery source and store as evidence.
+
+    Path param: source
+    JSON body: entity_id, project_id, slug/query/site_id (source-specific), max_shots (optional)
+    """
+    cfg = _GALLERY_SCRAPERS.get(source)
+    if not cfg:
+        return jsonify({"error": f"Unknown gallery source: {source}"}), 400
+
+    data = request.json or {}
+    entity_id = data.get("entity_id")
+    project_id = data.get("project_id")
+
+    if not entity_id:
+        return jsonify({"error": "entity_id is required"}), 400
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    entity = current_app.db.get_entity(entity_id)
+    if not entity:
+        return jsonify({"error": f"Entity {entity_id} not found"}), 404
+
+    param_name = cfg["download_param"]
+    identifier = data.get(param_name)
+    if not identifier:
+        return jsonify({"error": f"{param_name} is required"}), 400
+
+    import importlib
+    mod = importlib.import_module(cfg["module"])
+    download_fn = getattr(mod, cfg["download_fn"])
+
+    try:
+        kwargs = {
+            param_name: identifier,
+            "project_id": project_id,
+            "entity_id": entity_id,
+            "db": current_app.db,
+        }
+
+        import inspect
+        sig = inspect.signature(download_fn)
+        if "max_shots" in sig.parameters:
+            kwargs["max_shots"] = data.get("max_shots", 10)
+        if cfg.get("download_extra"):
+            extra = data.get(cfg["download_extra"])
+            if extra:
+                kwargs[cfg["download_extra"]] = extra
+
+        result = download_fn(**kwargs)
+        status_code = 201 if result.success else 422
+        return jsonify(result.to_dict()), status_code
+    except Exception as e:
+        logger.warning("Gallery download failed (%s): %s", source, e)
+        return jsonify({"error": str(e)}), 500
