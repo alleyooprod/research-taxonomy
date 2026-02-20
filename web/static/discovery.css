@@ -31,7 +31,7 @@
     padding: 16px;
     cursor: pointer;
     user-select: none;
-    transition: background 0.1s linear;
+    transition: background var(--duration-normal) var(--ease-standard);
 }
 
 .discovery-section-header:hover {
@@ -46,7 +46,7 @@
 .section-arrow {
     font-size: 11px;
     color: var(--text-muted);
-    transition: transform 0.1s linear;
+    transition: transform var(--duration-normal) var(--ease-standard);
 }
 
 .discovery-section > div:not(.discovery-section-header) {
@@ -60,7 +60,7 @@
     padding: 24px;
     text-align: center;
     color: var(--text-muted);
-    transition: border-color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard);
     margin-bottom: 16px;
 }
 
@@ -258,7 +258,7 @@
     margin-bottom: 8px;
 }
 
-.gap-item.priority-high { border-left-color: #FF0000; }
+.gap-item.priority-high { border-left-color: var(--accent-danger); }
 .gap-item.priority-med { border-left-color: var(--text-muted); }
 .gap-item.priority-low { border-left-color: var(--border-default); }
 
@@ -276,7 +276,7 @@
     letter-spacing: 0.04em;
 }
 
-.priority-high .gap-priority { color: #FF0000; }
+.priority-high .gap-priority { color: var(--accent-danger); }
 .priority-med .gap-priority { color: var(--text-muted); }
 .priority-low .gap-priority { color: var(--border-default); }
 
@@ -352,7 +352,7 @@
     border-radius: 0;
     margin-bottom: 0;
     cursor: pointer;
-    transition: background 0.1s linear;
+    transition: background var(--duration-fast) var(--ease-standard);
     gap: 16px;
     border-bottom: 1px solid var(--border-default);
 }
@@ -393,7 +393,7 @@
 
 .analysis-status-complete { color: var(--text-primary); }
 .analysis-status-running { color: var(--text-secondary); }
-.analysis-status-error { color: #FF0000; }
+.analysis-status-error { color: var(--accent-danger); }
 
 .analysis-context {
     font-size: 11px;

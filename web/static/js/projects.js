@@ -53,6 +53,12 @@ function selectProject(id, name) {
     document.getElementById('tourBtn')?.classList.remove('hidden');
     connectSSE();
     requestNotificationPermission();
+
+    // Update tab indicator now that #mainApp is visible and tabs have layout
+    requestAnimationFrame(() => {
+        if (typeof updateTabIndicator === 'function') updateTabIndicator();
+        if (typeof initTooltips === 'function') initTooltips();
+    });
 }
 
 function switchProject() {

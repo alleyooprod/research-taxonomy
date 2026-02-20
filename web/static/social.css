@@ -40,7 +40,7 @@
 
 .note-action { cursor: pointer; }
 .note-action:hover { color: var(--text-primary); }
-.note-action.note-delete:hover { color: #FF0000; }
+.note-action.note-delete:hover { color: var(--accent-danger); }
 
 /* ========== Events ========== */
 .event-item {
@@ -86,7 +86,7 @@
 
 .lifecycle-active { color: var(--text-primary); border-color: var(--text-primary); }
 .lifecycle-acquired { color: var(--text-secondary); }
-.lifecycle-shut_down { color: #FF0000; border-color: #FF0000; }
+.lifecycle-shut_down { color: var(--accent-danger); border-color: var(--accent-danger); }
 .lifecycle-merged { color: var(--text-muted); }
 
 /* ========== Version History ========== */
@@ -167,7 +167,7 @@
     border: 1px solid var(--border-default);
     border-radius: 0;
     box-shadow: none;
-    z-index: 900;
+    z-index: var(--z-detail-panel);
     overflow: hidden;
 }
 

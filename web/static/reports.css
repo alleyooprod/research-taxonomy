@@ -13,8 +13,8 @@
     border: none;
     cursor: pointer;
     box-shadow: none;
-    z-index: 999;
-    transition: opacity 0.1s linear;
+    z-index: var(--z-detail-panel);
+    transition: opacity var(--duration-normal) var(--ease-standard);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -38,7 +38,7 @@
     border: 1px solid var(--border-default);
     border-radius: 0;
     box-shadow: none;
-    z-index: 1000;
+    z-index: var(--z-overlay);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -304,7 +304,7 @@
 
 .collapse-arrow {
     display: inline-flex;
-    transition: transform 0.1s linear;
+    transition: transform var(--duration-normal) var(--ease-standard);
     color: var(--text-muted);
 }
 .collapse-arrow .material-symbols-outlined { font-size: 18px; }
@@ -315,7 +315,7 @@
 
 .collapsible-body {
     overflow: hidden;
-    transition: max-height 0.1s linear, opacity 0.1s linear;
+    transition: max-height var(--duration-medium) var(--ease-decelerate), opacity var(--duration-medium) var(--ease-decelerate);
     max-height: 2000px;
     opacity: 1;
 }
@@ -420,7 +420,7 @@
     border: 1px solid var(--border-default);
     border-radius: 0;
     box-shadow: none;
-    z-index: 100;
+    z-index: var(--z-dropdown);
     max-height: 240px;
     overflow-y: auto;
 }
@@ -454,7 +454,7 @@
     color: var(--text-secondary);
     font-size: 11px;
     cursor: pointer;
-    transition: border-color 0.1s linear, color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard), color var(--duration-normal) var(--ease-standard);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -543,5 +543,5 @@
 
 /* Research status badges in saved list */
 .research-status-done { color: var(--text-primary); }
-.research-status-failed { color: #FF0000; }
+.research-status-failed { color: var(--accent-danger); }
 .research-status-pending { color: var(--text-muted); }

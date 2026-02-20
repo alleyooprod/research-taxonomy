@@ -28,6 +28,7 @@ window.onload = () => {
     initLucideIcons();              // Lucide icons (core.js)
     initSortable();                 // SortableJS drag-to-reorder (core.js)
     initChoicesDropdowns();         // Choices.js enhanced selects (core.js)
+    initTooltips();                 // Tippy.js tooltips for icon-only buttons (core.js)
     initOfflineDetection();
     startHeartbeat();
     loadProjects();

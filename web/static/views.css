@@ -22,7 +22,7 @@
     border-radius: 0;
     padding: 16px;
     cursor: pointer;
-    transition: background 0.1s linear;
+    transition: background var(--duration-fast) var(--ease-standard);
     outline: 1px solid var(--border-default);
 }
 
@@ -125,7 +125,7 @@
     height: 12px;
     border-radius: 0;
     cursor: pointer;
-    transition: transform 0.1s linear;
+    transition: transform var(--duration-normal) var(--ease-standard);
     background: var(--text-primary);
 }
 

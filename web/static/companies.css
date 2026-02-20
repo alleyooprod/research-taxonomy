@@ -77,7 +77,7 @@ tr:hover { background: var(--bg-hover); }
     box-shadow: none;
     padding: 32px;
     overflow-y: auto;
-    z-index: 1000;
+    z-index: var(--z-overlay);
     border-radius: 0;
     border-left: 1px solid var(--border-default);
 }
@@ -192,9 +192,9 @@ tr:hover { background: var(--bg-hover); }
     margin-top: 8px;
     padding: 8px;
     background: transparent;
-    border: 1px solid #FF0000;
+    border: 1px solid var(--accent-danger);
     border-radius: 0;
-    color: #FF0000;
+    color: var(--accent-danger);
     font-size: 13px;
 }
 
@@ -263,7 +263,7 @@ tr:hover { background: var(--bg-hover); }
     cursor: pointer;
     color: var(--text-muted);
     user-select: none;
-    transition: color 0.1s linear;
+    transition: color var(--duration-fast) var(--ease-standard);
     display: inline-flex;
     align-items: center;
 }
@@ -297,7 +297,7 @@ tr:hover { background: var(--bg-hover); }
     display: flex;
     align-items: center;
     gap: 8px;
-    z-index: 3000;
+    z-index: var(--z-bulk-bar);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -315,8 +315,8 @@ tr:hover { background: var(--bg-hover); }
 
 .bulk-action-bar .btn { background: transparent; color: inherit; border: 1px solid rgba(255,255,255,0.3); }
 .bulk-action-bar .btn:hover { background: rgba(255,255,255,0.15); }
-.bulk-action-bar .danger-btn { background: transparent; color: #FF0000; border: 1px solid #FF0000; }
-.bulk-action-bar .danger-btn:hover { background: #FF0000; color: #FFFFFF; }
+.bulk-action-bar .danger-btn { background: transparent; color: var(--accent-danger); border: 1px solid var(--accent-danger); }
+.bulk-action-bar .danger-btn:hover { background: var(--accent-danger); color: var(--bg-page); }
 .bulk-action-bar .material-symbols-outlined { font-size: 16px; }
 
 /* ========== Filter Checkboxes ========== */
@@ -457,7 +457,7 @@ tr:hover { background: var(--bg-hover); }
     cursor: pointer;
     font-weight: 400;
 }
-.filter-chip-clear:hover { background: transparent; color: #FF0000; border-color: #FF0000; }
+.filter-chip-clear:hover { background: transparent; color: var(--accent-danger); border-color: var(--accent-danger); }
 
 .chip-remove {
     cursor: pointer;
@@ -510,7 +510,7 @@ tr:hover { background: var(--bg-hover); }
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2000;
+    z-index: var(--z-modal);
 }
 
 .modal {
@@ -637,7 +637,7 @@ tr:hover { background: var(--bg-hover); }
     cursor: pointer;
     line-height: 1;
 }
-.tag-delete-btn:hover { color: #FF0000; background: none; }
+.tag-delete-btn:hover { color: var(--accent-danger); background: none; }
 
 /* ========== Row Selection (keyboard nav) ========== */
 tr.row-selected {
@@ -950,7 +950,7 @@ tr.row-selected {
     left: 0;
     height: 100%;
     background: var(--text-primary);
-    transition: width 0.2s linear;
+    transition: width var(--duration-medium) var(--ease-standard);
 }
 
 .tabulator-confidence-bar span {

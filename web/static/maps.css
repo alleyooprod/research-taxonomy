@@ -21,7 +21,7 @@
     border-radius: 0;
     padding: 16px;
     min-height: 120px;
-    transition: border-color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard);
 }
 
 .map-column.drag-over { border-color: var(--text-primary); background: transparent; }
@@ -49,7 +49,7 @@
     border-radius: 0;
     cursor: grab;
     font-size: 11px;
-    transition: border-color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard);
 }
 
 .map-tile:hover { border-color: var(--text-primary); }
@@ -86,7 +86,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    z-index: 3000;
+    z-index: var(--z-bulk-bar);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;

@@ -106,16 +106,12 @@ function filterCanvasCompanies() {
 function _ensurePromptSheet() {
     if (document.getElementById('promptSheet')) return;
     const html = `<div id="promptSheet" class="confirm-sheet-overlay" style="display:none;">
-      <div class="confirm-sheet" style="border-radius:0;">
-        <div id="promptSheetTitle" class="confirm-sheet-title"
-             style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;">Enter a name</div>
-        <input id="promptSheetInput" type="text" autocomplete="off"
-               style="width:100%;padding:8px 0;border:none;border-bottom:1px solid var(--border-default);
-                      border-radius:0;font-size:13px;background:transparent;color:var(--text-primary);
-                      font-family:'Plus Jakarta Sans',sans-serif;box-sizing:border-box;outline:none;" />
-        <div class="confirm-sheet-actions" style="margin-top:16px;">
-          <button id="promptSheetConfirm" class="confirm-btn-primary" style="border-radius:0;">Create</button>
-          <button id="promptSheetCancel" class="confirm-btn-cancel" style="border-radius:0;">Cancel</button>
+      <div class="confirm-sheet">
+        <div id="promptSheetTitle" class="confirm-sheet-title">Enter a name</div>
+        <input id="promptSheetInput" type="text" class="prompt-sheet-input" autocomplete="off" />
+        <div class="confirm-sheet-actions confirm-sheet-actions-mt">
+          <button id="promptSheetConfirm" class="confirm-btn-primary">Create</button>
+          <button id="promptSheetCancel" class="confirm-btn-cancel">Cancel</button>
         </div>
       </div>
     </div>`;

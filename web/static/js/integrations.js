@@ -86,16 +86,7 @@ function fuseSearch(query) {
     return fuseInstance.search(query).map(r => r.item);
 }
 
-// --- Tippy.js (Tooltips) ---
-function initTooltips() {
-    if (!window.tippy) return;
-    tippy('[data-tippy-content]', {
-        theme: 'light-border',
-        placement: 'top',
-        animation: 'fade',
-        delay: [300, 0],
-    });
-}
+// --- Tippy.js (Tooltips) --- moved to core.js initTooltips()
 
 // --- Tagify (Enhanced Tag Input) ---
 let tagifyInstance = null;

@@ -223,6 +223,9 @@ function showTab(name) {
         }
     }
 
+    // Slide the tab indicator to the newly active tab
+    updateTabIndicator();
+
     // Update URL state without page reload
     const url = new URL(window.location);
     url.searchParams.set('tab', name);
@@ -250,6 +253,37 @@ function restoreTabFromUrl() {
     if (tab) showTab(tab);
 }
 
+// --- Sliding Tab Indicator ---
+function updateTabIndicator() {
+    const activeTab = document.querySelector('.tab.active');
+    const tabsContainer = document.querySelector('.tabs');
+    if (!activeTab || !tabsContainer) return;
+
+    let indicator = tabsContainer.querySelector('.tab-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'tab-indicator';
+        tabsContainer.appendChild(indicator);
+    }
+
+    indicator.style.left = activeTab.offsetLeft + 'px';
+    indicator.style.width = activeTab.offsetWidth + 'px';
+}
+window.updateTabIndicator = updateTabIndicator;
+
+// Debounced resize handler for tab indicator
+let _resizeIndicatorTimer = null;
+window.addEventListener('resize', () => {
+    clearTimeout(_resizeIndicatorTimer);
+    _resizeIndicatorTimer = setTimeout(updateTabIndicator, 100);
+});
+
+// Initialise indicator once DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Small delay so layout is fully settled (fonts loaded, flexbox computed)
+    requestAnimationFrame(updateTabIndicator);
+});
+
 // --- Collapsible Sections ---
 function toggleSection(sectionId) {
     const body = document.getElementById(sectionId);
@@ -257,6 +291,13 @@ function toggleSection(sectionId) {
     if (!body) return;
     body.classList.toggle('collapsed');
     if (arrow) arrow.classList.toggle('collapsed');
+
+    // Toggle aria-expanded on the header element that triggered the toggle
+    const isCollapsed = body.classList.contains('collapsed');
+    const header = document.querySelector(`[aria-controls="${sectionId}"]`);
+    if (header) {
+        header.setAttribute('aria-expanded', String(!isCollapsed));
+    }
 }
 
 // --- Stats ---
@@ -482,6 +523,134 @@ window.showNativeConfirm = function({ title, message, confirmText = 'Delete', ca
     cancelBtn.focus();
   });
 };
+
+/**
+ * Show a prompt dialog (replaces native prompt() which is blocked by pywebview).
+ * Creates its DOM on first use, reuses thereafter.
+ * @param {string} title - Dialog title
+ * @param {string} placeholder - Input placeholder text
+ * @param {function} callback - Called with value string on submit, null on cancel
+ * @param {string} confirmText - Submit button label (default: "OK")
+ */
+window.showPromptDialog = function(title, placeholder, callback, confirmText) {
+  _ensurePromptDialogSheet();
+  const overlay = document.getElementById('promptDialogSheet');
+  const titleEl = document.getElementById('promptDialogTitle');
+  const input = document.getElementById('promptDialogInput');
+  const confirmBtn = document.getElementById('promptDialogConfirm');
+  const cancelBtn = document.getElementById('promptDialogCancel');
+
+  titleEl.textContent = title || 'Enter a value';
+  input.value = '';
+  input.placeholder = placeholder || '';
+  confirmBtn.textContent = confirmText || 'OK';
+
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => { overlay.classList.add('visible'); input.focus(); });
+
+  function cleanup() {
+    overlay.classList.remove('visible');
+    setTimeout(() => { overlay.style.display = 'none'; }, 200);
+    confirmBtn.removeEventListener('click', onConfirm);
+    cancelBtn.removeEventListener('click', onCancel);
+    input.removeEventListener('keydown', onKey);
+  }
+  function onConfirm() { const v = input.value.trim(); cleanup(); callback(v || null); }
+  function onCancel() { cleanup(); callback(null); }
+  function onKey(e) {
+    if (e.key === 'Enter') { onConfirm(); }
+    else if (e.key === 'Escape') { onCancel(); }
+  }
+  confirmBtn.addEventListener('click', onConfirm);
+  cancelBtn.addEventListener('click', onCancel);
+  input.addEventListener('keydown', onKey);
+};
+
+/**
+ * Show a select dialog with a dropdown of options (replaces native prompt() for constrained choices).
+ * Creates its DOM on first use, reuses thereafter.
+ * @param {string} title - Dialog title
+ * @param {Array<{value:string, label:string}|string>} options - Options for the select
+ * @param {function} callback - Called with selected value string on submit, null on cancel
+ * @param {string} confirmText - Submit button label (default: "OK")
+ */
+window.showSelectDialog = function(title, options, callback, confirmText) {
+  _ensureSelectDialogSheet();
+  const overlay = document.getElementById('selectDialogSheet');
+  const titleEl = document.getElementById('selectDialogTitle');
+  const select = document.getElementById('selectDialogSelect');
+  const confirmBtn = document.getElementById('selectDialogConfirm');
+  const cancelBtn = document.getElementById('selectDialogCancel');
+
+  titleEl.textContent = title || 'Select an option';
+  confirmBtn.textContent = confirmText || 'OK';
+
+  // Build options
+  select.innerHTML = '<option value="" disabled selected>Choose...</option>';
+  (options || []).forEach(opt => {
+    const o = document.createElement('option');
+    if (typeof opt === 'string') { o.value = opt; o.textContent = opt.replace(/_/g, ' '); }
+    else { o.value = opt.value; o.textContent = opt.label; }
+    select.appendChild(o);
+  });
+
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => { overlay.classList.add('visible'); select.focus(); });
+
+  function cleanup() {
+    overlay.classList.remove('visible');
+    setTimeout(() => { overlay.style.display = 'none'; }, 200);
+    confirmBtn.removeEventListener('click', onConfirm);
+    cancelBtn.removeEventListener('click', onCancel);
+    document.removeEventListener('keydown', onKey);
+  }
+  function onConfirm() { const v = select.value; cleanup(); callback(v || null); }
+  function onCancel() { cleanup(); callback(null); }
+  function onKey(e) {
+    if (e.key === 'Escape') { onCancel(); }
+    else if (e.key === 'Enter') { onConfirm(); }
+  }
+  confirmBtn.addEventListener('click', onConfirm);
+  cancelBtn.addEventListener('click', onCancel);
+  document.addEventListener('keydown', onKey);
+};
+
+/** Lazily create prompt dialog DOM */
+function _ensurePromptDialogSheet() {
+  if (document.getElementById('promptDialogSheet')) return;
+  const html = `<div id="promptDialogSheet" class="confirm-sheet-overlay" style="display:none;">
+    <div class="confirm-sheet" style="border-radius:0;">
+      <div id="promptDialogTitle" class="confirm-sheet-title"
+           style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;">Enter a value</div>
+      <input id="promptDialogInput" type="text" autocomplete="off"
+             class="prompt-dialog-input" />
+      <div class="confirm-sheet-actions" style="margin-top:16px;">
+        <button id="promptDialogConfirm" class="confirm-btn-primary" style="border-radius:0;">OK</button>
+        <button id="promptDialogCancel" class="confirm-btn-cancel" style="border-radius:0;">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/** Lazily create select dialog DOM */
+function _ensureSelectDialogSheet() {
+  if (document.getElementById('selectDialogSheet')) return;
+  const html = `<div id="selectDialogSheet" class="confirm-sheet-overlay" style="display:none;">
+    <div class="confirm-sheet" style="border-radius:0;">
+      <div id="selectDialogTitle" class="confirm-sheet-title"
+           style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;">Select an option</div>
+      <select id="selectDialogSelect" class="select-dialog-select">
+        <option value="" disabled selected>Choose...</option>
+      </select>
+      <div class="confirm-sheet-actions" style="margin-top:16px;">
+        <button id="selectDialogConfirm" class="confirm-btn-primary" style="border-radius:0;">OK</button>
+        <button id="selectDialogCancel" class="confirm-btn-cancel" style="border-radius:0;">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
 
 // --- App-wide Undo/Redo System ---
 window._undoStack = [];
@@ -878,6 +1047,39 @@ function initChoicesDropdowns() {
             itemSelectText: '',
             classNames: { containerOuter: 'choices instrument-choices' },
             shouldSort: false,
+        });
+    });
+}
+
+// ========== Tippy.js Tooltips ==========
+function initTooltips() {
+    if (typeof tippy === 'undefined') return;
+    // Generic data-tippy-content elements (from integrations)
+    tippy('[data-tippy-content]', { theme: 'light-border', placement: 'top', animation: 'fade', delay: [300, 0] });
+    // Find all buttons with aria-label that contain only an icon (no visible text)
+    document.querySelectorAll('button[aria-label]').forEach(btn => {
+        // Skip if already has a tippy instance
+        if (btn._tippy) return;
+        // Check if button has no visible text (only icon children)
+        const textContent = Array.from(btn.childNodes)
+            .filter(n => n.nodeType === Node.TEXT_NODE)
+            .map(n => n.textContent.trim())
+            .join('');
+        const hasVisibleText = textContent.length > 0 && textContent !== '\u00d7'; // exclude &times; symbol
+        // Also check for text outside of material-symbols-outlined spans
+        const iconSpans = btn.querySelectorAll('.material-symbols-outlined');
+        const allSpans = btn.querySelectorAll('span');
+        const isIconOnly = (iconSpans.length > 0 && iconSpans.length === allSpans.length && !hasVisibleText) ||
+                           (!hasVisibleText && btn.classList.contains('icon-btn')) ||
+                           (!hasVisibleText && btn.classList.contains('theme-toggle')) ||
+                           (!hasVisibleText && btn.classList.contains('chat-fab')) ||
+                           (!hasVisibleText && btn.classList.contains('close-btn')) ||
+                           (!hasVisibleText && btn.classList.contains('back-btn'));
+        if (!isIconOnly) return;
+        tippy(btn, {
+            content: btn.getAttribute('aria-label'),
+            placement: 'bottom',
+            theme: 'instrument',
         });
     });
 }

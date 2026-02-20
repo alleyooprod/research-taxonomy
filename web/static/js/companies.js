@@ -434,15 +434,23 @@ async function bulkAction(action) {
     let params = {};
 
     if (action === 'assign_category') {
-        const catId = prompt('Enter category ID to assign:');
+        const catId = await new Promise(resolve => {
+            window.showPromptDialog('Assign Category', 'Enter category ID...', resolve, 'Assign');
+        });
         if (!catId) return;
         params.category_id = parseInt(catId);
     } else if (action === 'add_tags') {
-        const tags = prompt('Enter tags (comma-separated):');
+        const tags = await new Promise(resolve => {
+            window.showPromptDialog('Add Tags', 'Enter tags (comma-separated)...', resolve, 'Add');
+        });
         if (!tags) return;
         params.tags = tags.split(',').map(t => t.trim()).filter(Boolean);
     } else if (action === 'set_relationship') {
-        const status = prompt('Enter relationship status (watching, to_reach_out, in_conversation, met, partner, not_relevant):');
+        const status = await new Promise(resolve => {
+            window.showSelectDialog('Set Relationship Status', [
+                'watching', 'to_reach_out', 'in_conversation', 'met', 'partner', 'not_relevant'
+            ], resolve, 'Set');
+        });
         if (!status) return;
         params.status = status;
     } else if (action === 'delete') {

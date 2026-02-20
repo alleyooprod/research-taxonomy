@@ -3,22 +3,29 @@
 /* ========== Header ========== */
 header {
     border-bottom: 1px solid var(--border-default);
-    padding-bottom: 24px;
-    margin-bottom: 24px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
 }
 
 h1 {
-    font-size: 48px;
+    font-size: 24px;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 0;
     color: var(--text-heading);
     letter-spacing: -0.02em;
-    line-height: 1.1;
+    line-height: 1.2;
+}
+
+/* Place stats-bar inline with the title in the main app header */
+.header-with-back > div {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
 }
 
 .stats-bar {
     display: flex;
-    gap: 24px;
+    gap: 16px;
     color: var(--text-secondary);
     font-size: 13px;
 }
@@ -34,19 +41,43 @@ h1 {
 h2 { font-size: 32px; margin-bottom: 16px; color: var(--text-heading); letter-spacing: -0.02em; font-weight: 600; }
 h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-primary); margin-top: 24px; letter-spacing: -0.02em; font-weight: 600; }
 
-/* ========== Tabs — Simple text tabs with bottom border ========== */
+/* Tab-level section h2 headings — match h3 visual size for proper hierarchy without visual change */
+.tab-content h2.section-heading,
+.tab-content h2.collapsible-header,
+.tab-content .review-section h2,
+.tab-content .market-report-section h2,
+.tab-content .ai-discovery-section h2,
+.tab-content .process-input h2,
+.tab-content .compare-header h2,
+.tab-content #triageSection h2,
+.tab-content #processingStatus h2,
+.tab-content > h2:not(.settings-heading):not(#detailName) {
+    font-size: 18px; margin-bottom: 8px; color: var(--text-primary); margin-top: 24px; letter-spacing: -0.02em; font-weight: 600;
+}
+
+/* ========== Tabs — Simple text tabs with sliding indicator ========== */
 .tabs {
+    position: relative;
     display: flex;
     gap: 0;
     padding: 0;
-    margin-bottom: 32px;
+    margin-bottom: 16px;
     background: transparent;
     border-radius: 0;
     border: none;
     border-bottom: 1px solid var(--border-default);
 }
 
+.tab-indicator {
+    position: absolute;
+    bottom: -1px;
+    height: 2px;
+    background: var(--text-primary);
+    transition: left 250ms cubic-bezier(0.25, 0.1, 0.25, 1), width 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 .tab {
+    position: relative;
     background: transparent;
     color: var(--text-muted);
     border: none;
@@ -57,9 +88,25 @@ h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-primary); margin-top
     cursor: pointer;
     margin-bottom: -1px;
     border-radius: 0;
-    transition: all 0.1s linear;
+    transition: color var(--duration-normal) var(--ease-standard),
+                font-weight var(--duration-normal) var(--ease-standard),
+                border-color var(--duration-normal) var(--ease-standard);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.tab::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    background: var(--bg-surface-hover);
+    opacity: 0;
+    transition: opacity 120ms var(--ease-native);
+    z-index: -1;
+}
+
+.tab:hover::before {
+    opacity: 1;
 }
 
 .tab:hover {
@@ -67,13 +114,18 @@ h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-primary); margin-top
     color: var(--text-primary);
 }
 
+/* Fallback: if .tab-indicator is not present (JS not loaded), show border on active tab */
 .tab.active {
     background: transparent;
     color: var(--text-primary);
     font-weight: 700;
     box-shadow: none;
     border-bottom: 2px solid var(--text-primary);
-    border-bottom-color: var(--text-primary);
+}
+
+/* When JS has initialised the sliding indicator, remove the per-tab active border */
+.tabs:has(.tab-indicator) .tab.active {
+    border-bottom-color: transparent;
 }
 
 .tab-content { display: none; }
@@ -111,7 +163,7 @@ button {
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
-    transition: all 0.1s linear;
+    transition: all var(--duration-normal) var(--ease-standard);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-family: 'Plus Jakarta Sans', sans-serif;
@@ -141,8 +193,8 @@ button:hover {
     transform: none;
 }
 
-.danger-btn { background: transparent; color: #FF0000; border-color: #FF0000; }
-.danger-btn:hover { background: #FF0000; color: #FFFFFF; }
+.danger-btn { background: transparent; color: var(--accent-danger); border-color: var(--accent-danger); }
+.danger-btn:hover { background: var(--accent-danger); color: var(--bg-page); }
 
 .btn {
     display: inline-block;
@@ -183,7 +235,7 @@ textarea {
     border-radius: 0;
     cursor: pointer;
     line-height: 1;
-    transition: border-color 0.1s linear, color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard), color var(--duration-normal) var(--ease-standard);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -207,7 +259,7 @@ textarea {
     border-radius: 0;
     line-height: 1;
     border: none;
-    transition: color 0.1s linear;
+    transition: color var(--duration-normal) var(--ease-standard);
 }
 
 .back-btn:hover { color: var(--text-primary); background: none; }
@@ -221,7 +273,7 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 5000;
+    z-index: var(--z-modal);
 }
 
 .shortcut-modal {
@@ -276,7 +328,7 @@ textarea {
     padding: 24px;
     cursor: pointer;
     box-shadow: none;
-    transition: border-color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard);
 }
 
 .project-card:hover {
@@ -313,7 +365,7 @@ textarea {
     align-items: center;
     justify-content: center;
     min-height: 140px;
-    transition: border-color 0.1s linear;
+    transition: border-color var(--duration-normal) var(--ease-standard);
 }
 
 .project-card-new:hover { border-color: var(--text-primary); background: transparent; box-shadow: none; }
@@ -324,7 +376,7 @@ textarea {
     font-weight: 300;
     line-height: 1;
     margin-bottom: 8px;
-    transition: color 0.1s linear;
+    transition: color var(--duration-normal) var(--ease-standard);
 }
 
 .project-card-new:hover .project-card-plus { color: var(--text-primary); }
@@ -357,13 +409,13 @@ textarea {
     display: flex;
     align-items: center;
     gap: 16px;
-    z-index: 3000;
+    z-index: var(--z-bulk-bar);
     font-size: 13px;
-    animation: toast-in 0.1s linear;
+    animation: toast-in var(--duration-normal) var(--ease-standard);
 }
 
 .undo-toast.toast-out {
-    animation: toast-out 0.1s linear forwards;
+    animation: toast-out var(--duration-normal) var(--ease-standard) forwards;
 }
 
 .undo-toast button {

@@ -66,7 +66,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: color 0.1s linear;
+    transition: color var(--duration-normal) var(--ease-standard);
 }
 
 .sub-cat:hover {
@@ -75,13 +75,13 @@
 }
 
 .sub-cat-arrow {
-    transition: transform 0.1s linear;
+    transition: transform var(--duration-normal) var(--ease-standard);
 }
 
 /* Clickable category name in header */
 .cat-name-link {
     cursor: pointer;
-    transition: color 0.1s linear;
+    transition: color var(--duration-normal) var(--ease-standard);
     flex: 1;
 }
 
@@ -109,7 +109,7 @@
     border-radius: 0;
     cursor: pointer;
     font-size: 13px;
-    transition: color 0.1s linear;
+    transition: color var(--duration-normal) var(--ease-standard);
 }
 
 .cat-company-row:hover {
@@ -256,9 +256,9 @@
 .review-error {
     padding: 16px;
     background: transparent;
-    border: 1px solid #FF0000;
+    border: 1px solid var(--accent-danger);
     border-radius: 0;
-    color: #FF0000;
+    color: var(--accent-danger);
     font-size: 13px;
 }
 

@@ -45,7 +45,7 @@
 .progress-fill {
     height: 100%;
     background: var(--text-primary);
-    transition: width 0.1s linear;
+    transition: width var(--duration-normal) var(--ease-standard);
     width: 0%;
 }
 
@@ -95,7 +95,7 @@
 
 .batch-detail-item:last-child { border-bottom: none; }
 .batch-detail-item.job-done { border-left: 2px solid var(--text-primary); padding-left: 8px; }
-.batch-detail-item.job-error { border-left: 2px solid #FF0000; padding-left: 8px; }
+.batch-detail-item.job-error { border-left: 2px solid var(--accent-danger); padding-left: 8px; }
 .batch-detail-item.job-timeout { border-left: 2px solid var(--text-muted); padding-left: 8px; }
 .batch-detail-item.job-pending { border-left: 2px solid var(--text-muted); padding-left: 8px; }
 
@@ -113,7 +113,7 @@
 }
 
 .job-status-badge.job-done { color: var(--text-primary); border-color: var(--text-primary); }
-.job-status-badge.job-error { color: #FF0000; border-color: #FF0000; }
+.job-status-badge.job-error { color: var(--accent-danger); border-color: var(--accent-danger); }
 .job-status-badge.job-timeout { color: var(--text-muted); border-color: var(--text-muted); }
 .job-status-badge.job-pending { color: var(--text-muted); border-color: var(--text-muted); }
 
@@ -145,8 +145,8 @@
 .retry-errors-btn {
     margin-left: 8px;
     background: transparent;
-    color: #FF0000;
-    border: 1px solid #FF0000;
+    color: var(--accent-danger);
+    border: 1px solid var(--accent-danger);
     padding: 4px 16px;
     border-radius: 0;
     cursor: pointer;
@@ -155,7 +155,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.retry-errors-btn:hover { background: #FF0000; color: #FFFFFF; }
+.retry-errors-btn:hover { background: var(--accent-danger); color: var(--bg-page); }
 
 /* ========== Retry Progress Banner ========== */
 .retry-progress-banner {
@@ -211,7 +211,7 @@
 .batch-detail-error {
     width: 100%;
     font-size: 11px;
-    color: #FF0000;
+    color: var(--accent-danger);
     background: transparent;
     padding: 4px 0;
     border-radius: 0;
@@ -221,8 +221,8 @@
 [data-theme="dark"] .job-status-badge.job-timeout { background: transparent; color: var(--text-muted); }
 [data-theme="dark"] .retry-timeouts-btn { background: transparent; color: var(--text-primary); }
 [data-theme="dark"] .retry-timeouts-btn:hover { background: var(--text-primary); color: var(--bg-page); }
-[data-theme="dark"] .retry-errors-btn { background: transparent; color: #FF0000; }
-[data-theme="dark"] .retry-errors-btn:hover { background: #FF0000; color: #FFFFFF; }
+[data-theme="dark"] .retry-errors-btn { background: transparent; color: var(--accent-danger); }
+[data-theme="dark"] .retry-errors-btn:hover { background: var(--accent-danger); color: var(--bg-page); }
 
 /* ========== Triage ========== */
 .triage-info { color: var(--text-secondary); font-size: 13px; margin-bottom: 16px; }
@@ -252,7 +252,7 @@
 
 .triage-item.triage-valid { border-left-color: var(--text-primary); background: transparent; }
 .triage-item.triage-suspect { border-left-color: var(--text-muted); background: transparent; }
-.triage-item.triage-error { border-left-color: #FF0000; background: transparent; }
+.triage-item.triage-error { border-left-color: var(--accent-danger); background: transparent; }
 
 .triage-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .triage-item-header a { font-size: 13px; color: var(--text-primary); text-decoration: none; word-break: break-all; }
@@ -273,7 +273,7 @@
 
 .triage-badge.triage-valid { color: var(--text-primary); border-color: var(--text-primary); }
 .triage-badge.triage-suspect { color: var(--text-muted); border-color: var(--text-muted); }
-.triage-badge.triage-error { color: #FF0000; border-color: #FF0000; }
+.triage-badge.triage-error { color: var(--accent-danger); border-color: var(--accent-danger); }
 
 .triage-title { font-weight: 600; font-size: 13px; color: var(--text-primary); margin-bottom: 4px; }
 .triage-reason { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
@@ -476,7 +476,7 @@
 .ai-setup-arrow {
     font-size: 20px;
     color: var(--text-muted);
-    transition: transform 0.1s linear;
+    transition: transform var(--duration-normal) var(--ease-standard);
 }
 
 .ai-setup-arrow.expanded {
@@ -520,7 +520,7 @@
 
 .ai-setup-status.ok { background: var(--text-primary); }
 .ai-setup-status.warn { background: var(--text-muted); }
-.ai-setup-status.error { background: #FF0000; }
+.ai-setup-status.error { background: var(--accent-danger); }
 
 .ai-setup-key-row {
     display: flex;
@@ -570,8 +570,8 @@
 
 .ai-setup-test-result.failure {
     background: transparent;
-    color: #FF0000;
-    border-bottom: 1px solid #FF0000;
+    color: var(--accent-danger);
+    border-bottom: 1px solid var(--accent-danger);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -639,7 +639,7 @@
     margin-top: 16px;
     border-top: 1px solid var(--border-default);
     padding-top: 8px;
-    transition: max-height 0.1s linear, opacity 0.1s linear;
+    transition: max-height var(--duration-medium) var(--ease-decelerate), opacity var(--duration-medium) var(--ease-decelerate);
     overflow: hidden;
 }
 
@@ -692,7 +692,7 @@
     border-radius: 0;
     padding: 8px;
     cursor: pointer;
-    transition: background 0.1s linear;
+    transition: background var(--duration-fast) var(--ease-standard);
 }
 
 .fix-command:hover {

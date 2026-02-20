@@ -234,8 +234,8 @@
     <div id="updateBanner" class="update-banner hidden" role="status">
         <span class="material-symbols-outlined">system_update</span>
         <span>Update available: <strong id="updateVersion"></strong></span>
-        <a id="updateLink" href="#" target="_blank" class="btn btn-sm" style="margin-left:8px">Download</a>
-        <button class="update-dismiss" onclick="dismissUpdateBanner()">&times;</button>
+        <a id="updateLink" href="#" target="_blank" class="btn btn-sm update-link">Download</a>
+        <button class="update-dismiss" onclick="dismissUpdateBanner()" aria-label="Dismiss update banner">&times;</button>
     </div>
 
     <!-- Keyboard shortcuts overlay -->
@@ -279,7 +279,7 @@
                         <h1>Research Taxonomy Library</h1>
                         <p class="header-subtitle">Select a research project or create a new one.</p>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center">
+                    <div class="flex-gap-sm">
                         <button class="icon-btn" onclick="openAppSettings()" title="Settings" aria-label="App settings"><span class="material-symbols-outlined">settings</span></button>
                         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
                     </div>
@@ -292,7 +292,7 @@
         <div id="newProjectForm" class="hidden">
             <header>
                 <div class="header-with-back">
-                    <button class="back-btn" onclick="showProjectSelection()">&larr;</button>
+                    <button class="back-btn" onclick="showProjectSelection()" aria-label="Back to projects">&larr;</button>
                     <h1>New Research Project</h1>
                 </div>
             </header>
@@ -339,7 +339,7 @@
             <header>
                 <div class="flex-between">
                     <div class="header-with-back">
-                        <button class="back-btn" onclick="switchProject()">&larr;</button>
+                        <button class="back-btn" onclick="switchProject()" aria-label="Switch project">&larr;</button>
                         <div>
                             <h1 id="projectTitle">Project</h1>
                             <div class="stats-bar">
@@ -363,7 +363,7 @@
             <div id="notificationPanel" class="notification-panel hidden">
                 <div class="notif-panel-header">
                     <strong>Recent Activity</strong>
-                    <button class="close-btn" onclick="toggleNotificationPanel()">&times;</button>
+                    <button class="close-btn" onclick="toggleNotificationPanel()" aria-label="Close notifications">&times;</button>
                 </div>
                 <div id="notifPanelContent" class="notif-panel-content">
                     <p class="hint-text">No recent activity.</p>
@@ -376,7 +376,7 @@
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-map" onclick="showTab('map')">Map</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-reports" onclick="showTab('reports')">Research</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-canvas" onclick="showTab('canvas')">Canvas</button>
-                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-discovery" onclick="showTab('discovery')" id="discoveryTabBtn" class="hidden">Discovery</button>
+                <button class="tab hidden" role="tab" aria-selected="false" aria-controls="tab-discovery" onclick="showTab('discovery')" id="discoveryTabBtn">Discovery</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" onclick="showTab('process')">Process</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" onclick="showTab('export')">Export</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" onclick="showTab('settings')">Settings</button>
@@ -388,20 +388,20 @@
             <!-- Companies Tab -->
             <section id="tab-companies" class="tab-content active" role="tabpanel" aria-label="Companies">
                 <div class="controls">
-                    <input type="text" id="searchInput" placeholder="Search companies... (/)" oninput="debounceSearch()">
-                    <select id="categoryFilter" onchange="addFilterFromSelect('category')">
+                    <input type="text" id="searchInput" placeholder="Search companies... (/)" oninput="debounceSearch()" aria-label="Search companies">
+                    <select id="categoryFilter" onchange="addFilterFromSelect('category')" aria-label="Filter by category">
                         <option value="">+ Category</option>
                     </select>
-                    <select id="tagFilter" onchange="addFilterFromSelect('tag')">
+                    <select id="tagFilter" onchange="addFilterFromSelect('tag')" aria-label="Filter by tag">
                         <option value="">+ Tag</option>
                     </select>
-                    <select id="geoFilter" onchange="addFilterFromSelect('geography')">
+                    <select id="geoFilter" onchange="addFilterFromSelect('geography')" aria-label="Filter by geography">
                         <option value="">+ Geography</option>
                     </select>
-                    <select id="stageFilter" onchange="addFilterFromSelect('funding_stage')">
+                    <select id="stageFilter" onchange="addFilterFromSelect('funding_stage')" aria-label="Filter by funding stage">
                         <option value="">+ Stage</option>
                     </select>
-                    <select id="relationshipFilter" class="filter-select" onchange="loadCompanies()">
+                    <select id="relationshipFilter" class="filter-select" onchange="loadCompanies()" aria-label="Filter by relationship">
                         <option value="">Relationship</option>
                         <option value="any">Any flagged</option>
                         <option value="watching">Watching</option>
@@ -411,7 +411,7 @@
                         <option value="partner">Partner</option>
                         <option value="not_relevant">Not Relevant</option>
                     </select>
-                    <input type="text" id="foundedYearFilter" placeholder="Founded year range..." style="width:150px;font-size:12px" readonly>
+                    <input type="text" id="foundedYearFilter" placeholder="Founded year range..." class="founded-year-filter" readonly aria-label="Filter by founded year">
                     <label class="filter-checkbox"><input type="checkbox" id="starredFilter" onchange="loadCompanies()"> Starred</label>
                     <label class="filter-checkbox"><input type="checkbox" id="enrichmentFilter" onchange="loadCompanies()"> Needs enrichment</label>
                     <button class="filter-action-btn" onclick="openTagManager()" title="Manage tags">Tags</button>
@@ -422,7 +422,7 @@
 
                 <!-- Saved views bar -->
                 <div class="saved-views-bar">
-                    <select id="savedViewSelect" onchange="loadSavedView()">
+                    <select id="savedViewSelect" onchange="loadSavedView()" aria-label="Saved views">
                         <option value="">Saved views...</option>
                     </select>
                     <button class="filter-action-btn" onclick="saveCurrentView()" title="Save current filters">Save view</button>
@@ -430,19 +430,19 @@
 
                 <div class="company-view-toggle">
                     <button class="view-toggle-btn active" id="viewTableBtn" onclick="switchCompanyView('table')">
-                        <span class="material-symbols-outlined" style="font-size:16px">table_rows</span> Table
+                        <span class="material-symbols-outlined icon-16">table_rows</span> Table
                     </button>
                     <button class="view-toggle-btn" id="viewGridBtn" onclick="switchCompanyView('grid')">
-                        <span class="material-symbols-outlined" style="font-size:16px">view_list</span> Grid
+                        <span class="material-symbols-outlined icon-16">view_list</span> Grid
                     </button>
                     <button class="view-toggle-btn" id="viewGalleryBtn" onclick="switchCompanyView('gallery')">
-                        <span class="material-symbols-outlined" style="font-size:16px">grid_view</span> Gallery
+                        <span class="material-symbols-outlined icon-16">grid_view</span> Gallery
                     </button>
                     <button class="view-toggle-btn" id="viewTimelineBtn" onclick="switchCompanyView('timeline')">
-                        <span class="material-symbols-outlined" style="font-size:16px">timeline</span> Timeline
+                        <span class="material-symbols-outlined icon-16">timeline</span> Timeline
                     </button>
-                    <button class="view-toggle-btn" id="viewExportCsvBtn" onclick="exportTabulatorCsv()" title="Export CSV" style="margin-left:auto">
-                        <span class="material-symbols-outlined" style="font-size:16px">download</span> CSV
+                    <button class="view-toggle-btn ml-auto" id="viewExportCsvBtn" onclick="exportTabulatorCsv()" title="Export CSV">
+                        <span class="material-symbols-outlined icon-16">download</span> CSV
                     </button>
                 </div>
 
@@ -454,8 +454,8 @@
                 <table id="companyTable">
                     <thead>
                         <tr>
-                            <th class="bulk-header" style="width:2%"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all"></th>
-                            <th class="sort-header" data-sort="starred" style="width:3%"></th>
+                            <th class="bulk-header col-bulk"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all" aria-label="Select all companies"></th>
+                            <th class="sort-header col-starred" data-sort="starred"></th>
                             <th class="sort-header" data-sort="name">Name</th>
                             <th class="sort-header" data-sort="category">Category</th>
                             <th>What</th>
@@ -477,14 +477,14 @@
                     <button class="btn" onclick="bulkAction('set_relationship')"><span class="material-symbols-outlined">handshake</span> Set Relationship</button>
                     <button class="btn" onclick="startBatchEnrichment()"><span class="material-symbols-outlined">auto_fix_high</span> Enrich</button>
                     <button class="danger-btn" onclick="bulkAction('delete')"><span class="material-symbols-outlined">delete</span> Delete</button>
-                    <button class="btn" onclick="clearBulkSelection()"><span class="material-symbols-outlined">close</span></button>
+                    <button class="btn" onclick="clearBulkSelection()" aria-label="Clear selection"><span class="material-symbols-outlined">close</span></button>
                 </div>
 
                 <!-- Detail Panel -->
                 <div id="detailPanel" class="detail-panel hidden">
                     <div class="detail-header">
                         <h2 id="detailName"></h2>
-                        <button class="close-btn" onclick="closeDetail()">&times;</button>
+                        <button class="close-btn" onclick="closeDetail()" aria-label="Close detail panel">&times;</button>
                     </div>
                     <div id="detailContent"></div>
                 </div>
@@ -501,12 +501,12 @@
                 </template>
 
                 <template id="skeletonDetail">
-                  <div style="padding: 20px;">
-                    <div class="skeleton skeleton-text long" style="height: 20px; margin-bottom: 16px;"></div>
+                  <div class="skeleton-detail-pad">
+                    <div class="skeleton skeleton-text long skeleton-text-title"></div>
                     <div class="skeleton skeleton-text medium"></div>
                     <div class="skeleton skeleton-text long"></div>
                     <div class="skeleton skeleton-text short"></div>
-                    <div style="margin-top: 24px;">
+                    <div class="mt-6">
                       <div class="skeleton skeleton-text long"></div>
                       <div class="skeleton skeleton-text medium"></div>
                     </div>
@@ -518,18 +518,18 @@
             <section id="tab-taxonomy" class="tab-content" role="tabpanel" aria-label="Taxonomy">
                 <!-- Analytics Dashboard -->
                 <div class="analytics-dashboard">
-                    <h3 class="collapsible-header" onclick="toggleSection('analyticsSection')">
+                    <h2 class="collapsible-header" onclick="toggleSection('analyticsSection')" aria-expanded="false" aria-controls="analyticsSection">
                         Analytics Dashboard <span id="analyticsSection-toggle" class="collapse-arrow"><span class="material-symbols-outlined">expand_more</span></span>
-                    </h3>
+                    </h2>
                     <div id="analyticsSection" class="collapsible-body">
                         <!-- Configurable Matrix (full width) -->
-                        <div class="chart-card chart-card-wide" style="margin-bottom:16px">
-                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                                <h4 style="margin:0">Company Matrix</h4>
-                                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                                    <div style="display:flex;gap:6px;align-items:center">
-                                        <label style="font-size:12px;color:var(--text-muted)">Rows:</label>
-                                        <select id="matrixRowDimension" onchange="renderCategoryMatrix()" style="padding:4px 8px;border:1px solid var(--border-default);border-radius:6px;font-size:12px;background:var(--bg-input);color:var(--text-primary)">
+                        <div class="chart-card chart-card-wide mb-4">
+                            <div class="chart-card-header">
+                                <h4 class="chart-title">Company Matrix</h4>
+                                <div class="filter-row gap-3">
+                                    <div class="filter-row">
+                                        <label class="filter-label">Rows:</label>
+                                        <select id="matrixRowDimension" onchange="renderCategoryMatrix()" class="matrix-dimension-select">
                                             <option value="category">Category</option>
                                             <option value="funding_stage">Funding Stage</option>
                                             <option value="hq_country">Geography</option>
@@ -538,9 +538,9 @@
                                             <option value="tags">Tags</option>
                                         </select>
                                     </div>
-                                    <div style="display:flex;gap:6px;align-items:center">
-                                        <label style="font-size:12px;color:var(--text-muted)">Columns:</label>
-                                        <select id="matrixDimension" onchange="renderCategoryMatrix()" style="padding:4px 8px;border:1px solid var(--border-default);border-radius:6px;font-size:12px;background:var(--bg-input);color:var(--text-primary)">
+                                    <div class="filter-row">
+                                        <label class="filter-label">Columns:</label>
+                                        <select id="matrixDimension" onchange="renderCategoryMatrix()" class="matrix-dimension-select">
                                             <option value="funding_stage">Funding Stage</option>
                                             <option value="hq_country">Geography</option>
                                             <option value="business_model">Business Model</option>
@@ -587,9 +587,9 @@
                 </div>
 
                 <div class="review-section">
-                    <h3>Taxonomy Review</h3>
+                    <h2>Taxonomy Review</h2>
                     <p class="hint-text">Run a comprehensive AI review of all categories and company placements. Add your own observations to guide the review.</p>
-                    <textarea id="reviewObservations" rows="3" class="review-textarea" placeholder="Add your observations to guide the review, e.g. 'Extend taxonomy with EAP section', 'Too many companies in Diagnostics', 'Consider splitting Wellness into Physical and Mental'..."></textarea>
+                    <textarea id="reviewObservations" rows="3" aria-label="Review observations" class="review-textarea" placeholder="Add your observations to guide the review, e.g. 'Extend taxonomy with EAP section', 'Too many companies in Diagnostics', 'Consider splitting Wellness into Physical and Mental'..."></textarea>
                     <div class="flex-gap-sm">
                         {{ model_select('reviewModelSelect') }}
                         <button class="btn" id="reviewBtn" onclick="startTaxonomyReview()">Review Taxonomy with AI</button>
@@ -598,9 +598,9 @@
                     <div id="reviewResults" class="hidden"></div>
                 </div>
 
-                <h3 class="collapsible-header" onclick="toggleSection('qualitySection')">
+                <h2 class="collapsible-header" onclick="toggleSection('qualitySection')" aria-expanded="false" aria-controls="qualitySection">
                     Quality Dashboard <span id="qualitySection-toggle" class="collapse-arrow"><span class="material-symbols-outlined">expand_more</span></span>
-                </h3>
+                </h2>
                 <div id="qualitySection" class="collapsible-body">
                     <div id="qualityDashboard" class="quality-dashboard">
                         <button class="btn" onclick="loadTaxonomyQuality()">Refresh Quality Metrics</button>
@@ -608,9 +608,9 @@
                     </div>
                 </div>
 
-                <h3 class="collapsible-header" onclick="toggleSection('historySection')">
+                <h2 class="collapsible-header" onclick="toggleSection('historySection')" aria-expanded="false" aria-controls="historySection">
                     Change History <span id="historySection-toggle" class="collapse-arrow"><span class="material-symbols-outlined">expand_more</span></span>
-                </h3>
+                </h2>
                 <div id="historySection" class="collapsible-body">
                     <div id="taxonomyHistory"></div>
                 </div>
@@ -626,8 +626,8 @@
                     </div>
                     <button class="primary-btn" onclick="loadMarketMap()">Refresh Map</button>
                     <button class="btn" onclick="exportMapPng()">Export as PNG</button>
-                    <button class="btn" id="heatmapToggleBtn" onclick="toggleGeoHeatmap()" title="Toggle density heatmap on geographic map"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">thermostat</span> Heatmap</button>
-                    <button class="btn" onclick="startPresentation('map')"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">slideshow</span> Present</button>
+                    <button class="btn" id="heatmapToggleBtn" onclick="toggleGeoHeatmap()" title="Toggle density heatmap on geographic map"><span class="material-symbols-outlined icon-inline">thermostat</span> Heatmap</button>
+                    <button class="btn" onclick="startPresentation('map')"><span class="material-symbols-outlined icon-inline">slideshow</span> Present</button>
                     <span class="hint-text hint-inline">Drag companies between categories to reclassify.</span>
                 </div>
                 <div id="marketMap" class="market-map"></div>
@@ -637,8 +637,8 @@
                 <!-- Comparison Panel -->
                 <div id="compareSection" class="hidden">
                     <div class="compare-header">
-                        <h3>Compare Companies</h3>
-                        <button class="close-btn" onclick="clearComparison()">&times;</button>
+                        <h2>Compare Companies</h2>
+                        <button class="close-btn" onclick="clearComparison()" aria-label="Close comparison">&times;</button>
                     </div>
                     <div id="compareContent"></div>
                 </div>
@@ -661,24 +661,24 @@
                 <!-- Quick Report mode (existing) -->
                 <div id="researchModeReport">
                     <div class="market-report-section">
-                        <h3>Generate Category Report</h3>
+                        <h2>Generate Category Report</h2>
                         <p class="hint-text">Generate AI-powered market analysis for a category. Reports are saved automatically.</p>
                         <div class="report-controls">
-                            <select id="reportCategorySelect">
+                            <select id="reportCategorySelect" aria-label="Report category">
                                 <option value="">Select a category...</option>
                             </select>
                             {{ model_select('reportModelSelect', default='sonnet') }}
                             <button class="primary-btn" id="reportBtn" onclick="generateMarketReport()">Generate Report</button>
                         </div>
                         <div id="reportStatus" class="hidden">
-                            <div class="progress-bar"><div id="reportProgress" class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div>
+                            <div class="progress-bar"><div id="reportProgress" class="progress-fill progress-fill-indeterminate"></div></div>
                             <p>Generating report... AI is researching the web and analyzing your data. This typically takes 2-4 minutes.</p>
                         </div>
                     </div>
 
                     <div id="reportContent" class="hidden report-viewer"></div>
 
-                    <h3 class="section-heading">Saved Reports</h3>
+                    <h2 class="section-heading">Saved Reports</h2>
                     <p class="hint-text">Previously generated reports are stored here.</p>
                     <div id="savedReportsList"></div>
                 </div>
@@ -686,7 +686,7 @@
                 <!-- Deep Dive mode (new) -->
                 <div id="researchModeDeepDive" class="hidden">
                     <div class="research-input-section">
-                        <h3>Deep Dive Research</h3>
+                        <h2>Deep Dive Research</h2>
                         <p class="hint-text">Ask any research question. AI will use your project data and web search to produce a comprehensive report.</p>
 
                         <div class="research-scope-row">
@@ -710,11 +710,11 @@
                         </div>
 
                         <div class="research-prompt-row">
-                            <textarea id="researchPrompt" rows="4" placeholder="What do you want to research? Be specific for better results..."></textarea>
+                            <textarea id="researchPrompt" rows="4" aria-label="Research question" placeholder="What do you want to research? Be specific for better results..."></textarea>
                         </div>
 
                         <div class="research-action-row">
-                            <input type="text" id="researchTitle" placeholder="Research title (auto-generated if blank)">
+                            <input type="text" id="researchTitle" aria-label="Research title" placeholder="Research title (auto-generated if blank)">
                             {{ model_select('researchModelSelect', default='sonnet') }}
                             <button class="primary-btn" id="researchBtn" onclick="startDeepDive()">
                                 <span class="material-symbols-outlined">science</span> Start Research
@@ -722,15 +722,15 @@
                         </div>
 
                         <div id="researchStatus" class="hidden">
-                            <div class="progress-bar"><div id="researchProgress" class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div>
+                            <div class="progress-bar"><div id="researchProgress" class="progress-fill progress-fill-indeterminate"></div></div>
                             <p id="researchStatusText">Researching... AI is searching the web and analyzing data. This may take 2-10 minutes.</p>
-                            <button class="btn btn-sm" onclick="cancelResearchPoll()" style="margin-top:8px">Cancel</button>
+                            <button class="btn btn-sm mt-2" onclick="cancelResearchPoll()">Cancel</button>
                         </div>
                     </div>
 
                     <div id="researchResult" class="hidden report-viewer"></div>
 
-                    <h3 class="section-heading">Saved Research</h3>
+                    <h2 class="section-heading">Saved Research</h2>
                     <p class="hint-text">Previously completed deep dives are stored here.</p>
                     <div id="savedResearchList"></div>
                 </div>
@@ -740,12 +740,12 @@
             <section id="tab-canvas" class="tab-content" role="tabpanel" aria-label="Canvas">
                 <div class="canvas-toolbar">
                     <div class="canvas-toolbar-left">
-                        <select id="canvasSelect" onchange="loadCanvasFromSelect()">
+                        <select id="canvasSelect" onchange="loadCanvasFromSelect()" aria-label="Select canvas">
                             <option value="">Select canvas...</option>
                         </select>
                         <button class="primary-btn" onclick="createNewCanvas()"><span class="material-symbols-outlined">add</span> New Canvas</button>
                         <button class="btn" id="renameCanvasBtn" onclick="renameCurrentCanvas()" disabled>Rename</button>
-                        <button class="btn" style="color:var(--accent-danger)" id="deleteCanvasBtn" onclick="deleteCurrentCanvas()" disabled>Delete</button>
+                        <button class="btn btn-danger-text" id="deleteCanvasBtn" onclick="deleteCurrentCanvas()" disabled>Delete</button>
                     </div>
                     <div class="canvas-toolbar-right">
                         <button class="btn" id="canvasGenDiagramBtn" onclick="openDiagramPanel()" disabled title="AI-generated diagram">
@@ -767,54 +767,54 @@
                     <div class="canvas-sidebar" id="canvasSidebar">
                         <div class="canvas-sidebar-header">
                             <h4>Companies</h4>
-                            <input type="text" id="canvasCompanySearch" placeholder="Search..." oninput="filterCanvasCompanies()">
+                            <input type="text" id="canvasCompanySearch" placeholder="Search..." oninput="filterCanvasCompanies()" aria-label="Search companies for canvas">
                         </div>
                         <div id="canvasCompanyList" class="canvas-company-list"></div>
                     </div>
                     <!-- AI Diagram generation panel (replaces sidebar when open) -->
                     <div class="canvas-sidebar canvas-diagram-panel hidden" id="diagramPanel">
                         <div class="canvas-sidebar-header">
-                            <div style="display:flex;justify-content:space-between;align-items:center">
-                                <h4><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">auto_awesome</span> AI Diagram</h4>
-                                <button class="btn btn-sm" onclick="closeDiagramPanel()" title="Close" style="padding:2px 6px">&times;</button>
+                            <div class="diagram-panel-header">
+                                <h4><span class="material-symbols-outlined icon-inline-tight">auto_awesome</span> AI Diagram</h4>
+                                <button class="btn btn-sm diagram-close-btn" onclick="closeDiagramPanel()" title="Close">&times;</button>
                             </div>
                         </div>
-                        <div class="diagram-panel-body" style="overflow-y:auto;max-height:calc(100vh - 200px);padding-bottom:16px;">
+                        <div class="diagram-panel-body diagram-panel-scroll">
                             <!-- Quick-start templates -->
                             <label class="diagram-label">Quick start:</label>
-                            <div class="diagram-templates" style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+                            <div class="diagram-templates diagram-templates-list">
                                 <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('market_landscape')" title="Grid of all categories with their companies">
-                                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">grid_view</span> Market Landscape
+                                    <span class="material-symbols-outlined icon-inline-sm">grid_view</span> Market Landscape
                                 </button>
                                 <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('tech_stack')" title="Enterprise architecture stack view">
-                                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">stacks</span> Enterprise Tech Stack
+                                    <span class="material-symbols-outlined icon-inline-sm">stacks</span> Enterprise Tech Stack
                                 </button>
                                 <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('value_chain')" title="How categories relate in a value chain">
-                                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">conversion_path</span> Value Chain
+                                    <span class="material-symbols-outlined icon-inline-sm">conversion_path</span> Value Chain
                                 </button>
                                 <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('competitive')" title="Companies sized by funding, grouped by category">
-                                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">bubble_chart</span> Competitive Landscape
+                                    <span class="material-symbols-outlined icon-inline-sm">bubble_chart</span> Competitive Landscape
                                 </button>
                                 <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('customer_journey')" title="Map categories to customer journey stages">
-                                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">route</span> Customer Journey Map
+                                    <span class="material-symbols-outlined icon-inline-sm">route</span> Customer Journey Map
                                 </button>
                             </div>
 
                             <label class="diagram-label">Describe your diagram:</label>
-                            <textarea id="diagramPrompt" rows="3" placeholder="Describe the diagram you want, or pick a template above..."></textarea>
+                            <textarea id="diagramPrompt" rows="3" aria-label="Diagram description" placeholder="Describe the diagram you want, or pick a template above..."></textarea>
 
-                            <label class="diagram-label" style="display:flex;justify-content:space-between;align-items:center">
+                            <label class="diagram-label diagram-label-flex">
                                 Categories to include:
                                 <span>
                                     <button class="btn btn-xs" onclick="toggleAllDiagramCategories(true)">All</button>
                                     <button class="btn btn-xs" onclick="toggleAllDiagramCategories(false)">None</button>
                                 </span>
                             </label>
-                            <div id="diagramCategoryList" class="diagram-checkbox-list" style="max-height:140px;overflow-y:auto"></div>
+                            <div id="diagramCategoryList" class="diagram-checkbox-list diagram-checkbox-scroll"></div>
 
-                            <details style="margin-top:6px;">
-                                <summary class="diagram-label" style="cursor:pointer;user-select:none;">Data fields per company</summary>
-                                <div id="diagramFieldList" class="diagram-checkbox-list" style="margin-top:4px">
+                            <details class="diagram-details">
+                                <summary class="diagram-label diagram-summary">Data fields per company</summary>
+                                <div id="diagramFieldList" class="diagram-checkbox-list diagram-fields-body">
                                     <label><input type="checkbox" value="name" checked disabled> Name</label>
                                     <label><input type="checkbox" value="what"> What they do</label>
                                     <label><input type="checkbox" value="target"> Target market</label>
@@ -827,46 +827,46 @@
                                 </div>
                             </details>
 
-                            <details style="margin-top:6px;">
-                                <summary class="diagram-label" style="cursor:pointer;user-select:none;">Layout &amp; options</summary>
-                                <div style="margin-top:4px;">
-                                    <select id="diagramLayoutStyle" class="draw-tool-select" style="width:100%;min-width:0;margin-bottom:6px">
+                            <details class="diagram-details">
+                                <summary class="diagram-label diagram-summary">Layout &amp; options</summary>
+                                <div class="diagram-fields-body">
+                                    <select id="diagramLayoutStyle" class="draw-tool-select full-width-select mb-2">
                                         <option value="grid" selected>Grid</option>
                                         <option value="stacked_vertical">Stacked Vertical</option>
                                         <option value="stacked_horizontal">Stacked Horizontal</option>
                                         <option value="radial">Radial / Hub</option>
                                         <option value="flow">Flow / Pipeline</option>
                                     </select>
-                                    <label class="diagram-label" style="display:flex;align-items:center;gap:6px;font-weight:normal">
+                                    <label class="diagram-label diagram-label-inline">
                                         <input type="checkbox" id="diagramClearCanvas" checked> Clear canvas first
                                     </label>
                                 </div>
                             </details>
 
-                            <div class="diagram-action-row" style="margin-top:10px;">
+                            <div class="diagram-action-row">
                                 {{ model_select('diagramModelSelect', default='sonnet') }}
                                 <button class="primary-btn" id="diagramGenBtn" onclick="startDiagramGeneration()">
-                                    <span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">auto_awesome</span> Generate
+                                    <span class="material-symbols-outlined icon-inline-tight">auto_awesome</span> Generate
                                 </button>
                             </div>
 
-                            <div id="diagramStatus" class="hidden" style="margin-top:6px">
-                                <div class="progress-bar"><div class="progress-fill" id="diagramProgressFill" style="width:30%;animation:pulse 2s infinite"></div></div>
+                            <div id="diagramStatus" class="hidden diagram-status">
+                                <div class="progress-bar"><div class="progress-fill progress-fill-indeterminate-sm" id="diagramProgressFill"></div></div>
                                 <p class="hint-text" id="diagramStatusText">Generating diagram layout...</p>
-                                <button class="btn btn-xs" onclick="cancelDiagramGeneration()" style="margin-top:4px">Cancel</button>
+                                <button class="btn btn-xs mt-1" onclick="cancelDiagramGeneration()">Cancel</button>
                             </div>
 
-                            <div id="diagramError" class="hidden" style="color:var(--accent-danger);font-size:12px;margin-top:6px"></div>
+                            <div id="diagramError" class="hidden diagram-error"></div>
 
-                            <div id="diagramPostActions" class="hidden" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-sm" onclick="startDiagramGeneration()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">refresh</span> Regenerate</button>
+                            <div id="diagramPostActions" class="hidden diagram-post-actions">
+                                <button class="btn btn-sm" onclick="startDiagramGeneration()"><span class="material-symbols-outlined icon-inline-sm">refresh</span> Regenerate</button>
                                 <button class="btn btn-sm" onclick="closeDiagramPanel()">Done</button>
                             </div>
                         </div>
                     </div>
                     <div class="canvas-main">
                         <div class="canvas-empty-state" id="canvasEmptyState">
-                            <span class="material-symbols-outlined" style="font-size:48px;color:var(--text-muted)">dashboard</span>
+                            <span class="material-symbols-outlined canvas-empty-icon">dashboard</span>
                             <p>Select or create a canvas to start arranging companies visually.</p>
                             <p class="hint-text">Drag companies from the sidebar. Use Excalidraw's built-in tools to draw shapes, lines, and text.</p>
                         </div>
@@ -881,16 +881,16 @@
             <section id="tab-process" class="tab-content" role="tabpanel" aria-label="Process">
                 <!-- AI Discovery -->
                 <div class="ai-discovery-section">
-                    <h3>AI Company Discovery</h3>
+                    <h2>AI Company Discovery</h2>
                     <p class="hint-text">Describe a market segment and AI will search for relevant companies.</p>
                     <div class="discovery-input">
-                        <input type="text" id="discoveryQuery" placeholder="e.g. gut microbiome testing companies, digital therapeutics for mental health...">
+                        <input type="text" id="discoveryQuery" aria-label="Discovery search query" placeholder="e.g. gut microbiome testing companies, digital therapeutics for mental health...">
                         {{ model_select('discoveryModelSelect') }}
                         <button class="primary-btn" id="discoveryBtn" onclick="startDiscovery()">Discover</button>
                     </div>
                     <div id="discoveryResults" class="hidden">
                         <div id="discoveryStatus" class="hidden">
-                            <div class="progress-bar"><div id="discoveryProgress" class="progress-fill" style="width:50%;animation:pulse 2s infinite"></div></div>
+                            <div class="progress-bar"><div id="discoveryProgress" class="progress-fill progress-fill-indeterminate"></div></div>
                             <p>Searching for companies...</p>
                         </div>
                         <div id="discoveryList"></div>
@@ -898,8 +898,8 @@
                 </div>
 
                 <div class="process-input">
-                    <h3>Submit URLs for Processing</h3>
-                    <textarea id="urlInput" rows="8" placeholder="Paste URLs here (one per line, or mixed with other text)..."></textarea>
+                    <h2>Submit URLs for Processing</h2>
+                    <textarea id="urlInput" rows="8" aria-label="URLs to process" placeholder="Paste URLs here (one per line, or mixed with other text)..."></textarea>
                     <div class="process-options">
                         <label>Model: {{ model_select('modelSelect', include_gemini=false) }}</label>
                         <label title="Number of URLs to research simultaneously. Higher = faster but uses more API calls in parallel.">Parallel:
@@ -916,7 +916,7 @@
 
                 <!-- Triage Results -->
                 <div id="triageSection" class="hidden">
-                    <h3>Pre-Validation Triage <span id="triageStatus" class="triage-status-badge"></span></h3>
+                    <h2>Pre-Validation Triage <span id="triageStatus" class="triage-status-badge"></span></h2>
                     <p class="triage-info">Links are being checked for accessibility and relevance. Review flagged items below before processing.</p>
 
                     <div class="progress-bar">
@@ -937,8 +937,8 @@
 
                 <!-- Processing Status -->
                 <div id="processingStatus" class="hidden">
-                    <div class="flex-between" style="align-items:center">
-                        <h3>Processing Batch: <span id="batchId"></span></h3>
+                    <div class="flex-between-center">
+                        <h2>Processing Batch: <span id="batchId"></span></h2>
                         <button class="btn btn-sm" onclick="cancelBatchPolling()" title="Stop watching (batch continues on server)">Cancel Watch</button>
                     </div>
                     <div class="progress-bar">
@@ -947,7 +947,7 @@
                     <p id="processStatus"></p>
                 </div>
 
-                <h3>Recent Batches</h3>
+                <h2>Recent Batches</h2>
                 <p class="hint-text">Click a batch to see full details.</p>
                 <div id="batchList"></div>
                 <div id="batchDetailView" class="hidden"></div>
@@ -962,14 +962,14 @@
 
                 <!-- Context Files -->
                 <div class="discovery-section">
-                    <div class="discovery-section-header" onclick="toggleSection('discoveryContexts')">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryContexts')" aria-expanded="false" aria-controls="discoveryContexts">
                         <h3>Context Files</h3>
                         <span id="discoveryContexts-toggle" class="section-arrow">&#9660;</span>
                     </div>
                     <div id="discoveryContexts">
                         <div class="context-upload-area" id="contextDropZone">
                             <p>Drag & drop a markdown/text file here, or</p>
-                            <input type="file" id="contextFileInput" accept=".md,.txt,.markdown" style="display:none">
+                            <input type="file" id="contextFileInput" accept=".md,.txt,.markdown" class="file-input-hidden">
                             <button class="btn" onclick="document.getElementById('contextFileInput').click()">Choose File</button>
                         </div>
                         <div id="contextsList" class="contexts-list"></div>
@@ -978,7 +978,7 @@
 
                 <!-- Dimensions -->
                 <div class="discovery-section">
-                    <div class="discovery-section-header" onclick="toggleSection('discoveryDimensions')">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryDimensions')" aria-expanded="false" aria-controls="discoveryDimensions">
                         <h3>Research Dimensions</h3>
                         <span id="discoveryDimensions-toggle" class="section-arrow">&#9660;</span>
                     </div>
@@ -994,7 +994,7 @@
 
                 <!-- Feature Landscape -->
                 <div class="discovery-section">
-                    <div class="discovery-section-header" onclick="toggleSection('discoveryLandscape')">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryLandscape')" aria-expanded="false" aria-controls="discoveryLandscape">
                         <h3>Feature Landscape</h3>
                         <span id="discoveryLandscape-toggle" class="section-arrow">&#9660;</span>
                     </div>
@@ -1018,7 +1018,7 @@
 
                 <!-- Gap Analysis -->
                 <div class="discovery-section">
-                    <div class="discovery-section-header" onclick="toggleSection('discoveryGap')">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryGap')" aria-expanded="false" aria-controls="discoveryGap">
                         <h3>Gap Analysis</h3>
                         <span id="discoveryGap-toggle" class="section-arrow">&#9660;</span>
                     </div>
@@ -1042,7 +1042,7 @@
 
                 <!-- Past Analyses -->
                 <div class="discovery-section">
-                    <div class="discovery-section-header" onclick="toggleSection('discoveryHistory')">
+                    <div class="discovery-section-header" onclick="toggleSection('discoveryHistory')" aria-expanded="false" aria-controls="discoveryHistory">
                         <h3>Analysis History</h3>
                         <span id="discoveryHistory-toggle" class="section-arrow">&#9660;</span>
                     </div>
@@ -1102,17 +1102,17 @@
                     </div>
                 </div>
 
-                <h3 class="section-heading">Share Project</h3>
+                <h2 class="section-heading">Share Project</h2>
                 <div class="share-section">
                     <p class="hint-text">Generate a read-only share link for external stakeholders.</p>
                     <div class="share-controls">
-                        <input type="text" id="shareLinkLabel" placeholder="Link label (e.g. 'For investors')">
+                        <input type="text" id="shareLinkLabel" aria-label="Share link label" placeholder="Link label (e.g. 'For investors')">
                         <button class="primary-btn" onclick="createShareLink()">Generate Link</button>
                     </div>
                     <div id="shareTokensList"></div>
                 </div>
 
-                <h3 class="section-heading">Notification Settings</h3>
+                <h2 class="section-heading">Notification Settings</h2>
                 <div class="notification-settings">
                     <p class="hint-text">Configure alerts for project events.</p>
                     <div class="notif-field">
@@ -1131,27 +1131,27 @@
                     <div id="notifSaveResult" class="hidden"></div>
                 </div>
 
-                <h3 class="section-heading">Import CSV</h3>
+                <h2 class="section-heading">Import CSV</h2>
                 <div class="import-section">
                     <p class="hint-text">Upload a CSV file with columns: name, url, what, target, products, funding, geography, tam, tags, etc.</p>
                     <form id="csvImportForm" onsubmit="importCsv(event)">
-                        <input type="file" id="csvFile" accept=".csv" required>
+                        <input type="file" id="csvFile" accept=".csv" required aria-label="CSV file to import">
                         <button type="submit" class="primary-btn">Import</button>
                     </form>
                     <div id="importResult" class="hidden"></div>
                 </div>
 
-                <h3 class="section-heading">Trash</h3>
+                <h2 class="section-heading">Trash</h2>
                 <p class="hint-text">Deleted companies can be restored or permanently removed.</p>
                 <button class="btn" onclick="loadTrash()">View Trash</button>
                 <div id="trashList" class="hidden"></div>
 
-                <h3 class="section-heading">Duplicates</h3>
+                <h2 class="section-heading">Duplicates</h2>
                 <p class="hint-text">Find potential duplicate companies by URL.</p>
                 <button class="btn" onclick="findDuplicates()">Scan for Duplicates</button>
                 <div id="duplicatesList" class="hidden"></div>
 
-                <h3 class="section-heading">Activity Log</h3>
+                <h2 class="section-heading">Activity Log</h2>
                 <p class="hint-text">Recent project activity and changes.</p>
                 <button class="btn" onclick="loadActivity()">Load Activity</button>
                 <div id="activityFeed" class="hidden"></div>
@@ -1159,14 +1159,14 @@
 
             <!-- Settings Tab -->
             <section id="tab-settings" class="tab-content" role="tabpanel" aria-label="Settings">
-                <h2 style="margin-bottom:4px">Settings</h2>
-                <p class="hint-text" style="margin-bottom:20px">Configure AI backends, preferences, and application settings.</p>
+                <h2 class="settings-heading">Settings</h2>
+                <p class="hint-text settings-subtitle">Configure AI backends, preferences, and application settings.</p>
 
                 <!-- AI Backend Configuration -->
                 <div class="settings-section">
                     <h3 class="section-heading">AI Backends</h3>
                     <p class="hint-text">At least one backend is required for AI features (research, discovery, chat). Status refreshes automatically.</p>
-                    <span class="ai-setup-summary" id="aiSetupSummary" style="display:block;margin-bottom:12px;font-size:13px"></span>
+                    <span class="ai-setup-summary ai-setup-summary-block" id="aiSetupSummary"></span>
 
                     <div class="ai-setup-grid">
                         <!-- Claude API (SDK) -->
@@ -1257,7 +1257,7 @@
                         <label for="defaultModelSetting">Model:</label>
                         {{ model_select('defaultModelSetting') }}
                         <button class="btn btn-sm" onclick="saveDefaultModel()">Save</button>
-                        <span id="defaultModelStatus" class="hint-text" style="margin-left:8px"></span>
+                        <span id="defaultModelStatus" class="hint-text hint-inline"></span>
                     </div>
                 </div>
 
@@ -1293,12 +1293,12 @@
             <div class="chat-welcome">Ask questions about your taxonomy data. e.g. "Which companies focus on employer wellness?"</div>
         </div>
         <div class="chat-input-row">
-            <input type="text" id="chatInput" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChatMessage()">
+            <input type="text" id="chatInput" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChatMessage()" aria-label="Chat message">
             <button class="primary-btn" onclick="sendChatMessage()">Send</button>
         </div>
     </div>
-    <button id="chatToggle" class="chat-fab hidden" onclick="toggleChat()" title="AI Chat"><span class="material-symbols-outlined">chat</span></button>
-    <button id="tourBtn" class="tour-fab hidden" onclick="startProductTour()" title="Product Tour">?</button>
+    <button id="chatToggle" class="chat-fab hidden" onclick="toggleChat()" title="AI Chat" aria-label="AI Chat"><span class="material-symbols-outlined">chat</span></button>
+    <button id="tourBtn" class="tour-fab hidden" onclick="startProductTour()" title="Product Tour" aria-label="Product Tour">?</button>
 
     <!-- Edit Modal -->
     <div id="editModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
@@ -1476,17 +1476,17 @@
                 <button class="close-btn" onclick="closeTemplateManager()" aria-label="Close">&times;</button>
             </div>
             <div id="templateManagerList"></div>
-            <div id="templateFormSection" class="hidden" style="margin-top:12px;padding:12px;background:var(--bg-container);border-radius:12px">
+            <div id="templateFormSection" class="hidden template-form-section">
                 <h4 id="templateFormTitle">New Template</h4>
                 <input type="hidden" id="templateFormId">
-                <input type="text" id="templateFormName" placeholder="Template name" style="width:100%;margin-bottom:8px">
-                <textarea id="templateFormPrompt" rows="3" placeholder="Prompt template... Use {scope}, {company_name}, {category_name} as variables" style="width:100%;margin-bottom:8px"></textarea>
-                <div style="display:flex;gap:8px">
+                <input type="text" id="templateFormName" placeholder="Template name" class="template-form-field">
+                <textarea id="templateFormPrompt" rows="3" placeholder="Prompt template... Use {scope}, {company_name}, {category_name} as variables" class="template-form-field"></textarea>
+                <div class="template-form-buttons">
                     <button class="primary-btn" onclick="saveTemplate()">Save</button>
                     <button class="btn" onclick="document.getElementById('templateFormSection').classList.add('hidden')">Cancel</button>
                 </div>
             </div>
-            <div style="margin-top:12px">
+            <div class="template-add-row">
                 <button class="btn" onclick="showAddTemplateForm()">+ Add Template</button>
             </div>
         </div>
@@ -1510,7 +1510,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2>App Settings</h2>
-                <button class="close-btn" onclick="closeAppSettings()">&times;</button>
+                <button class="close-btn" onclick="closeAppSettings()" aria-label="Close app settings">&times;</button>
             </div>
             <div class="settings-grid">
                 <div class="settings-section">
@@ -1560,12 +1560,12 @@
                         <span>Version: <strong id="settingVersion"></strong></span>
                         <span>Data: <code id="settingDataDir" class="settings-path"></code></span>
                     </div>
-                    <button class="btn btn-sm" onclick="checkForUpdates(false)" style="margin-top:8px">Check for Updates</button>
+                    <button class="btn btn-sm" onclick="checkForUpdates(false)" class="settings-btn-mt">Check for Updates</button>
                 </div>
 
                 <div class="settings-section">
                     <h3>Backup & Restore</h3>
-                    <button class="primary-btn btn-sm" onclick="createBackup()" style="margin-bottom:8px">Create Backup Now</button>
+                    <button class="primary-btn btn-sm" onclick="createBackup()" class="settings-btn-mb">Create Backup Now</button>
                     <div id="backupList"></div>
                 </div>
             </div>
@@ -1581,7 +1581,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2>Application Logs</h2>
-                <button class="close-btn" onclick="closeLogViewer()">&times;</button>
+                <button class="close-btn" onclick="closeLogViewer()" aria-label="Close log viewer">&times;</button>
             </div>
             <div id="logFileList" class="log-file-list"></div>
             <pre id="logContent" class="log-content"></pre>
@@ -1590,19 +1590,19 @@
 
     <!-- About dialog -->
     <div id="aboutModal" class="modal" role="dialog" aria-labelledby="aboutTitle" aria-modal="true">
-      <div class="modal-content" style="max-width: 340px; border-radius: 0;">
-        <div class="about-dialog" style="text-align: center; padding: 32px 24px;">
-          <div class="app-icon" style="background: var(--text-primary); display: inline-flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 28px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; width: 56px; height: 56px; border-radius: 0; letter-spacing: -0.02em;">RT</div>
-          <div id="aboutTitle" class="app-name" style="margin-top: 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: -0.01em;">Research Taxonomy Library</div>
-          <div class="app-version" id="aboutVersion" style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);">Version loading...</div>
-          <div style="margin: 20px 0; padding: 12px 0; border-top: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+      <div class="modal-content about-modal-content">
+        <div class="about-dialog">
+          <div class="app-icon about-icon">RT</div>
+          <div id="aboutTitle" class="app-name about-name">Research Taxonomy Library</div>
+          <div class="app-version about-ver" id="aboutVersion">Version loading...</div>
+          <div class="about-content">
             <div>AI-powered market research &amp; taxonomy builder</div>
-            <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px;">Python <span id="aboutPython"></span> / Flask / SQLite</div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px;">Claude AI / Gemini AI</div>
+            <div class="about-tech">Python <span id="aboutPython"></span> / Flask / SQLite</div>
+            <div class="about-tech">Claude AI / Gemini AI</div>
           </div>
-          <div class="app-copyright" style="font-size: 11px; color: var(--text-muted);">&copy; 2024-2026</div>
-          <div style="margin-top: 16px;">
-            <button class="btn btn-secondary" onclick="closeModal('aboutModal')" style="font-size: 12px; padding: 6px 24px; border-radius: 0;">OK</button>
+          <div class="app-copyright">&copy; 2024-2026</div>
+          <div class="mt-4">
+            <button class="btn btn-secondary about-ok" onclick="closeModal('aboutModal')">OK</button>
           </div>
         </div>
       </div>
@@ -1643,25 +1643,25 @@
 
     <!-- Confirmation sheet -->
     <div id="confirmSheet" class="confirm-sheet-overlay" style="display:none;">
-      <div class="confirm-sheet" style="border-radius: 0;">
-        <div id="confirmSheetIcon" class="confirm-sheet-icon danger" style="font-size: 24px;">&#9888;</div>
-        <div id="confirmSheetTitle" class="confirm-sheet-title" style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;">Are you sure?</div>
+      <div class="confirm-sheet">
+        <div id="confirmSheetIcon" class="confirm-sheet-icon danger">&#9888;</div>
+        <div id="confirmSheetTitle" class="confirm-sheet-title">Are you sure?</div>
         <div id="confirmSheetMessage" class="confirm-sheet-message">This action cannot be undone.</div>
         <div class="confirm-sheet-actions">
-          <button id="confirmSheetConfirm" class="confirm-btn-danger" style="border-radius: 0;">Delete</button>
-          <button id="confirmSheetCancel" class="confirm-btn-cancel" style="border-radius: 0;">Cancel</button>
+          <button id="confirmSheetConfirm" class="confirm-btn-danger">Delete</button>
+          <button id="confirmSheetCancel" class="confirm-btn-cancel">Cancel</button>
         </div>
       </div>
     </div>
 
     <!-- Prompt/input sheet (for pywebview where prompt() is blocked) -->
     <div id="promptSheet" class="confirm-sheet-overlay" style="display:none;">
-      <div class="confirm-sheet" style="border-radius: 0;">
-        <div id="promptSheetTitle" class="confirm-sheet-title" style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;">Enter a name</div>
-        <input id="promptSheetInput" type="text" style="width:100%;padding:8px 0;border:none;border-bottom:1px solid var(--border-default);border-radius:0;font-size:13px;background:transparent;color:var(--text-primary);font-family:'Plus Jakarta Sans',sans-serif;box-sizing:border-box;outline:none;" autocomplete="off" />
-        <div class="confirm-sheet-actions" style="margin-top:16px;">
-          <button id="promptSheetConfirm" class="confirm-btn-primary" style="border-radius: 0;">Create</button>
-          <button id="promptSheetCancel" class="confirm-btn-cancel" style="border-radius: 0;">Cancel</button>
+      <div class="confirm-sheet">
+        <div id="promptSheetTitle" class="confirm-sheet-title">Enter a name</div>
+        <input id="promptSheetInput" type="text" class="prompt-sheet-input" autocomplete="off" />
+        <div class="confirm-sheet-actions confirm-sheet-actions-mt">
+          <button id="promptSheetConfirm" class="confirm-btn-primary">Create</button>
+          <button id="promptSheetCancel" class="confirm-btn-cancel">Cancel</button>
         </div>
       </div>
     </div>

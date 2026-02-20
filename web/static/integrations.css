@@ -49,7 +49,7 @@
     color: var(--text-secondary);
     border: 1px solid var(--border-default);
     cursor: pointer;
-    transition: all 0.1s linear;
+    transition: all var(--duration-normal) var(--ease-standard);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -184,8 +184,8 @@
     font-size: 18px;
     font-weight: 700;
     box-shadow: none;
-    z-index: 999;
-    transition: all 0.1s linear;
+    z-index: var(--z-detail-panel);
+    transition: all var(--duration-normal) var(--ease-standard);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -210,7 +210,7 @@
     --tag-text-color: var(--text-primary);
     --tag-hover: var(--bg-hover);
     --tag-remove-bg: transparent;
-    --tag-remove-btn-color: #FF0000;
+    --tag-remove-btn-color: var(--accent-danger);
     border-color: var(--border-default);
     border-radius: 0;
     min-height: 38px;
@@ -455,7 +455,7 @@
 
 /* Command palette */
 .cmd-palette-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: var(--z-modal);
     display: flex; align-items: flex-start; justify-content: center; padding-top: 15vh;
 }
 .cmd-palette {
@@ -505,7 +505,7 @@
 .gutter {
     background: var(--border-default);
     cursor: col-resize;
-    transition: background 0.1s linear;
+    transition: background var(--duration-normal) var(--ease-standard);
 }
 .gutter:hover {
     background: var(--text-primary);

@@ -22,7 +22,7 @@
     top: 0;
     left: 0;
     right: 0;
-    z-index: 9000;
+    z-index: var(--z-banner);
     background: var(--text-primary);
     color: var(--bg-page);
     display: flex;
@@ -55,7 +55,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: var(--z-modal);
 }
 
 .onboarding-card {
@@ -231,7 +231,7 @@
 }
 
 .prereq-ok { color: var(--text-primary); }
-.prereq-missing { color: #FF0000; }
+.prereq-missing { color: var(--accent-danger); }
 
 .prereq-label {
     font-weight: 600;
