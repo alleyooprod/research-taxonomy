@@ -1,10 +1,21 @@
 """Companies API: CRUD, star, relationship, re-research, notes, events,
-version history, trash, duplicates, merge, compare."""
+version history, trash, duplicates, merge, compare.
+
+When a project has been migrated to entity-based data, the CRUD routes
+transparently delegate to the entity system via core.compat.
+"""
 import json
 
 from flask import Blueprint, current_app, jsonify, request
 
 from config import DEFAULT_MODEL
+from core.compat import (
+    project_uses_entities,
+    list_entities_as_companies,
+    get_entity_as_company,
+    create_entity_from_company_data,
+    update_entity_from_company_data,
+)
 from web.async_jobs import start_async_job, write_result, poll_result
 from web.notifications import notify_sse
 from storage.export import export_markdown, export_json
@@ -18,6 +29,20 @@ companies_bp = Blueprint("companies", __name__)
 def list_companies():
     db = current_app.db
     project_id = request.args.get("project_id", type=int)
+
+    # Entity-mode delegation
+    if project_uses_entities(db, project_id):
+        companies = list_entities_as_companies(
+            db, project_id,
+            category_id=request.args.get("category_id", type=int),
+            search=request.args.get("search"),
+            starred_only=request.args.get("starred") == "1",
+            sort_by=request.args.get("sort_by", "name"),
+            sort_dir=request.args.get("sort_dir", "asc"),
+            offset=request.args.get("offset", 0, type=int),
+        )
+        return jsonify(companies)
+
     category_id = request.args.get("category_id", type=int)
     search = request.args.get("search")
     starred_only = request.args.get("starred") == "1"
@@ -44,6 +69,12 @@ def list_companies():
 @companies_bp.route("/api/companies/<int:company_id>")
 def get_company(company_id):
     db = current_app.db
+
+    # Try entity system first
+    entity_company = get_entity_as_company(db, company_id)
+    if entity_company:
+        return jsonify(entity_company)
+
     company = db.get_company(company_id)
     if not company:
         return jsonify({"error": "Not found"}), 404
@@ -61,8 +92,16 @@ def add_company():
         return jsonify({"error": "url is required"}), 400
     if not data.get("project_id"):
         return jsonify({"error": "project_id is required"}), 400
+
+    project_id = data["project_id"]
     data.setdefault("name", data["url"])
     data.setdefault("slug", data["name"].lower().replace(" ", "-"))
+
+    # Entity-mode delegation
+    if project_uses_entities(db, project_id):
+        entity_id = create_entity_from_company_data(db, data, project_id)
+        return jsonify({"id": entity_id, "status": "ok"})
+
     company_id = db.upsert_company(data)
     return jsonify({"id": company_id, "status": "ok"})
 
@@ -72,6 +111,17 @@ def update_company(company_id):
     db = current_app.db
     fields = request.json or {}
     project_id = fields.pop("project_id", None)
+
+    # Entity-mode delegation
+    entity_company = get_entity_as_company(db, company_id)
+    if entity_company:
+        update_entity_from_company_data(db, company_id, fields)
+        name = entity_company.get("name", f"#{company_id}")
+        if project_id:
+            db.log_activity(project_id, "company_updated",
+                            f"Updated {name}", "entity", company_id)
+        return jsonify({"status": "ok"})
+
     db.update_company(company_id, fields)
     export_markdown(db, project_id=project_id)
     export_json(db, project_id=project_id)
@@ -88,6 +138,22 @@ def update_company(company_id):
 @companies_bp.route("/api/companies/<int:company_id>", methods=["DELETE"])
 def delete_company(company_id):
     db = current_app.db
+
+    # Entity-mode delegation
+    entity_company = get_entity_as_company(db, company_id)
+    if entity_company:
+        with db._get_conn() as conn:
+            conn.execute(
+                "UPDATE entities SET is_deleted = 1, updated_at = datetime('now') WHERE id = ?",
+                (company_id,),
+            )
+            conn.commit()
+        project_id = entity_company.get("project_id")
+        if project_id:
+            db.log_activity(project_id, "company_deleted",
+                            f"Deleted {entity_company['name']}", "entity", company_id)
+        return jsonify({"status": "ok"})
+
     company = db.get_company(company_id)
     name = company["name"] if company else f"#{company_id}"
     project_id = company.get("project_id") if company else None
@@ -101,6 +167,19 @@ def delete_company(company_id):
 @companies_bp.route("/api/companies/<int:company_id>/star", methods=["POST"])
 def toggle_star(company_id):
     db = current_app.db
+
+    # Entity-mode delegation
+    entity_company = get_entity_as_company(db, company_id)
+    if entity_company:
+        new_val = 0 if entity_company.get("is_starred") else 1
+        with db._get_conn() as conn:
+            conn.execute(
+                "UPDATE entities SET is_starred = ?, updated_at = datetime('now') WHERE id = ?",
+                (new_val, company_id),
+            )
+            conn.commit()
+        return jsonify({"is_starred": new_val})
+
     new_val = db.toggle_star(company_id)
     if new_val is None:
         return jsonify({"error": "Not found"}), 404
@@ -113,6 +192,18 @@ def update_relationship(company_id):
     data = request.json or {}
     status = data.get("status")
     note = data.get("note")
+
+    # Entity-mode delegation: store as attributes
+    entity_company = get_entity_as_company(db, company_id)
+    if entity_company:
+        update_entity_from_company_data(db, company_id, {
+            "relationship_status": status or "",
+            "relationship_note": note or "",
+        })
+        return jsonify({"status": "ok",
+                        "relationship_status": status,
+                        "relationship_note": note})
+
     result = db.update_relationship(company_id, status, note)
     company = db.get_company(company_id)
     if company:
@@ -273,6 +364,26 @@ def list_trash():
 @companies_bp.route("/api/companies/<int:company_id>/restore", methods=["POST"])
 def restore_company(company_id):
     db = current_app.db
+
+    # Entity-mode delegation
+    with db._get_conn() as conn:
+        entity = conn.execute(
+            "SELECT id, name, project_id FROM entities WHERE id = ?",
+            (company_id,),
+        ).fetchone()
+    if entity:
+        with db._get_conn() as conn:
+            conn.execute(
+                "UPDATE entities SET is_deleted = 0, updated_at = datetime('now') WHERE id = ?",
+                (company_id,),
+            )
+            conn.commit()
+        if entity["project_id"]:
+            db.log_activity(entity["project_id"], "company_restored",
+                            f"Restored {entity['name']} from trash",
+                            "entity", company_id)
+        return jsonify({"status": "ok"})
+
     db.restore_company(company_id)
     company = db.get_company(company_id)
     name = company["name"] if company else f"#{company_id}"
@@ -285,6 +396,21 @@ def restore_company(company_id):
 
 @companies_bp.route("/api/companies/<int:company_id>/permanent-delete", methods=["DELETE"])
 def permanent_delete(company_id):
+    db = current_app.db
+
+    # Entity-mode delegation
+    with db._get_conn() as conn:
+        entity = conn.execute(
+            "SELECT id FROM entities WHERE id = ?", (company_id,),
+        ).fetchone()
+    if entity:
+        with db._get_conn() as conn:
+            conn.execute("DELETE FROM entity_attributes WHERE entity_id = ?", (company_id,))
+            conn.execute("DELETE FROM evidence WHERE entity_id = ?", (company_id,))
+            conn.execute("DELETE FROM entities WHERE id = ?", (company_id,))
+            conn.commit()
+        return jsonify({"status": "ok"})
+
     current_app.db.permanently_delete(company_id)
     return jsonify({"status": "ok"})
 
@@ -357,6 +483,15 @@ def bulk_action():
     if not action:
         return jsonify({"error": "action is required"}), 400
 
+    # Check if these are entity IDs
+    _is_entity = False
+    if company_ids:
+        with db._get_conn() as conn:
+            entity = conn.execute(
+                "SELECT id FROM entities WHERE id = ?", (company_ids[0],),
+            ).fetchone()
+            _is_entity = entity is not None
+
     updated = 0
 
     if action == "assign_category":
@@ -364,7 +499,15 @@ def bulk_action():
         if not category_id:
             return jsonify({"error": "category_id is required"}), 400
         for cid in company_ids:
-            db.update_company(cid, {"category_id": category_id})
+            if _is_entity:
+                with db._get_conn() as conn:
+                    conn.execute(
+                        "UPDATE entities SET category_id = ?, updated_at = datetime('now') WHERE id = ?",
+                        (category_id, cid),
+                    )
+                    conn.commit()
+            else:
+                db.update_company(cid, {"category_id": category_id})
             updated += 1
 
     elif action == "add_tags":
@@ -372,22 +515,49 @@ def bulk_action():
         if not new_tags:
             return jsonify({"error": "tags are required"}), 400
         for cid in company_ids:
-            company = db.get_company(cid)
-            if company:
-                existing = company.get("tags") or []
-                merged = list(set(existing + new_tags))
-                db.update_company(cid, {"tags": merged})
-                updated += 1
+            if _is_entity:
+                with db._get_conn() as conn:
+                    row = conn.execute("SELECT tags FROM entities WHERE id = ?", (cid,)).fetchone()
+                    existing = []
+                    if row and row["tags"]:
+                        try:
+                            existing = json.loads(row["tags"])
+                        except (json.JSONDecodeError, TypeError):
+                            existing = []
+                    merged = list(set(existing + new_tags))
+                    conn.execute(
+                        "UPDATE entities SET tags = ?, updated_at = datetime('now') WHERE id = ?",
+                        (json.dumps(merged), cid),
+                    )
+                    conn.commit()
+            else:
+                company = db.get_company(cid)
+                if company:
+                    existing = company.get("tags") or []
+                    merged = list(set(existing + new_tags))
+                    db.update_company(cid, {"tags": merged})
+            updated += 1
 
     elif action == "set_relationship":
         status = params.get("status")
         for cid in company_ids:
-            db.update_relationship(cid, status, None)
+            if _is_entity:
+                update_entity_from_company_data(db, cid, {"relationship_status": status or ""})
+            else:
+                db.update_relationship(cid, status, None)
             updated += 1
 
     elif action == "delete":
         for cid in company_ids:
-            db.delete_company(cid)
+            if _is_entity:
+                with db._get_conn() as conn:
+                    conn.execute(
+                        "UPDATE entities SET is_deleted = 1, updated_at = datetime('now') WHERE id = ?",
+                        (cid,),
+                    )
+                    conn.commit()
+            else:
+                db.delete_company(cid)
             updated += 1
 
     else:
@@ -395,12 +565,19 @@ def bulk_action():
 
     # Log activity
     if company_ids:
-        company = db.get_company(company_ids[0], include_deleted=True)
-        project_id = company.get("project_id") if company else None
+        if _is_entity:
+            with db._get_conn() as conn:
+                entity = conn.execute(
+                    "SELECT project_id FROM entities WHERE id = ?", (company_ids[0],),
+                ).fetchone()
+                project_id = entity["project_id"] if entity else None
+        else:
+            company = db.get_company(company_ids[0], include_deleted=True)
+            project_id = company.get("project_id") if company else None
         if project_id:
             db.log_activity(project_id, f"bulk_{action}",
                             f"Bulk {action} on {updated} companies",
-                            "company", None)
+                            "entity" if _is_entity else "company", None)
 
     return jsonify({"updated": updated})
 
@@ -532,9 +709,15 @@ def compare_companies():
                 continue
         if len(company_ids) >= 20:
             break
+
     companies = []
     for cid in company_ids:
-        c = db.get_company(cid)
-        if c:
-            companies.append(c)
+        # Try entity system first
+        entity_company = get_entity_as_company(db, cid)
+        if entity_company:
+            companies.append(entity_company)
+        else:
+            c = db.get_company(cid)
+            if c:
+                companies.append(c)
     return jsonify(companies)

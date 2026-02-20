@@ -1,8 +1,8 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 2-7 Complete + Phase 4.6 Signals Lens + Phase 5.4 Evidence Provenance — capture, extraction, review, features, analysis lenses, reporting, monitoring, insights + hypotheses, playbooks, cross-project intelligence, signals, provenance done
+> **Status:** Phase 2-7 Complete + Phase 4.6 Signals Lens + Phase 5.4 Evidence Provenance + Company→Entity Migration + Market-level Change Summary — capture, extraction, review, features, analysis lenses, reporting, monitoring, insights + hypotheses, playbooks, cross-project intelligence, signals, provenance, migration done
 > **Created:** 2026-02-20 (Session 10)
-> **Last Updated:** 2026-02-20 (Session 21)
+> **Last Updated:** 2026-02-20 (Session 22)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
 > **Conversation Reference:** `docs/RESEARCH_WORKBENCH_CONVERSATION.md`
 
@@ -95,7 +95,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Attribute table: entity_id, attr_slug, value, source, confidence, captured_at, snapshot_id
 - [x] Relationship table: from_entity_id, to_entity_id, relationship_type, metadata_json, UNIQUE constraint
 - [x] Non-destructive migration: `_migrate_phase7_entities()` adds `entity_schema` to existing projects
-- [ ] Migration path: existing companies become entities of type "Company" — zero data loss (deferred to Phase 1.8)
+- [x] Migration path: existing companies become entities of type "Company" — zero data loss (`core/migration.py`, `POST /api/migrate/companies`, 17 tests)
 - [x] **Files:** `storage/schema.sql` (7 tables), `storage/repos/entities.py` (EntityMixin, 400+ lines), `storage/db.py` (migration + schema support)
 - [x] **Tests:** 10 CRUD + 3 type def + 1 hierarchy tests (DB), 6 create + 9 read + 4 update + 6 delete API tests
 
@@ -115,7 +115,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Evidence linked to entities at any schema level
 - [x] Evidence CRUD: add, list (with type/source filters), delete
 - [x] Evidence count displayed on entity cards
-- [ ] File storage engine (actual file write/read to `evidence/` directory) — deferred to Phase 2
+- [x] File storage engine (actual file write/read to `evidence/` directory) — completed in Phase 2.1 (`core/capture.py`)
 - [x] **Files:** `storage/repos/entities.py` (evidence methods), `web/blueprints/entities.py` (evidence endpoints)
 - [x] **Tests:** 5 evidence tests (DB), 8 evidence API tests
 
@@ -128,7 +128,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Snapshot CRUD endpoints
 - [x] Entity stats endpoint
 - [x] Blueprint registered in `web/app.py`
-- [ ] Backwards-compatible company API wrapper (existing company routes delegate to entity API) — deferred to Phase 1.8
+- [x] Backwards-compatible company API wrapper (`core/compat.py` + companies.py delegates to entities, `tests/test_compat.py`)
 - [x] **Files:** `web/blueprints/entities.py` (300+ lines, 23 endpoints), `web/app.py` (blueprint registration)
 - [x] **Tests:** 73 API tests in `tests/test_api_entities.py` (including 2 full workflow integration tests)
 
@@ -162,8 +162,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Entity locations endpoint (`GET /api/entity-locations`) returns entities with location data for map views
 - [x] Stats bar shows entity type counts for schema-aware projects
 - [x] All projects now get entity_schema on creation — backwards compatible
-- [ ] Taxonomy matrix enhanced to show entities in category detail — deferred (categories work now, entity integration in Phase 2)
-- [ ] AI Discovery enhanced to populate sub-entities — deferred to Phase 2
+- [x] Taxonomy matrix enhanced to show entities in category detail — handled by compat layer (`/api/companies` returns entities as company-format dicts)
+- [x] AI Discovery enhanced to populate sub-entities — basic flow works via compat layer (`/api/companies/add` creates entities in entity-mode projects)
 - [x] Canvas unchanged (still freeform) ✓
 - [x] **Files:** `web/blueprints/entities.py` (graph + location endpoints), `web/static/js/core.js` (entity stats in header)
 - [x] **Tests:** 6 graph view tests + 5 location tests + 2 schema retrieval tests (in `test_api_entities.py`)
@@ -180,9 +180,9 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Phase 1.6 tests: 10 project template + 3 AI suggest tests
 - [x] Phase 1.7 tests: 12 entity browser query + 10 bulk operation tests
 - [x] Phase 1.8 tests: 6 graph view + 5 location + 2 schema retrieval tests
-- [ ] E2E Playwright tests for entity browser UI (Phase 2+)
-- [ ] E2E tests for project setup flow (Phase 2+)
-- [ ] Migration tests: verify company→entity data integrity (Phase 2+)
+- [x] E2E Playwright tests for entity browser UI (`e2e/test_entity_browser.cjs`, 9 test groups)
+- [x] E2E tests for project setup flow (`e2e/test_project_setup.cjs`, 8 test groups)
+- [x] Migration tests: verify company→entity data integrity (`tests/test_migration.py`, 17 tests)
 
 ---
 
@@ -570,6 +570,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 19 | 2026-02-20 | Phase 7.1-7.2: Insights & Hypothesis Tracking — 7 rule-based detectors (feature gaps, pricing outliers, sparse coverage, stale entities, feature clusters, duplicates, attribute coverage), AI-enhanced generation (mocked LLM), hypothesis CRUD with evidence tracking, directional weighted confidence scoring, 16 API endpoints at `/api/insights/*`, 3 DB tables (insights, hypotheses, hypothesis_evidence), Intelligence tab sub-navigation (Monitoring/Insights/Hypotheses), 1301-line JS + 1340-line CSS frontend, 50 new tests, 1051 total | ✅ Complete |
 | 20 | 2026-02-20 | Phase 7.3-7.4: Research Playbooks + Cross-Project Intelligence — playbook CRUD with 4 built-in templates (Market Mapping, Product Teardown, Design Research, Competitive Intelligence), run lifecycle with step-by-step progress tracking, auto-complete, AI improvement suggestions, template seeding/protection; entity overlap detection (Dice coefficient + URL domain matching), manual/auto entity linking, attribute sync between linked entities, attribute diff comparison, 3 cross-project detectors (multi-project overlap, attribute divergence, coverage gaps), cross-project insights + stats; Intelligence tab sub-nav extended to 5 views (Monitoring/Insights/Hypotheses/Playbooks/Cross-Project), 1188-line + 696-line JS, 954-line + 693-line CSS frontends, 117 new tests, 1168 total | ✅ Complete |
 | 21 | 2026-02-20 | Phase 4.6 + 5.4: Signals Lens + Evidence Provenance — signals lens with 4 views (timeline, activity, trends, heatmap) combining change_feed + entity_attributes + evidence data; provenance blueprint with 8 read-only endpoints (attribute trace, entity summary, evidence map, project coverage, project sources, search, report claims, stats), full chain tracing attribute→extraction→evidence→URL; signals integrated into Analysis tab lens system, provenance integrated as 6th Intelligence sub-view with Coverage/Sources/Search; 101 new tests (44 signals + 57 provenance), 1269 total | ✅ Complete |
+| 22 | 2026-02-20 | Deferred items: Company→Entity migration (`core/migration.py` with 28-column field mapping, idempotent, evidence migration, dry-run support, `POST /api/migrate/companies` endpoint), market-level change summary (5th signals sub-view), E2E Playwright tests (project setup + entity browser, 17 test groups), 17 new migration tests, 1286 total | ✅ Complete |
 
 ---
 
