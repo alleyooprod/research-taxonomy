@@ -530,13 +530,12 @@ function renderTaxonomyGraph(categories, companies) {
         // Determine layout: prefer dagre if registered, fallback to breadthfirst
         let layoutConfig;
         try {
-            // Test if dagre layout is actually registered by checking Cytoscape's layout registry
             const hasDagre = window.cytoscapeDagre && typeof cytoscape('layout', 'dagre') !== 'undefined';
             layoutConfig = hasDagre
-                ? { name: 'dagre', rankDir: 'TB', nodeSep: 60, rankSep: 80, padding: 30, animate: false }
-                : { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false };
+                ? { name: 'dagre', rankDir: 'TB', nodeSep: 100, rankSep: 120, padding: 50, animate: false }
+                : { name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.75, animate: false };
         } catch (_) {
-            layoutConfig = { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false };
+            layoutConfig = { name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.75, animate: false };
         }
 
         const cyStyle = [
@@ -548,10 +547,12 @@ function renderTaxonomyGraph(categories, companies) {
                             'border-color': '#000000',
                             label: 'data(label)',
                             'text-valign': 'center',
-                            'font-size': '14px',
+                            'font-size': '16px',
+                            'font-weight': 600,
                             'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#CCCCCC' : '#000000',
-                            width: 60, height: 60,
+                            width: 100, height: 50,
+                            padding: '12px',
                             shape: 'rectangle',
                         },
                     },
@@ -564,12 +565,13 @@ function renderTaxonomyGraph(categories, companies) {
                             label: 'data(label)',
                             'text-valign': 'center',
                             'text-wrap': 'wrap',
-                            'text-max-width': '100px',
-                            'font-size': '12px',
+                            'text-max-width': '160px',
+                            'font-size': '13px',
                             'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#CCCCCC' : '#000000',
-                            width: 'mapData(count, 0, 30, 30, 70)',
-                            height: 'mapData(count, 0, 30, 30, 70)',
+                            width: 'mapData(count, 0, 30, 80, 160)',
+                            height: 'mapData(count, 0, 30, 50, 90)',
+                            padding: '10px',
                             shape: 'rectangle',
                         },
                     },
@@ -582,11 +584,12 @@ function renderTaxonomyGraph(categories, companies) {
                             label: 'data(label)',
                             'text-valign': 'center',
                             'text-wrap': 'wrap',
-                            'text-max-width': '80px',
+                            'text-max-width': '140px',
                             'font-size': '12px',
                             'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#CCCCCC' : '#000000',
-                            width: 25, height: 25,
+                            width: 60, height: 40,
+                            padding: '8px',
                             shape: 'rectangle',
                         },
                     },
@@ -783,10 +786,10 @@ async function renderKnowledgeGraph() {
         try {
             const hasFcose = window.cytoscapeFcose && typeof cytoscape('layout', 'fcose') !== 'undefined';
             kgLayoutConfig = hasFcose
-                ? { name: 'fcose', animate: false, nodeDimensionsIncludeLabels: true, idealEdgeLength: 100 }
-                : { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 };
+                ? { name: 'fcose', animate: false, nodeDimensionsIncludeLabels: true, idealEdgeLength: 160, nodeRepulsion: () => 12000 }
+                : { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 12000, idealEdgeLength: () => 160 };
         } catch (_) {
-            kgLayoutConfig = { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 };
+            kgLayoutConfig = { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 12000, idealEdgeLength: () => 160 };
         }
 
         try {
@@ -798,12 +801,14 @@ async function renderKnowledgeGraph() {
                         selector: 'node[type="category"]',
                         style: {
                             'background-color': '#FFFFFF',
-                            'border-width': 1,
+                            'border-width': 2,
                             'border-color': '#000000',
-                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
-                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 6,
+                            'text-wrap': 'wrap', 'text-max-width': '140px',
+                            'font-size': '14px', 'font-weight': 600,
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#CCCCCC' : '#000000',
-                            width: 30, height: 30, shape: 'rectangle',
+                            width: 40, height: 40, shape: 'rectangle',
                         },
                     },
                     {
@@ -812,10 +817,12 @@ async function renderKnowledgeGraph() {
                             'background-color': '#FFFFFF',
                             'border-width': 1,
                             'border-color': '#333333',
-                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
-                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 5,
+                            'text-wrap': 'wrap', 'text-max-width': '120px',
+                            'font-size': '12px',
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#CCCCCC' : '#000000',
-                            width: 18, height: 18, shape: 'rectangle',
+                            width: 24, height: 24, shape: 'rectangle',
                         },
                     },
                     {
@@ -824,10 +831,11 @@ async function renderKnowledgeGraph() {
                             'background-color': '#FFFFFF',
                             'border-width': 1,
                             'border-color': '#666666',
-                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
-                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
+                            'font-size': '11px',
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#999999' : '#333333',
-                            width: 12, height: 12, shape: 'rectangle',
+                            width: 16, height: 16, shape: 'rectangle',
                         },
                     },
                     {
@@ -836,10 +844,11 @@ async function renderKnowledgeGraph() {
                             'background-color': '#FFFFFF',
                             'border-width': 1,
                             'border-color': '#999999',
-                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
-                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
+                            'font-size': '11px',
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
                             color: isDark ? '#999999' : '#333333',
-                            width: 14, height: 14, shape: 'rectangle',
+                            width: 18, height: 18, shape: 'rectangle',
                         },
                     },
                     {
@@ -863,7 +872,7 @@ async function renderKnowledgeGraph() {
                     },
                     {
                         selector: '.kg-highlighted',
-                        style: { opacity: 1, 'border-width': 2, 'border-color': '#000000' },
+                        style: { opacity: 1, 'border-width': 3, 'border-color': '#000000' },
                     },
                 ],
                 layout: kgLayoutConfig,

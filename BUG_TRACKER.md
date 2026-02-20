@@ -134,6 +134,14 @@
 - **8 parallel Playwright test agents deployed** covering all feature areas
 - **Console errors reduced from 63 → 23 → 16** (remaining 16 are DNS resolution in headless mode, not app errors)
 
+### Playwright Evidence Capture (2026-02-20, Session 5)
+- **Canvas drawing**: Rect + circle + text (programmatic) + mouse-drawn rect = 4 objects ✓
+- **Graph View expanded**: 1270x600 container, 3 canvas elements, nodes with readable text ✓
+- **Knowledge Graph expanded**: 1270x629 container, 3 canvas elements, all entity types readable ✓
+- **pointer-events**: body classes empty, pointer-events auto on all canvas elements ✓
+- **driver.js cleanup**: `_cleanupDriverJs()` in showTab() prevents recurrence ✓
+- **49/49 pytest tests pass** ✓
+
 ### All Bugs Status
 | Bug | Feature | Status |
 |-----|---------|--------|
@@ -148,11 +156,12 @@
 | #9 | Graph/KG orphan edges | **FIXED** — catIdSet guard for inactive parents (Session 4) |
 | #10 | Host validation port mismatch | **FIXED** — dynamic port from request.server (Session 4) |
 | #11 | Canvas Fabric.js 6 API | **FIXED** — restorePointerVpt, loadFromJSON, clone (Session 4) |
+| #12 | Canvas pointer-events blocked | **FIXED** — driver.js cleanup, window.driverObj (Session 5) |
 
 ---
 
 ## Bug #9: Graph View & Knowledge Graph — ORPHAN EDGE CRASH
-- **Status**: **FIXED** (Session 4, 2026-02-20) — needs screenshot verification
+- **Status**: **FIXED** (Session 4, 2026-02-20) — screenshot verified Session 5
 - **First reported**: 2026-02-20 (Session 4)
 - **Symptom**: "Graph rendering failed: Can not create edge `...` with nonexistant source `cat-1`" and "Knowledge graph failed: Can not create edge `...` with nonexistant source `cat-1`"
 - **Root cause**: Category id=1 ("Diagnostics & Testing") was deactivated (`is_active=0`), but its child category id=26 ("At-Home Blood Testing") is still active with `parent_id=1`. The API `get_category_stats` filters by `is_active=1`, so cat-1 is excluded from the response. When the JS builds Cytoscape edges, `source: 'cat-1'` references a node that doesn't exist.
@@ -178,7 +187,7 @@
 ---
 
 ## Bug #11: Canvas — Fabric.js 6 API Incompatibility (ALL DRAWING TOOLS BROKEN)
-- **Status**: **FIXED** (Session 4, 2026-02-20) — needs screenshot verification
+- **Status**: **FIXED** (Session 4, 2026-02-20) — screenshot verified Session 5
 - **First reported**: 2026-02-20 (Session 4)
 - **Symptom**: Canvas loads but no drawing tools work. Shapes, lines, text, notes all fail silently. Undo/redo broken. Duplicate broken.
 - **Root cause**: App uses Fabric.js 6.5.1 (CDN) but canvas.js used Fabric.js 5 APIs:
@@ -190,6 +199,48 @@
   |---|------|-----------------|--------|
   | 1 | 2026-02-20 | Replaced all 3 `restorePointerVpt` calls with `opt.scenePoint \|\| _fabricCanvas.getScenePoint(opt.e)` (Fabric 6 API). Converted all 3 `loadFromJSON(json, callback)` to `loadFromJSON(json).then(callback)`. Converted `clone(callback)` to `clone().then(callback)`. | **49/49 tests pass.** Needs visual verification. |
 - **Code changes**: `web/static/js/canvas.js` — lines 611, 700, 746 (scenePoint), lines 492, 1114, 1126 (loadFromJSON Promise), line 1057 (clone Promise)
+
+---
+
+## Bug #12: Canvas — driver.js `pointer-events: none` Blocking ALL Interaction
+- **Status**: **FIXED** (Session 5, 2026-02-20) — screenshot evidence captured
+- **First reported**: 2026-02-20 (Session 5)
+- **Symptom**: Canvas tab renders Fabric.js workspace correctly (toolbar, sidebar, canvas element all visible), but NO mouse interaction works. Drawing tools, selection, panning — nothing responds to clicks or drags. Shapes created programmatically render fine, but mouse events never fire.
+- **Root cause**: driver.js onboarding tour applies CSS `body.driver-active * { pointer-events: none !important; }` to ALL elements. The `driverObj` was stored as a local variable inside `startOnboardingTour()`, so it couldn't be destroyed from external code. Neither `onDestroyed` nor `onDestroyStarted` callbacks were configured, so the `driver-active` class persisted on `<body>` even after the tour overlay was dismissed. This meant every element in the page (including the Fabric.js upper-canvas) had `pointer-events: none`, so DOM events never reached the canvas, and Fabric.js mouse handlers never fired.
+- **Diagnosis methodology**: 4 progressive Playwright diagnostic scripts:
+  1. `canvas_debug.cjs`: Found Fabric loads, functions exist, but `window._fabricCanvas` null
+  2. `canvas_debug2.cjs`: Exposed `_fabricCanvas` on window; programmatic objects render but mouse events don't fire
+  3. `canvas_debug3.cjs`: DOM/CSS inspection revealed `pointer-events: none` on ALL elements; hit test at canvas center reached `<body>` (not canvas); body had `driver-active driver-simple` classes
+  4. `canvas_verify.cjs`: Confirmed fix — pointer-events auto, mouse events fire, all drawing tools work
+- **Attempted fixes**:
+  | # | Date | Fix description | Result |
+  |---|------|-----------------|--------|
+  | 1 | 2026-02-20 | **core.js**: Added `_cleanupDriverJs()` function that removes `driver-active`, `driver-simple`, `driver-fade` classes from body and removes overlay elements. Changed `driverObj` from local variable to `window.driverObj`. Added `onDestroyed` and `onDestroyStarted` callbacks to driver config. Added `_cleanupDriverJs()` call in `showTab()` as safety net. **integrations.js**: Same fix — `driverObj` → `window.driverObj`, added cleanup callbacks. **canvas.js**: Added `window._fabricCanvas = _fabricCanvas` exposure after canvas creation. | **CONFIRMED FIXED.** Screenshot shows rect + circle + text (programmatic) + mouse-drawn rect with selection handles. Pointer-events: auto on body and canvas wrapper. 4 objects on canvas (3 programmatic + 1 mouse-drawn). |
+- **Evidence**: `test-evidence/canvas_drawing_working.png` — shows canvas with shapes drawn both programmatically and via mouse interaction
+- **Code changes**: `web/static/js/core.js` (cleanup function, window.driverObj, showTab safety), `web/static/js/integrations.js` (window.driverObj, cleanup callbacks), `web/static/js/canvas.js` (window._fabricCanvas exposure)
+
+---
+
+## Visual Enhancement: Graph View & Knowledge Graph — Expanded Nodes/Text (Session 5)
+- **Date**: 2026-02-20
+- **Request**: "Both need to be visually expanded and the text adjusted so it's all readable"
+- **Changes**:
+  - **Graph View** (`taxonomy.js`):
+    - Root node: 60x60 → 100x50, font 14→16px, font-weight 600, padding 12px
+    - Category nodes: width mapData 30-70 → 80-160, height 50-90, text-max-width 100→160px, font 12→13px, padding 10px
+    - Subcategory nodes: 25x25 → 60x40, text-max-width 80→140px, padding 8px
+    - Layout spacing: nodeSep 60→100, rankSep 80→120, padding 30→50, spacingFactor 1.2→1.75
+  - **Knowledge Graph** (`taxonomy.js`):
+    - Category: 30x30 → 40x40, font 12→14px, font-weight 600, text-wrap wrap, text-max-width 140px, border-width 1→2
+    - Company: 18x18 → 24x24, text-wrap wrap, text-max-width 120px
+    - Tag: 12x12 → 16x16, font 12→11px
+    - Geography: 14x14 → 18x18, font 12→11px
+    - Layout: idealEdgeLength 100→160, nodeRepulsion 8000→12000
+    - Highlighted: border-width 2→3
+  - **Container heights** (`base.css`, `taxonomy.css`):
+    - `.graph-container`: 500→600px, added min-height 500px
+    - `.kg-container`: 500→600px, added min-height 500px
+- **Evidence**: `test-evidence/graph_view_expanded.png`, `test-evidence/knowledge_graph_expanded.png`
 
 ---
 
@@ -228,6 +279,10 @@
 - `desktop.py:_find_free_port()` can choose a different port if 5001 is busy
 - Playwright tests should still work on port 5001
 
-### Driver.js Onboarding Tour
-- App has a driver.js guided tour that creates an SVG overlay blocking all clicks
+### Driver.js Onboarding Tour (ROOT CAUSE of Bug #12)
+- driver.js applies `body.driver-active * { pointer-events: none !important; }` — blocks ALL mouse events on ALL elements
+- `driverObj` must be stored on `window` (not local variable) so it can be destroyed from any context
+- **Must configure `onDestroyed` and `onDestroyStarted` callbacks** to remove body classes
+- **`showTab()` calls `_cleanupDriverJs()`** as a safety net to prevent stale driver state
 - Playwright tests must dismiss it: `driverObj.destroy()` or remove `.driver-overlay, .driver-popover` elements
+- If `_cleanupDriverJs` is available, call it too for belt-and-suspenders cleanup

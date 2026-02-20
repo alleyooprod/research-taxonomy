@@ -204,6 +204,9 @@ function showTab(name) {
         name = tabNames[name] || 'companies';
     }
 
+    // Ensure driver.js tour isn't blocking pointer events
+    if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
+
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(el => {
         el.classList.remove('active');
@@ -836,20 +839,29 @@ function initSortable() {
 }
 
 // ========== Driver.js Onboarding Tour ==========
+function _cleanupDriverJs() {
+    // Ensure driver.js classes are removed from body (they set pointer-events: none on everything)
+    document.body.classList.remove('driver-active', 'driver-simple', 'driver-fade');
+    document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
+}
+
 function startOnboardingTour() {
     if (!window.driver) return;
-    const driverObj = window.driver.js.driver({
+    // Store on window so it can be destroyed externally
+    window.driverObj = window.driver.js.driver({
         showProgress: true,
         animate: false, // The Instrument: no animation
         overlayColor: 'rgba(0,0,0,0.5)',
         popoverClass: 'instrument-popover',
+        onDestroyed: _cleanupDriverJs,
+        onDestroyStarted: _cleanupDriverJs,
         steps: [
             { element: '.tabs', popover: { title: 'Navigation', description: 'Switch between different views of your market research.' } },
             { element: '#searchInput', popover: { title: 'Search', description: 'Find companies by name, category, or description. Supports fuzzy matching.' } },
             { popover: { title: 'Keyboard Shortcuts', description: 'Press Cmd+K for the command palette. Press ? for all shortcuts.' } },
         ],
     });
-    driverObj.drive();
+    window.driverObj.drive();
 }
 // Show on first visit
 if (!localStorage.getItem('onboarding_done')) {

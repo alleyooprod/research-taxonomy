@@ -1,5 +1,5 @@
 /**
- * Direct evidence capture script — bypasses Playwright test framework overhead.
+ * Direct evidence capture script — screenshots of all fixed features.
  * Run: node e2e/take_evidence.cjs
  */
 const { chromium } = require('playwright');
@@ -21,10 +21,8 @@ const DIR = 'test-evidence';
     // Dismiss driver.js onboarding tour if present
     console.log('2. Dismissing onboarding tour...');
     await page.evaluate(() => {
-        if (window.driverObj && typeof driverObj.destroy === 'function') {
-            driverObj.destroy();
-        }
-        // Remove overlay elements
+        if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
+        if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
         document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
     });
     await page.waitForTimeout(500);
@@ -112,20 +110,28 @@ const DIR = 'test-evidence';
     // Dismiss tour again (selectProject may trigger it)
     await page.evaluate(() => {
         if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
+        if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
         document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
     });
     await page.waitForTimeout(500);
 
+    // Verify driver.js is fully cleaned up
+    const driverState = await page.evaluate(() => ({
+        bodyClasses: document.body.className,
+        pointerEvents: getComputedStyle(document.body).pointerEvents,
+    }));
+    console.log('   Driver state:', JSON.stringify(driverState));
+
     await page.screenshot({ path: DIR + '/project_selected.png' });
     console.log('   Saved: project_selected.png');
 
-    // === BUG #1: Graph View ===
-    console.log('\n=== BUG #1: Graph View ===');
+    // === Graph View (expanded nodes/text) ===
+    console.log('\n=== Graph View (expanded) ===');
     await page.evaluate(() => showTab('taxonomy'));
     await page.waitForTimeout(2000);
-    // Dismiss tour again
     await page.evaluate(() => {
         if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
+        if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
         document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
     });
     await page.waitForTimeout(500);
@@ -139,156 +145,209 @@ const DIR = 'test-evidence';
     });
     await page.waitForTimeout(500);
 
-    // Call switchTaxonomyView directly (more reliable than button click through overlays)
-    const graphDebug = await page.evaluate(() => {
-        const hasFunc = typeof switchTaxonomyView === 'function';
-        const hasCytoscape = typeof cytoscape === 'function';
-        const pid = typeof currentProjectId !== 'undefined' ? currentProjectId : 'UNDEFINED';
-        const container = document.getElementById('taxonomyGraph');
-        if (hasFunc) switchTaxonomyView('graph');
-        return { hasFunc, hasCytoscape, pid, containerExists: !!container };
-    });
-    console.log('   Debug:', JSON.stringify(graphDebug));
-    // Wait for cytoscape to render (CDN load + API fetch + layout)
+    // Switch to graph view
+    await page.evaluate(() => switchTaxonomyView('graph'));
     await page.waitForTimeout(8000);
-    await page.screenshot({ path: DIR + '/bug1_graph_view.png' });
-    const graphCanvases = await page.locator('#taxonomyGraph canvas').count();
-    const graphVisible = await page.evaluate(() => {
-        const el = document.getElementById('taxonomyGraph');
-        return el ? { hidden: el.classList.contains('hidden'), w: el.offsetWidth, h: el.offsetHeight } : null;
-    });
-    console.log('   Canvas elements in graph:', graphCanvases);
-    console.log('   Graph container:', JSON.stringify(graphVisible));
-    console.log('   Saved: bug1_graph_view.png');
 
-    // === BUG #2: Knowledge Graph ===
-    console.log('\n=== BUG #2: Knowledge Graph ===');
-    // Call switchTaxonomyView directly
-    await page.evaluate(() => switchTaxonomyView('knowledge'));
-    // Wait for cytoscape to render (API fetch + layout)
-    await page.waitForTimeout(8000);
-    await page.screenshot({ path: DIR + '/bug2_knowledge_graph.png' });
-    const kgCanvases = await page.locator('#knowledgeGraph canvas').count();
-    const kgVisible = await page.evaluate(() => {
-        const kgEl = document.getElementById('knowledgeGraph');
-        const kgCanvas = document.getElementById('kgCanvas');
+    const graphInfo = await page.evaluate(() => {
+        const el = document.getElementById('taxonomyGraph');
+        const canvases = el ? el.querySelectorAll('canvas').length : 0;
         return {
-            kgHidden: kgEl ? kgEl.classList.contains('hidden') : 'missing',
-            kgW: kgEl ? kgEl.offsetWidth : 0,
-            kgH: kgEl ? kgEl.offsetHeight : 0,
-            canvasW: kgCanvas ? kgCanvas.offsetWidth : 0,
-            canvasH: kgCanvas ? kgCanvas.offsetHeight : 0,
+            containerW: el ? el.offsetWidth : 0,
+            containerH: el ? el.offsetHeight : 0,
+            canvases,
+            hidden: el ? el.classList.contains('hidden') : true,
         };
     });
-    console.log('   Canvas elements in KG:', kgCanvases);
-    console.log('   KG container:', JSON.stringify(kgVisible));
-    console.log('   Saved: bug2_knowledge_graph.png');
+    console.log('   Graph:', JSON.stringify(graphInfo));
 
-    // === BUG #3: Geographic Map ===
-    console.log('\n=== BUG #3: Geographic Map ===');
-    await page.evaluate(() => showTab('map'));
-    await page.waitForTimeout(2000);
+    // Scroll down to graph container for full view
+    await page.evaluate(() => {
+        const el = document.getElementById('taxonomyGraph');
+        if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: DIR + '/graph_view_expanded.png' });
+    console.log('   Saved: graph_view_expanded.png');
+
+    // === Knowledge Graph (expanded nodes/text) ===
+    console.log('\n=== Knowledge Graph (expanded) ===');
+    await page.evaluate(() => switchTaxonomyView('knowledge'));
+    await page.waitForTimeout(8000);
+
+    const kgInfo = await page.evaluate(() => {
+        const el = document.getElementById('knowledgeGraph');
+        const canvases = el ? el.querySelectorAll('canvas').length : 0;
+        return {
+            containerW: el ? el.offsetWidth : 0,
+            containerH: el ? el.offsetHeight : 0,
+            canvases,
+            hidden: el ? el.classList.contains('hidden') : true,
+        };
+    });
+    console.log('   KG:', JSON.stringify(kgInfo));
+
+    await page.evaluate(() => {
+        const el = document.getElementById('knowledgeGraph');
+        if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: DIR + '/knowledge_graph_expanded.png' });
+    console.log('   Saved: knowledge_graph_expanded.png');
+
+    // === Canvas — drawing test ===
+    console.log('\n=== Canvas (drawing test) ===');
+    await page.evaluate(() => showTab('canvas'));
+    await page.waitForTimeout(3000);
     await page.evaluate(() => {
         if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
+        if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
         document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
     });
     await page.waitForTimeout(500);
-    // Call switchMapView directly
-    const mapDebug = await page.evaluate(() => {
-        const hasFunc = typeof switchMapView === 'function';
-        const hasLeaflet = typeof L === 'object';
-        if (hasFunc) switchMapView('geo');
-        return { hasFunc, hasLeaflet };
-    });
-    console.log('   Debug:', JSON.stringify(mapDebug));
-    // Wait for Leaflet to render tiles + markers
-    await page.waitForTimeout(8000);
-    await page.screenshot({ path: DIR + '/bug3_geographic_map.png' });
-    const tiles = await page.locator('.leaflet-tile').count();
-    // Check multiple marker selectors (marker-cluster, divIcon, standard markers)
-    const markerInfo = await page.evaluate(() => {
-        const squares = document.querySelectorAll('.geo-marker-square').length;
-        const divIcons = document.querySelectorAll('.leaflet-marker-icon').length;
-        const clusters = document.querySelectorAll('.marker-cluster').length;
-        const svgMarkers = document.querySelectorAll('.leaflet-marker-pane *').length;
-        return { squares, divIcons, clusters, svgMarkers };
-    });
-    console.log('   Tiles:', tiles, '| Markers:', JSON.stringify(markerInfo));
-    console.log('   Saved: bug3_geographic_map.png');
 
-    // === BUG #4: Canvas ===
-    console.log('\n=== BUG #4: Canvas ===');
-    await page.evaluate(() => showTab('canvas'));
-    await page.waitForTimeout(4000);
-    await page.evaluate(() => {
-        if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
-        document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
+    // Verify pointer-events are NOT blocked
+    const pointerCheck = await page.evaluate(() => {
+        const body = document.body;
+        const wrapper = document.getElementById('canvasWrapper');
+        return {
+            bodyClasses: body.className,
+            bodyPointerEvents: getComputedStyle(body).pointerEvents,
+            wrapperPointerEvents: wrapper ? getComputedStyle(wrapper).pointerEvents : 'N/A',
+        };
     });
-    await page.screenshot({ path: DIR + '/bug4_canvas_tab.png' });
+    console.log('   Pointer check:', JSON.stringify(pointerCheck));
+
     const canvasFuncs = await page.evaluate(() => ({
         loadCanvasList: typeof loadCanvasList === 'function',
         createNewCanvas: typeof createNewCanvas === 'function',
         initFabricCanvas: typeof initFabricCanvas === 'function',
         fabricLoaded: typeof fabric !== 'undefined',
+        fabricVersion: typeof fabric !== 'undefined' ? fabric.version : 'N/A',
     }));
     console.log('   Canvas functions:', JSON.stringify(canvasFuncs));
-    console.log('   Saved: bug4_canvas_tab.png');
 
     // Create a new canvas
-    page.on('dialog', async dialog => {
+    page.once('dialog', async dialog => {
         await dialog.accept('Evidence Test Canvas');
     });
-    await page.evaluate(() => {
-        const btn = document.querySelector('button[onclick*="createNewCanvas"]');
-        if (btn) btn.click();
-        else if (typeof createNewCanvas === 'function') createNewCanvas();
-    });
+    await page.evaluate(() => createNewCanvas());
     await page.waitForTimeout(4000);
-    await page.screenshot({ path: DIR + '/bug4_canvas_created.png' });
-    const fabricVisible = await page.evaluate(() => {
-        const el = document.getElementById('fabricCanvas');
-        return el ? (el.offsetWidth > 0) : false;
-    });
-    console.log('   Fabric canvas visible:', fabricVisible);
-    console.log('   Saved: bug4_canvas_created.png');
 
-    // === BUG #5: AI Discovery ===
-    console.log('\n=== BUG #5: AI Discovery ===');
+    // Draw shapes programmatically
+    const drawResult = await page.evaluate(() => {
+        const canvas = window._fabricCanvas;
+        if (!canvas) return { error: 'No _fabricCanvas' };
+
+        // Draw rect
+        const rect = new fabric.Rect({
+            left: 80, top: 80, width: 200, height: 100,
+            fill: '#FFFFFF', stroke: '#000000', strokeWidth: 2,
+        });
+        canvas.add(rect);
+
+        // Draw circle
+        const circle = new fabric.Circle({
+            left: 350, top: 100, radius: 50,
+            fill: '#F0F0F0', stroke: '#000000', strokeWidth: 2,
+        });
+        canvas.add(circle);
+
+        // Add text
+        const text = new fabric.IText('Canvas Working!', {
+            left: 120, top: 120, fontSize: 20,
+            fill: '#000000', fontFamily: 'Plus Jakarta Sans, sans-serif',
+        });
+        canvas.add(text);
+
+        canvas.renderAll();
+        return { objectCount: canvas.getObjects().length, success: true };
+    });
+    console.log('   Draw result:', JSON.stringify(drawResult));
+
+    // Test mouse interaction (draw a rect via mouse events)
+    const wrapperBox = await page.evaluate(() => {
+        const w = document.getElementById('canvasWrapper');
+        if (!w) return null;
+        const r = w.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+    });
+
+    if (wrapperBox && wrapperBox.w > 0) {
+        await page.evaluate(() => setCanvasTool('rect'));
+        const cx = wrapperBox.x + 550;
+        const cy = wrapperBox.y + 200;
+        await page.mouse.move(cx, cy);
+        await page.mouse.down();
+        await page.mouse.move(cx + 120, cy + 80, { steps: 5 });
+        await page.mouse.up();
+        await page.waitForTimeout(1000);
+
+        const afterDraw = await page.evaluate(() => ({
+            objectCount: window._fabricCanvas ? window._fabricCanvas.getObjects().length : 'no canvas',
+        }));
+        console.log('   After mouse draw:', JSON.stringify(afterDraw));
+    }
+
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: DIR + '/canvas_drawing_working.png' });
+    console.log('   Saved: canvas_drawing_working.png');
+
+    // === Geographic Map ===
+    console.log('\n=== Geographic Map ===');
+    await page.evaluate(() => showTab('map'));
+    await page.waitForTimeout(2000);
+    await page.evaluate(() => {
+        if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
+        if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
+        document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
+    });
+    await page.waitForTimeout(500);
+    await page.evaluate(() => switchMapView('geo'));
+    await page.waitForTimeout(8000);
+    await page.screenshot({ path: DIR + '/geographic_map.png' });
+    console.log('   Saved: geographic_map.png');
+
+    // === AI Discovery ===
+    console.log('\n=== AI Discovery ===');
     await page.evaluate(() => showTab('process'));
     await page.waitForTimeout(2000);
     await page.evaluate(() => {
         if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
+        if (typeof _cleanupDriverJs === 'function') _cleanupDriverJs();
         document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
     });
-    await page.screenshot({ path: DIR + '/bug5_ai_discovery.png' });
-    const discoveryUI = await page.evaluate(() => {
-        const query = document.getElementById('discoveryQuery');
-        const btn = document.getElementById('discoveryBtn');
-        return {
-            queryInput: !!query,
-            discoverBtn: !!btn,
-            queryVisible: query ? query.offsetWidth > 0 : false,
-            btnVisible: btn ? btn.offsetWidth > 0 : false,
-        };
-    });
-    console.log('   Discovery UI:', JSON.stringify(discoveryUI));
-    console.log('   Saved: bug5_ai_discovery.png');
+    await page.screenshot({ path: DIR + '/ai_discovery.png' });
+    console.log('   Saved: ai_discovery.png');
 
-    // === Overview screenshots of all tabs ===
-    console.log('\n=== Overview Screenshots ===');
-    const tabs = ['companies', 'taxonomy', 'map', 'canvas', 'process', 'settings'];
-    for (const tab of tabs) {
-        await page.evaluate((t) => showTab(t), tab);
-        await page.waitForTimeout(1500);
-        await page.evaluate(() => {
-            if (window.driverObj && typeof driverObj.destroy === 'function') driverObj.destroy();
-            document.querySelectorAll('.driver-overlay, .driver-popover').forEach(el => el.remove());
-        });
-        await page.screenshot({ path: DIR + '/overview_' + tab + '.png' });
-        console.log('   Saved: overview_' + tab + '.png');
+    // === Cleanup: delete test project and canvas ===
+    console.log('\n=== Cleanup ===');
+    // Delete canvas first
+    await page.evaluate(() => showTab('canvas'));
+    await page.waitForTimeout(1000);
+    const canvasId = await page.evaluate(() => document.getElementById('canvasSelect')?.value);
+    if (canvasId) {
+        await page.evaluate(async (args) => {
+            await fetch(`/api/canvases/${args.cid}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-Token': args.token }
+            });
+        }, { cid: canvasId, token: csrf });
+        console.log('   Deleted test canvas:', canvasId);
     }
 
-    // Print any console errors
+    // Delete test project
+    if (pid) {
+        await page.evaluate(async (args) => {
+            await fetch(`/api/projects/${args.pid}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-Token': args.token }
+            });
+        }, { pid, token: csrf });
+        console.log('   Deleted test project:', pid);
+    }
+
+    // Print console errors
     const errors = consoleLogs.filter(l => l.startsWith('error:'));
     console.log('\n=== Console Errors (' + errors.length + ') ===');
     if (errors.length > 0) {

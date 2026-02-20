@@ -460,6 +460,8 @@ function initFabricCanvas(data) {
         selectionBorderColor: _INST.selectionBorder,
         selectionLineWidth: 1,
     });
+    // Expose on window for external access (tests, dev console)
+    window._fabricCanvas = _fabricCanvas;
 
     // "The Instrument" selection handle styling
     fabric.Object.prototype.set({

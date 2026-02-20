@@ -284,7 +284,7 @@ h1, h2, h3, h4, h5, h6 {
 .review-textarea { width: 100%; margin-bottom: 8px; padding: 8px; border: none; border-bottom: 1px solid var(--border-default); border-radius: 0; background: var(--bg-input); color: var(--text-primary); font-size: 13px; resize: vertical; }
 .modal-narrow { width: 500px; }
 .chart-container { width: 100%; height: 300px; }
-.graph-container { width: 100%; height: 500px; border: 1px solid var(--border-default); border-radius: 0; background: var(--bg-container); }
+.graph-container { width: 100%; height: 600px; min-height: 500px; border: 1px solid var(--border-default); border-radius: 0; background: var(--bg-container); }
 .geo-map-container { width: 100%; height: 500px; border-radius: 0; z-index: 1; }
 .auto-layout-container { width: 100%; height: 600px; border: 1px solid var(--border-default); border-radius: 0; background: var(--bg-container); }
 .hint-inline { margin-left: 8px; }

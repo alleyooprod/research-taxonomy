@@ -399,7 +399,8 @@
 /* ========== Knowledge Graph ========== */
 .kg-container {
     width: 100%;
-    height: 500px;
+    height: 600px;
+    min-height: 500px;
     border: 1px solid var(--border-default);
     border-radius: 0;
     background: var(--bg-container);

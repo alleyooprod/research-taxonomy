@@ -191,9 +191,11 @@ function initHotkeys() {
 // --- Driver.js (Product Tour) ---
 function startProductTour() {
     if (!window.driver) return;
-    const driverObj = driver.js.driver({
+    window.driverObj = driver.js.driver({
         showProgress: true,
         animate: true,
+        onDestroyed: typeof _cleanupDriverJs === 'function' ? _cleanupDriverJs : undefined,
+        onDestroyStarted: typeof _cleanupDriverJs === 'function' ? _cleanupDriverJs : undefined,
         steps: [
             { element: '#tab-companies', popover: { title: 'Companies Tab', description: 'Browse, search, and manage all researched companies. Use fuzzy search to find companies by name, category, or geography.', position: 'bottom' } },
             { element: '#searchInput', popover: { title: 'Smart Search', description: 'Powered by Fuse.js — type anything and it fuzzy-matches across name, description, category, tags, and geography. Press / to focus.', position: 'bottom' } },
@@ -205,7 +207,7 @@ function startProductTour() {
             { popover: { title: 'Keyboard Shortcuts', description: 'Press ? for full shortcut list. j/k navigate rows, 1-5 switch tabs, / focuses search, Ctrl+K opens search, Ctrl+E exports Excel.', position: 'center' } },
         ],
     });
-    driverObj.drive();
+    window.driverObj.drive();
 }
 
 // --- canvas-confetti (Batch Complete Celebration) ---
