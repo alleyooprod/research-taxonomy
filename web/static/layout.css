@@ -676,6 +676,189 @@ textarea {
 .entity-form { display: flex; flex-direction: column; gap: 12px; max-width: 500px; }
 .entity-form .form-group { margin-bottom: 0; }
 
+/* ========== Schema Refinement Panel ========== */
+.refine-panel {
+    margin-top: 16px;
+    border: 1px solid var(--border-default);
+    padding: 16px;
+    background: var(--bg-page);
+}
+.refine-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.refine-header .section-label { margin-bottom: 0; }
+.refine-loading {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+}
+.refine-loading-text {
+    font-size: 13px;
+    font-family: var(--font-mono);
+}
+.refine-error {
+    padding: 20px;
+    color: var(--accent-danger);
+    font-size: 13px;
+}
+/* Completeness score */
+.refine-score-section { margin-bottom: 16px; }
+.refine-score-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+.refine-score-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+.refine-score-value {
+    font-size: 20px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+}
+.refine-bar-track {
+    height: 6px;
+    background: var(--border-default);
+    width: 100%;
+}
+.refine-bar-fill {
+    height: 100%;
+    background: var(--text-primary);
+    transition: width var(--duration-normal) var(--ease-standard);
+}
+/* Sub-scores */
+.refine-sub-scores {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.refine-sub-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.refine-sub-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    min-width: 100px;
+}
+.refine-sub-bar-track {
+    flex: 1;
+    height: 3px;
+    background: var(--border-default);
+}
+.refine-sub-bar-fill {
+    height: 100%;
+    background: var(--text-secondary);
+    transition: width var(--duration-normal) var(--ease-standard);
+}
+.refine-sub-value {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    min-width: 28px;
+    text-align: right;
+}
+/* Challenges */
+.refine-challenges { margin-bottom: 16px; }
+.refine-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-bottom: 8px;
+}
+.refine-challenge-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.refine-challenge-list li {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-default);
+    line-height: 1.4;
+}
+.refine-challenge-list li:last-child { border-bottom: none; }
+/* Suggestion cards */
+.refine-suggestions { margin-bottom: 16px; }
+.refine-suggestion-card {
+    border: 1px solid var(--border-default);
+    padding: 12px;
+    margin-bottom: 8px;
+    transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.refine-suggestion-card:hover { border-color: var(--text-muted); }
+.refine-suggestion-applied {
+    opacity: 0.5;
+    border-color: var(--text-muted);
+}
+.refine-suggestion-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.refine-suggestion-badge {
+    display: inline-block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border: 1px solid var(--border-default);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+.refine-badge-add_type { border-color: var(--text-primary); color: var(--text-primary); }
+.refine-badge-add_attribute { border-color: var(--text-secondary); color: var(--text-secondary); }
+.refine-badge-modify_attribute { border-color: var(--text-muted); color: var(--text-muted); }
+.refine-badge-add_relationship { border-color: var(--text-secondary); color: var(--text-secondary); }
+.refine-badge-remove_attribute { border-color: var(--accent-danger); color: var(--accent-danger); }
+.refine-suggestion-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.refine-suggestion-reasoning {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+.refine-suggestion-actions {
+    display: flex;
+    gap: 6px;
+}
+/* Feedback */
+.refine-feedback {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-default);
+}
+.refine-feedback textarea {
+    flex: 1;
+    resize: vertical;
+    min-height: 36px;
+}
+
 .btn-sm { padding: 2px 8px; font-size: 11px; }
 
 /* ========== Undo Toast — Black bg, white text, no radius ========== */

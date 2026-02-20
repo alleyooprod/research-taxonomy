@@ -420,6 +420,10 @@ async function _loadDesignLens() {
                     onclick="_switchDesignSubView('gallery')">Gallery</button>
             <button class="lens-subview-btn"
                     onclick="_switchDesignSubView('journey')">Journey Map</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchDesignSubView('patterns')">Pattern Library</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchDesignSubView('scoring')">UX Scoring</button>
         </div>
         <div id="designSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading evidence&hellip;</div>
@@ -456,10 +460,11 @@ async function _populateDesignEntitySelector() {
 function _onDesignEntityChange() {
     const sel = document.getElementById('designEntitySelect');
     _lensEntityFilter = sel ? (sel.value || null) : null;
-    if (_lensSubView === 'journey') {
-        _loadDesignJourneyData();
-    } else {
-        _loadDesignGalleryData();
+    switch (_lensSubView) {
+        case 'journey':  _loadDesignJourneyData();  break;
+        case 'patterns': _loadDesignPatternsData(); break;
+        case 'scoring':  _loadDesignScoringData();  break;
+        default:         _loadDesignGalleryData();  break;
     }
 }
 
@@ -467,12 +472,17 @@ function _switchDesignSubView(view) {
     _lensSubView = view;
     const bar = document.getElementById('designSubBar');
     if (bar) {
+        const viewMap = { gallery: 0, journey: 1, patterns: 2, scoring: 3 };
         bar.querySelectorAll('.lens-subview-btn').forEach((btn, i) => {
-            btn.classList.toggle('lens-subview-btn-active', (view === 'gallery' && i === 0) || (view === 'journey' && i === 1));
+            btn.classList.toggle('lens-subview-btn-active', i === viewMap[view]);
         });
     }
-    if (view === 'gallery') _loadDesignGalleryData();
-    else _loadDesignJourneyData();
+    switch (view) {
+        case 'gallery':  _loadDesignGalleryData();  break;
+        case 'journey':  _loadDesignJourneyData();  break;
+        case 'patterns': _loadDesignPatternsData(); break;
+        case 'scoring':  _loadDesignScoringData();  break;
+    }
 }
 
 async function _loadDesignGalleryData() {
@@ -628,6 +638,209 @@ function _closeLightbox() {
     _lensExpandedImage = null;
     const lb = document.getElementById('galleryLightbox');
     if (lb) lb.classList.add('hidden');
+}
+
+// ── Design Lens: Pattern Library ──────────────────────────────
+
+let _patternCategoryFilter = null;  // Current category filter for pattern library
+
+async function _loadDesignPatternsData() {
+    const sub = document.getElementById('designSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading pattern library&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/design/patterns?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Patterns', 'No design patterns found in evidence or attributes.'); return; }
+        const data = await resp.json();
+        _patternCategoryFilter = null;
+        sub.innerHTML = _renderPatternLibrary(data);
+    } catch (e) {
+        console.warn('Pattern library load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load pattern library.');
+    }
+}
+
+function _renderPatternLibrary(data) {
+    const patterns = data.patterns || [];
+    const categories = data.categories || [];
+
+    if (!patterns.length) {
+        return _lensEmptyState('No Patterns Found',
+            'Capture screenshots and run extractions to discover design patterns.');
+    }
+
+    const filterPills = categories.map(cat =>
+        `<button class="pattern-filter-pill ${_patternCategoryFilter === cat ? 'pattern-filter-pill-active' : ''}"
+                onclick="_filterPatternCategory('${escAttr(cat)}')">${esc(cat.replace('_', ' '))}</button>`
+    ).join('');
+
+    const allActive = !_patternCategoryFilter ? 'pattern-filter-pill-active' : '';
+
+    const filtered = _patternCategoryFilter
+        ? patterns.filter(p => p.category === _patternCategoryFilter)
+        : patterns;
+
+    const cards = filtered.map(p => {
+        const entityList = (p.entities || []).map(e =>
+            `<span class="pattern-entity-tag">${esc(_truncateLabel(e, 16))}</span>`
+        ).join('');
+
+        const evidenceLinks = (p.evidence_ids || []).slice(0, 5).map(id =>
+            `<span class="pattern-evidence-link" title="Evidence #${id}">#${id}</span>`
+        ).join(' ');
+
+        return `
+            <div class="pattern-card">
+                <div class="pattern-card-header">
+                    <span class="pattern-card-name">${esc(p.name)}</span>
+                    <span class="pattern-card-count">${p.occurrences || 0}</span>
+                </div>
+                <div class="pattern-card-category">${esc((p.category || '').replace('_', ' '))}</div>
+                ${p.description ? `<div class="pattern-card-desc">${esc(_truncateLabel(p.description, 80))}</div>` : ''}
+                ${entityList ? `<div class="pattern-card-entities">${entityList}</div>` : ''}
+                ${evidenceLinks ? `<div class="pattern-card-evidence">${evidenceLinks}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="pattern-meta">
+            <span class="pattern-meta-stat">${data.total_patterns || 0} patterns</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="pattern-meta-stat">${data.total_evidence || 0} evidence items</span>
+        </div>
+        <div class="pattern-filter-bar">
+            <button class="pattern-filter-pill ${allActive}" onclick="_filterPatternCategory(null)">All</button>
+            ${filterPills}
+        </div>
+        <div class="pattern-grid">
+            ${cards}
+        </div>
+    `;
+}
+
+function _filterPatternCategory(category) {
+    _patternCategoryFilter = category;
+    // Re-fetch and re-render (data is cached via browser)
+    _loadDesignPatternsData();
+}
+
+// ── Design Lens: UX Scoring ──────────────────────────────────
+
+async function _loadDesignScoringData() {
+    const sub = document.getElementById('designSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Computing UX scores&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/design/scoring?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Scoring Data', 'Capture evidence to enable UX scoring.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderUXScoring(data);
+    } catch (e) {
+        console.warn('UX scoring load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not compute UX scores.');
+    }
+}
+
+function _renderUXScoring(data) {
+    const entities = data.entities || [];
+
+    if (!entities.length) {
+        return _lensEmptyState('No Entities with Evidence',
+            'Capture screenshots and evidence for entities to compute UX scores.');
+    }
+
+    const avgScore = data.average_score || 0;
+    const avgPct = Math.round(avgScore * 100);
+
+    const rows = entities.map(e => {
+        const overallPct = Math.round((e.overall_score || 0) * 100);
+        const journeyPct = Math.round((e.journey_coverage || 0) * 100);
+        const evidencePct = Math.round((e.evidence_depth || 0) * 100);
+        const patternPct = Math.round((e.pattern_diversity || 0) * 100);
+        const attrPct = Math.round((e.attribute_completeness || 0) * 100);
+
+        let scoreClass = 'ux-score-weak';
+        if (e.overall_score > 0.7) scoreClass = 'ux-score-strong';
+        else if (e.overall_score >= 0.4) scoreClass = 'ux-score-moderate';
+
+        const stageTags = (e.journey_stages_covered || []).map(s =>
+            `<span class="ux-stage-tag">${esc(s)}</span>`
+        ).join('');
+
+        const patternTags = (e.patterns_found || []).map(p =>
+            `<span class="ux-pattern-tag">${esc(p)}</span>`
+        ).join('');
+
+        return `
+            <div class="ux-entity-row">
+                <div class="ux-entity-header">
+                    <span class="ux-entity-name" title="${escAttr(e.entity_name)}">${esc(_truncateLabel(e.entity_name, 24))}</span>
+                    <span class="ux-overall-pct ${scoreClass}">${overallPct}%</span>
+                </div>
+                <div class="ux-score-bar-wrap">
+                    <div class="ux-score-bar ${scoreClass}" style="width: ${overallPct}%"></div>
+                </div>
+                <div class="ux-sub-scores">
+                    <div class="ux-sub-score">
+                        <span class="ux-sub-label">Journey</span>
+                        <div class="ux-sub-bar-wrap">
+                            <div class="ux-sub-bar" style="width: ${journeyPct}%"></div>
+                        </div>
+                        <span class="ux-sub-pct">${journeyPct}%</span>
+                    </div>
+                    <div class="ux-sub-score">
+                        <span class="ux-sub-label">Evidence</span>
+                        <div class="ux-sub-bar-wrap">
+                            <div class="ux-sub-bar" style="width: ${evidencePct}%"></div>
+                        </div>
+                        <span class="ux-sub-pct">${evidencePct}%</span>
+                    </div>
+                    <div class="ux-sub-score">
+                        <span class="ux-sub-label">Patterns</span>
+                        <div class="ux-sub-bar-wrap">
+                            <div class="ux-sub-bar" style="width: ${patternPct}%"></div>
+                        </div>
+                        <span class="ux-sub-pct">${patternPct}%</span>
+                    </div>
+                    <div class="ux-sub-score">
+                        <span class="ux-sub-label">Attributes</span>
+                        <div class="ux-sub-bar-wrap">
+                            <div class="ux-sub-bar" style="width: ${attrPct}%"></div>
+                        </div>
+                        <span class="ux-sub-pct">${attrPct}%</span>
+                    </div>
+                </div>
+                <div class="ux-entity-details">
+                    <span class="ux-detail-stat">${e.total_evidence || 0} evidence</span>
+                    ${stageTags ? `<div class="ux-stage-tags">${stageTags}</div>` : ''}
+                    ${patternTags ? `<div class="ux-pattern-tags">${patternTags}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="ux-scoring-meta">
+            <span class="ux-meta-stat">${entities.length} entities scored</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="ux-meta-stat">Average: <strong>${avgPct}%</strong></span>
+        </div>
+        <div class="ux-scoring-legend">
+            <span class="ux-legend-item ux-score-strong">Strong (&gt;70%)</span>
+            <span class="ux-legend-item ux-score-moderate">Moderate (40&ndash;70%)</span>
+            <span class="ux-legend-item ux-score-weak">Weak (&lt;40%)</span>
+        </div>
+        <div class="ux-scoring-list">
+            ${rows}
+        </div>
+    `;
 }
 
 // ── Temporal Lens ────────────────────────────────────────────
@@ -1515,3 +1728,4 @@ window._onTemporalEntityChange   = _onTemporalEntityChange;
 window._expandGalleryItem        = _expandGalleryItem;
 window._closeLightbox            = _closeLightbox;
 window._runComparison            = _runComparison;
+window._filterPatternCategory    = _filterPatternCategory;

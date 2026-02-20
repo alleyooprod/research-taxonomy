@@ -900,6 +900,400 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Pattern Library
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Pattern Meta ──────────────────────────────────────────── */
+
+.pattern-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.pattern-meta-stat {
+    color: var(--text-secondary);
+}
+
+/* ── Category Filter Bar ───────────────────────────────────── */
+
+.pattern-filter-bar {
+    display: flex;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.pattern-filter-pill {
+    padding: 3px 12px;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    font-family: var(--font-mono);
+    border: 1px solid var(--border-default);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-standard),
+                color var(--duration-fast) var(--ease-standard),
+                background var(--duration-fast) var(--ease-standard);
+}
+
+.pattern-filter-pill:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.pattern-filter-pill-active {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+}
+
+/* ── Pattern Grid ──────────────────────────────────────────── */
+
+.pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-3);
+}
+
+/* ── Pattern Card ──────────────────────────────────────────── */
+
+.pattern-card {
+    border: 1px solid var(--border-default);
+    border-bottom: 2px solid var(--border-default);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.pattern-card:hover {
+    border-color: var(--text-secondary);
+}
+
+.pattern-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.pattern-card-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.pattern-card-count {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    padding: 1px 6px;
+    border: 1px solid var(--border-default);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.pattern-card-category {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.pattern-card-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    line-height: var(--line-height-relaxed);
+}
+
+.pattern-card-entities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.pattern-entity-tag {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    padding: 1px 6px;
+    border: 1px solid var(--border-default);
+}
+
+.pattern-card-evidence {
+    display: flex;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    margin-top: var(--space-1);
+}
+
+.pattern-evidence-link {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UX Scoring
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Scoring Meta ──────────────────────────────────────────── */
+
+.ux-scoring-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.ux-meta-stat {
+    color: var(--text-secondary);
+}
+
+.ux-meta-stat strong {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+/* ── Scoring Legend ────────────────────────────────────────── */
+
+.ux-scoring-legend {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+}
+
+.ux-legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text-muted);
+}
+
+.ux-legend-item::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 8px;
+}
+
+.ux-legend-item.ux-score-strong::before {
+    background: var(--text-primary);
+}
+
+.ux-legend-item.ux-score-moderate::before {
+    background: var(--text-secondary);
+}
+
+.ux-legend-item.ux-score-weak::before {
+    background: var(--border-default);
+}
+
+/* ── Scoring List ──────────────────────────────────────────── */
+
+.ux-scoring-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+/* ── Entity Row ────────────────────────────────────────────── */
+
+.ux-entity-row {
+    border: 1px solid var(--border-default);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.ux-entity-row:hover {
+    border-color: var(--text-secondary);
+}
+
+.ux-entity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.ux-entity-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ux-overall-pct {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono);
+    font-weight: 700;
+}
+
+.ux-overall-pct.ux-score-strong {
+    color: var(--text-primary);
+}
+
+.ux-overall-pct.ux-score-moderate {
+    color: var(--text-secondary);
+}
+
+.ux-overall-pct.ux-score-weak {
+    color: var(--text-muted);
+}
+
+/* ── Overall Score Bar ─────────────────────────────────────── */
+
+.ux-score-bar-wrap {
+    height: 10px;
+    background: var(--bg-surface-hover);
+    border: 1px solid var(--border-default);
+    position: relative;
+    overflow: hidden;
+}
+
+.ux-score-bar {
+    height: 100%;
+    transition: width var(--duration-normal) var(--ease-standard);
+}
+
+.ux-score-bar.ux-score-strong {
+    background: var(--text-primary);
+}
+
+.ux-score-bar.ux-score-moderate {
+    background: var(--text-secondary);
+}
+
+.ux-score-bar.ux-score-weak {
+    background: var(--border-default);
+}
+
+/* ── Sub-scores ────────────────────────────────────────────── */
+
+.ux-sub-scores {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-2);
+}
+
+.ux-sub-score {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.ux-sub-label {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    min-width: 56px;
+    flex-shrink: 0;
+}
+
+.ux-sub-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-surface-hover);
+    border: 1px solid var(--border-default);
+    overflow: hidden;
+}
+
+.ux-sub-bar {
+    height: 100%;
+    background: var(--text-secondary);
+    transition: width var(--duration-normal) var(--ease-standard);
+}
+
+.ux-sub-pct {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* ── Entity Details ────────────────────────────────────────── */
+
+.ux-entity-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.ux-detail-stat {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.ux-stage-tags,
+.ux-pattern-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.ux-stage-tag,
+.ux-pattern-tag {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    padding: 1px 5px;
+    border: 1px solid var(--border-default);
+}
+
+.ux-stage-tag {
+    color: var(--text-secondary);
+}
+
+.ux-pattern-tag {
+    color: var(--text-muted);
+}
+
+/* ── Responsive: Pattern + Scoring ─────────────────────────── */
+
+@media (max-width: 768px) {
+    .pattern-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ux-sub-scores {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .pattern-filter-bar {
+        gap: 3px;
+    }
+
+    .ux-scoring-legend {
+        flex-wrap: wrap;
+        gap: var(--space-2);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
    Timeline View
    ═══════════════════════════════════════════════════════════ */
 

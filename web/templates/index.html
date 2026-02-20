@@ -437,6 +437,7 @@
                     <div class="entity-breadcrumbs hidden" id="entityBreadcrumbs"></div>
                     <div class="entity-controls">
                         <input type="text" id="entitySearchInput" placeholder="Search entities... (/)" oninput="debounceEntitySearch()" aria-label="Search entities">
+                        <button class="btn" onclick="refineSchema()" title="AI schema refinement">Refine Schema</button>
                         <button class="primary-btn" onclick="openEntityCreateModal()">+ New</button>
                     </div>
 
@@ -470,6 +471,9 @@
                             <div id="entityModalBody"></div>
                         </div>
                     </div>
+
+                    <!-- Schema Refinement Panel -->
+                    <div id="schemaRefinePanel" class="refine-panel hidden"></div>
                 </div>
 
                 <!-- ===== Company View (original, shown for flat schemas) ===== -->

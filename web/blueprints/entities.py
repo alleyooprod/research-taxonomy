@@ -186,6 +186,311 @@ Rules:
         return jsonify({"error": f"Schema suggestion failed: {str(e)}"}), 500
 
 
+@entities_bp.route("/api/schema/refine", methods=["POST"])
+def refine_schema():
+    """AI-powered schema refinement with challenges and suggestions.
+
+    Input: {
+        project_id: int,
+        current_schema: dict,
+        research_goal: str,
+        feedback: str (optional — user feedback on previous suggestions)
+    }
+    Output: {
+        suggestions: [...],
+        challenges: [...],
+        completeness_score: float,
+        completeness_areas: {...}
+    }
+    """
+    data = request.json or {}
+    project_id = data.get("project_id")
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    current_schema = data.get("current_schema")
+    if not current_schema:
+        # Try to load from project
+        project = current_app.db.get_project(project_id)
+        if project and project.get("entity_schema"):
+            current_schema = json.loads(project["entity_schema"]) if isinstance(
+                project["entity_schema"], str
+            ) else project["entity_schema"]
+        if not current_schema:
+            return jsonify({"error": "current_schema is required"}), 400
+
+    research_goal = data.get("research_goal", "").strip()
+    feedback = data.get("feedback", "").strip()
+
+    # Try AI-powered refinement first, fall back to rule-based
+    try:
+        result = _ai_refine_schema(current_schema, research_goal, feedback)
+        return jsonify(result)
+    except Exception as e:
+        logger.warning("AI schema refinement failed, using rule-based: %s", e)
+        result = _rule_based_refine(current_schema, research_goal)
+        return jsonify(result)
+
+
+def _ai_refine_schema(current_schema, research_goal, feedback):
+    """Use LLM to analyse and suggest schema improvements."""
+    from core.llm import run_cli
+
+    schema_json = json.dumps(current_schema, indent=2)
+
+    prompt = f"""You are a research methodology expert reviewing an entity schema for a research workbench.
+
+CURRENT SCHEMA:
+{schema_json}
+
+RESEARCH GOAL: {research_goal or "(not specified)"}
+
+{f"USER FEEDBACK ON PREVIOUS SUGGESTIONS: {feedback}" if feedback else ""}
+
+Analyse this schema critically. Your job is to:
+
+1. CHALLENGE assumptions — identify gaps, missing entity types, under-specified attributes, and structural weaknesses.
+2. SUGGEST 3-6 specific improvements ranked by impact on research quality. Each suggestion must be one of these types:
+   - add_type: Add a new entity type (include full definition with attributes)
+   - add_attribute: Add a new attribute to an existing type
+   - modify_attribute: Change an existing attribute (e.g. text to enum, add enum_values)
+   - add_relationship: Add a relationship between entity types
+   - remove_attribute: Suggest removing a low-value attribute
+3. SCORE completeness across 4 dimensions (0.0 to 1.0):
+   - entity_coverage: Are all relevant things being tracked?
+   - attribute_depth: Are attributes rich enough for analysis?
+   - relationship_richness: Are connections between entities captured?
+   - analysis_readiness: Could you run competitive/product/temporal analysis with this data?
+
+Rules:
+- Available data_types: text, number, boolean, currency, enum, url, date, json, image_ref, tags
+- Enum attributes need enum_values array
+- Each entity type needs a slug (lowercase, hyphenated)
+- schema_change must be a concrete, applicable change dict
+- Be specific and opinionated — don't just say "add more attributes", say exactly which ones and why
+- If the research goal mentions a specific domain (insurance, fintech, healthcare), tailor suggestions to that domain"""
+
+    refine_schema_spec = {
+        "type": "object",
+        "properties": {
+            "suggestions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["add_type", "add_attribute", "modify_attribute",
+                                     "add_relationship", "remove_attribute"]
+                        },
+                        "target": {"type": ["string", "null"]},
+                        "suggestion": {"type": "string"},
+                        "reasoning": {"type": "string"},
+                        "schema_change": {"type": "object"}
+                    },
+                    "required": ["type", "suggestion", "reasoning", "schema_change"]
+                }
+            },
+            "challenges": {
+                "type": "array",
+                "items": {"type": "string"}
+            },
+            "completeness_score": {"type": "number"},
+            "completeness_areas": {
+                "type": "object",
+                "properties": {
+                    "entity_coverage": {"type": "number"},
+                    "attribute_depth": {"type": "number"},
+                    "relationship_richness": {"type": "number"},
+                    "analysis_readiness": {"type": "number"}
+                },
+                "required": ["entity_coverage", "attribute_depth",
+                             "relationship_richness", "analysis_readiness"]
+            }
+        },
+        "required": ["suggestions", "challenges", "completeness_score", "completeness_areas"]
+    }
+
+    result = run_cli(
+        prompt=prompt,
+        model="sonnet",
+        timeout=90,
+        json_schema=refine_schema_spec,
+    )
+
+    if result.get("is_error"):
+        raise RuntimeError(result.get("result", "LLM call failed"))
+
+    structured = result.get("structured_output")
+    if not structured:
+        raise RuntimeError("LLM did not return structured output")
+
+    # Clamp scores to 0-1
+    structured["completeness_score"] = max(0.0, min(1.0, structured.get("completeness_score", 0.5)))
+    areas = structured.get("completeness_areas", {})
+    for key in ["entity_coverage", "attribute_depth", "relationship_richness", "analysis_readiness"]:
+        areas[key] = max(0.0, min(1.0, areas.get(key, 0.5)))
+    structured["completeness_areas"] = areas
+
+    structured["cost_usd"] = result.get("cost_usd", 0)
+    return structured
+
+
+def _rule_based_refine(current_schema, research_goal):
+    """Fallback: analyse schema with deterministic rules when LLM unavailable."""
+    entity_types = current_schema.get("entity_types", [])
+    relationships = current_schema.get("relationships", [])
+    suggestions = []
+    challenges = []
+
+    # Common useful attributes that schemas often miss
+    common_attrs = {
+        "website": {"name": "Website", "slug": "website", "data_type": "url"},
+        "description": {"name": "Description", "slug": "description", "data_type": "text"},
+        "url": {"name": "URL", "slug": "url", "data_type": "url"},
+        "founded_year": {"name": "Founded Year", "slug": "founded_year", "data_type": "number"},
+        "hq_country": {"name": "HQ Country", "slug": "hq_country", "data_type": "text"},
+    }
+
+    # 1. Check entity type count
+    type_count = len(entity_types)
+    if type_count < 2:
+        challenges.append(
+            "Your schema has only one entity type — consider whether you need"
+            " sub-entities (e.g. Products under Companies, or Features under Products)"
+            " to capture hierarchical structure."
+        )
+        # Suggest adding a child type
+        if entity_types:
+            parent = entity_types[0]
+            suggestions.append({
+                "type": "add_type",
+                "target": None,
+                "suggestion": f"Add a child entity type under '{parent['name']}'",
+                "reasoning": (
+                    "A single entity type limits your ability to do hierarchical analysis."
+                    " Adding a child type lets you drill down into sub-components."
+                ),
+                "schema_change": {
+                    "slug": "sub-item",
+                    "name": "Sub-Item",
+                    "parent_type": parent.get("slug", ""),
+                    "description": f"A sub-component of {parent['name']}",
+                    "icon": "layers",
+                    "attributes": [
+                        {"name": "Name", "slug": "name", "data_type": "text", "required": True},
+                        {"name": "Description", "slug": "description", "data_type": "text"},
+                    ],
+                },
+            })
+
+    # 2. Check attribute depth per type
+    for et in entity_types:
+        attrs = et.get("attributes", [])
+        attr_slugs = {a.get("slug", "") for a in attrs}
+        type_name = et.get("name", "Unknown")
+
+        if len(attrs) < 3:
+            challenges.append(
+                f"Entity type '{type_name}' has only {len(attrs)} attribute(s)"
+                " — this is quite sparse for meaningful analysis."
+            )
+            # Suggest common missing attributes
+            for slug, attr_def in common_attrs.items():
+                if slug not in attr_slugs:
+                    suggestions.append({
+                        "type": "add_attribute",
+                        "target": et.get("slug", ""),
+                        "suggestion": f"Add '{attr_def['name']}' attribute to {type_name}",
+                        "reasoning": f"'{attr_def['name']}' is a commonly useful attribute for research entities.",
+                        "schema_change": {**attr_def, "required": False},
+                    })
+                    break  # Only suggest one per sparse type
+
+        # 3. Check for missing common attributes
+        if "url" not in attr_slugs and "website" not in attr_slugs:
+            suggestions.append({
+                "type": "add_attribute",
+                "target": et.get("slug", ""),
+                "suggestion": f"Add a URL/website attribute to {type_name}",
+                "reasoning": "Without a URL, you cannot link entities to their web presence for evidence capture.",
+                "schema_change": {"name": "URL", "slug": "url", "data_type": "url", "required": False},
+            })
+
+        # 4. Check for free-text attributes that could be enums
+        for attr in attrs:
+            name_lower = attr.get("name", "").lower()
+            if attr.get("data_type") == "text" and any(
+                kw in name_lower for kw in ["status", "stage", "model", "type", "category", "tier", "level"]
+            ):
+                suggestions.append({
+                    "type": "modify_attribute",
+                    "target": f"{et.get('slug', '')}.{attr.get('slug', '')}",
+                    "suggestion": f"Consider changing '{attr['name']}' from free text to enum",
+                    "reasoning": (
+                        "Attributes like status, stage, or model usually have a finite set of values."
+                        " Using an enum ensures consistency and enables filtering/grouping."
+                    ),
+                    "schema_change": {
+                        "data_type": "enum",
+                        "enum_values": ["(define values based on your domain)"],
+                    },
+                })
+
+    # 5. Check relationships
+    if len(entity_types) >= 2 and len(relationships) == 0:
+        challenges.append(
+            "No relationships defined between entity types."
+            " Consider adding explicit relationships (e.g. competes_with, integrates_with)"
+            " to enable graph analysis."
+        )
+        # Suggest a relationship between first two root types
+        root_types = [et for et in entity_types if not et.get("parent_type")]
+        if len(root_types) >= 2:
+            suggestions.append({
+                "type": "add_relationship",
+                "target": None,
+                "suggestion": f"Add a relationship between {root_types[0]['name']} and {root_types[1]['name']}",
+                "reasoning": "Explicit relationships enable knowledge graph views and cross-entity analysis.",
+                "schema_change": {
+                    "from_type": root_types[0].get("slug", ""),
+                    "to_type": root_types[1].get("slug", ""),
+                    "relationship_type": "related_to",
+                    "name": "related_to",
+                },
+            })
+
+    # Score completeness
+    entity_coverage = min(1.0, type_count / 4.0)  # 4 types = full coverage
+    avg_attrs = (
+        sum(len(et.get("attributes", [])) for et in entity_types) / max(type_count, 1)
+    )
+    attribute_depth = min(1.0, avg_attrs / 8.0)  # 8 attrs avg = full depth
+    rel_count = len(relationships)
+    relationship_richness = min(1.0, rel_count / 3.0)  # 3 rels = full richness
+    analysis_readiness = (entity_coverage + attribute_depth + relationship_richness) / 3.0
+
+    completeness_score = round(
+        (entity_coverage + attribute_depth + relationship_richness + analysis_readiness) / 4.0, 2
+    )
+    completeness_areas = {
+        "entity_coverage": round(entity_coverage, 2),
+        "attribute_depth": round(attribute_depth, 2),
+        "relationship_richness": round(relationship_richness, 2),
+        "analysis_readiness": round(analysis_readiness, 2),
+    }
+
+    # Limit suggestions to 6
+    suggestions = suggestions[:6]
+
+    return {
+        "suggestions": suggestions,
+        "challenges": challenges,
+        "completeness_score": completeness_score,
+        "completeness_areas": completeness_areas,
+    }
+
+
 # ═══════════════════════════════════════════════════════════════
 # Entity Type Definitions
 # ═══════════════════════════════════════════════════════════════

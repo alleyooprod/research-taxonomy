@@ -813,3 +813,336 @@ function _showEntityDetailDropZone(show) {
         }, 200);
     }
 }
+
+// ── Schema Refinement ───────────────────────────────────────
+
+/**
+ * Open the schema refinement flow.
+ * Prompts for research goal, calls the refine API, shows results.
+ */
+async function refineSchema() {
+    const schema = window._currentProjectSchema;
+    if (!schema) {
+        showToast('No schema loaded for this project');
+        return;
+    }
+
+    showPromptDialog(
+        'Research Goal',
+        'Describe what you are researching (e.g. "Market analysis of insurtech startups in the UK")',
+        '',
+        async (goal) => {
+            if (!goal || !goal.trim()) return;
+            await _runSchemaRefine(goal.trim());
+        }
+    );
+}
+
+async function _runSchemaRefine(researchGoal, feedback) {
+    const schema = window._currentProjectSchema;
+    if (!schema) return;
+
+    const panel = document.getElementById('schemaRefinePanel');
+    if (!panel) return;
+
+    // Show loading state
+    panel.classList.remove('hidden');
+    panel.innerHTML = `<div class="refine-loading">
+        <div class="refine-loading-text">AI is analysing your schema...</div>
+    </div>`;
+
+    try {
+        const res = await safeFetch('/api/schema/refine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: currentProjectId,
+                current_schema: schema,
+                research_goal: researchGoal,
+                feedback: feedback || '',
+            }),
+        });
+        const result = await res.json();
+
+        if (result.error) {
+            panel.innerHTML = `<div class="refine-error">${esc(result.error)}</div>`;
+            return;
+        }
+
+        window._lastRefineResult = result;
+        _renderRefineResults(result, researchGoal);
+    } catch (e) {
+        panel.innerHTML = `<div class="refine-error">Failed to refine schema. Try again.</div>`;
+    }
+}
+
+function _renderRefineResults(result, researchGoal) {
+    const panel = document.getElementById('schemaRefinePanel');
+    if (!panel) return;
+
+    const score = result.completeness_score || 0;
+    const areas = result.completeness_areas || {};
+    const challenges = result.challenges || [];
+    const suggestions = result.suggestions || [];
+
+    let html = `<div class="refine-header">
+        <h3 class="section-label">SCHEMA REFINEMENT</h3>
+        <button class="close-btn" onclick="_closeRefinePanel()">&times;</button>
+    </div>`;
+
+    // Completeness score bar
+    html += `<div class="refine-score-section">
+        <div class="refine-score-main">
+            <span class="refine-score-label">COMPLETENESS</span>
+            <span class="refine-score-value">${Math.round(score * 100)}%</span>
+        </div>
+        <div class="refine-bar-track">
+            <div class="refine-bar-fill" style="width: ${score * 100}%"></div>
+        </div>
+    </div>`;
+
+    // Sub-scores
+    html += `<div class="refine-sub-scores">`;
+    const areaLabels = {
+        entity_coverage: 'Entity Coverage',
+        attribute_depth: 'Attribute Depth',
+        relationship_richness: 'Relationships',
+        analysis_readiness: 'Analysis Ready',
+    };
+    for (const [key, label] of Object.entries(areaLabels)) {
+        const val = areas[key] || 0;
+        html += `<div class="refine-sub-score">
+            <span class="refine-sub-label">${label}</span>
+            <div class="refine-sub-bar-track">
+                <div class="refine-sub-bar-fill" style="width: ${val * 100}%"></div>
+            </div>
+            <span class="refine-sub-value">${Math.round(val * 100)}%</span>
+        </div>`;
+    }
+    html += `</div>`;
+
+    // Challenges
+    if (challenges.length > 0) {
+        html += `<div class="refine-challenges">
+            <h4 class="refine-section-title">CHALLENGES</h4>
+            <ul class="refine-challenge-list">
+                ${challenges.map(c => `<li>${esc(c)}</li>`).join('')}
+            </ul>
+        </div>`;
+    }
+
+    // Suggestions
+    if (suggestions.length > 0) {
+        html += `<div class="refine-suggestions">
+            <h4 class="refine-section-title">SUGGESTIONS</h4>
+            ${suggestions.map((s, i) => _renderSuggestionCard(s, i)).join('')}
+        </div>`;
+    }
+
+    // Feedback / iterate
+    html += `<div class="refine-feedback">
+        <textarea id="refineFeedbackInput" rows="2" placeholder="Give feedback on these suggestions to refine further..."></textarea>
+        <button class="btn" onclick="_iterateRefine('${escAttr(researchGoal)}')">Refine Again</button>
+    </div>`;
+
+    panel.innerHTML = html;
+}
+
+function _renderSuggestionCard(suggestion, index) {
+    const typeBadges = {
+        add_type: 'NEW TYPE',
+        add_attribute: 'NEW ATTR',
+        modify_attribute: 'MODIFY',
+        add_relationship: 'RELATIONSHIP',
+        remove_attribute: 'REMOVE',
+    };
+    const badge = typeBadges[suggestion.type] || suggestion.type.toUpperCase();
+
+    return `<div class="refine-suggestion-card" data-index="${index}">
+        <div class="refine-suggestion-header">
+            <span class="refine-suggestion-badge refine-badge-${suggestion.type}">${badge}</span>
+            <span class="refine-suggestion-text">${esc(suggestion.suggestion)}</span>
+        </div>
+        <div class="refine-suggestion-reasoning">${esc(suggestion.reasoning)}</div>
+        <div class="refine-suggestion-actions">
+            <button class="primary-btn btn-sm" onclick="_applyRefineSuggestion(${index})">Apply</button>
+        </div>
+    </div>`;
+}
+
+/**
+ * Apply a single suggestion by modifying the schema and syncing.
+ */
+async function _applyRefineSuggestion(index) {
+    const panel = document.getElementById('schemaRefinePanel');
+    if (!panel) return;
+
+    const cards = panel.querySelectorAll('.refine-suggestion-card');
+    const card = cards[index];
+    if (!card) return;
+
+    // Get the suggestion data from the last refine result
+    const schema = window._currentProjectSchema;
+    if (!schema) return;
+
+    // Re-fetch the refine result is not stored globally; we need to store it.
+    // Instead, parse the suggestion from the rendered card's data.
+    // Better approach: store the last result.
+    if (!window._lastRefineResult) {
+        showToast('Refine result expired — please refine again');
+        return;
+    }
+
+    const suggestion = window._lastRefineResult.suggestions[index];
+    if (!suggestion) return;
+
+    // Build updated schema
+    let updatedSchema;
+    try {
+        updatedSchema = _applySchemaChange(schema, suggestion);
+    } catch (e) {
+        showToast(`Cannot apply: ${e.message}`);
+        return;
+    }
+
+    // Sync the updated schema
+    try {
+        const res = await safeFetch('/api/entity-types/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: currentProjectId,
+                schema: updatedSchema,
+            }),
+        });
+        const result = await res.json();
+        if (result.error) {
+            showToast(result.error);
+            return;
+        }
+
+        // Update local schema
+        window._currentProjectSchema = updatedSchema;
+        _entitySchema = updatedSchema;
+
+        // Mark card as applied
+        card.classList.add('refine-suggestion-applied');
+        const btn = card.querySelector('.primary-btn');
+        if (btn) {
+            btn.textContent = 'Applied';
+            btn.disabled = true;
+        }
+
+        // Refresh type bar
+        _renderEntityTypeBar();
+        showToast('Schema updated');
+    } catch (e) {
+        showToast('Failed to apply change');
+    }
+}
+
+/**
+ * Apply a schema_change dict to the current schema.
+ */
+function _applySchemaChange(schema, suggestion) {
+    // Deep clone
+    const updated = JSON.parse(JSON.stringify(schema));
+
+    switch (suggestion.type) {
+        case 'add_type': {
+            const change = suggestion.schema_change;
+            if (!change.name && !change.slug) throw new Error('Missing type name');
+            // Check for duplicate
+            const existingSlugs = new Set(updated.entity_types.map(t => t.slug));
+            const newSlug = change.slug || change.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            if (existingSlugs.has(newSlug)) throw new Error(`Type '${newSlug}' already exists`);
+            updated.entity_types.push({
+                name: change.name || newSlug,
+                slug: newSlug,
+                description: change.description || '',
+                icon: change.icon || 'circle',
+                parent_type: change.parent_type || null,
+                attributes: change.attributes || [],
+            });
+            break;
+        }
+        case 'add_attribute': {
+            const targetSlug = suggestion.target;
+            const typeDef = updated.entity_types.find(t => t.slug === targetSlug);
+            if (!typeDef) throw new Error(`Type '${targetSlug}' not found`);
+            const change = suggestion.schema_change;
+            if (!change.name && !change.slug) throw new Error('Missing attribute name');
+            const attrSlug = change.slug || change.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const existingAttrSlugs = new Set((typeDef.attributes || []).map(a => a.slug));
+            if (existingAttrSlugs.has(attrSlug)) throw new Error(`Attribute '${attrSlug}' already exists`);
+            if (!typeDef.attributes) typeDef.attributes = [];
+            typeDef.attributes.push({
+                name: change.name || attrSlug,
+                slug: attrSlug,
+                data_type: change.data_type || 'text',
+                required: change.required || false,
+                ...(change.enum_values ? { enum_values: change.enum_values } : {}),
+            });
+            break;
+        }
+        case 'modify_attribute': {
+            const parts = (suggestion.target || '').split('.');
+            if (parts.length !== 2) throw new Error('modify_attribute target must be "type.attribute"');
+            const [typeSlug, attrSlug] = parts;
+            const typeDef = updated.entity_types.find(t => t.slug === typeSlug);
+            if (!typeDef) throw new Error(`Type '${typeSlug}' not found`);
+            const attr = (typeDef.attributes || []).find(a => a.slug === attrSlug);
+            if (!attr) throw new Error(`Attribute '${attrSlug}' not found`);
+            const change = suggestion.schema_change;
+            if (change.data_type) attr.data_type = change.data_type;
+            if (change.enum_values) attr.enum_values = change.enum_values;
+            if (change.required !== undefined) attr.required = change.required;
+            if (change.name) attr.name = change.name;
+            break;
+        }
+        case 'add_relationship': {
+            const change = suggestion.schema_change;
+            if (!change.from_type || !change.to_type) throw new Error('Missing from_type or to_type');
+            if (!updated.relationships) updated.relationships = [];
+            updated.relationships.push({
+                name: change.relationship_type || change.name || `${change.from_type}_to_${change.to_type}`,
+                from_type: change.from_type,
+                to_type: change.to_type,
+                description: change.description || '',
+            });
+            break;
+        }
+        case 'remove_attribute': {
+            const parts2 = (suggestion.target || '').split('.');
+            if (parts2.length !== 2) throw new Error('remove_attribute target must be "type.attribute"');
+            const [ts, as] = parts2;
+            const td = updated.entity_types.find(t => t.slug === ts);
+            if (!td) throw new Error(`Type '${ts}' not found`);
+            td.attributes = (td.attributes || []).filter(a => a.slug !== as);
+            break;
+        }
+        default:
+            throw new Error(`Unknown suggestion type: ${suggestion.type}`);
+    }
+
+    return updated;
+}
+
+async function _iterateRefine(researchGoal) {
+    const feedback = document.getElementById('refineFeedbackInput')?.value?.trim();
+    if (!feedback) {
+        showToast('Enter some feedback first');
+        return;
+    }
+    await _runSchemaRefine(researchGoal, feedback);
+}
+
+function _closeRefinePanel() {
+    const panel = document.getElementById('schemaRefinePanel');
+    if (panel) {
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
+    }
+    window._lastRefineResult = null;
+}
+

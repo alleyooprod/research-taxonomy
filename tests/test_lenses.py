@@ -566,8 +566,345 @@ class TestLensEdgeCases:
             f"/api/lenses/product/pricing?project_id={pid}",
             f"/api/lenses/design/gallery?project_id={pid}&entity_id={eid}",
             f"/api/lenses/design/journey?project_id={pid}&entity_id={eid}",
+            f"/api/lenses/design/patterns?project_id={pid}",
+            f"/api/lenses/design/scoring?project_id={pid}",
             f"/api/lenses/temporal/timeline?project_id={pid}&entity_id={eid}",
         ]
         for url in endpoints:
             r = c.get(url)
             assert r.status_code == 200, f"Failed: {url} returned {r.status_code}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# Design Lens: Pattern Library
+# ═══════════════════════════════════════════════════════════════
+
+class TestDesignPatterns:
+    """Tests for GET /api/lenses/design/patterns."""
+
+    def test_missing_project_id(self, client):
+        r = client.get("/api/lenses/design/patterns")
+        assert r.status_code == 400
+        assert "project_id" in r.get_json()["error"]
+
+    def test_patterns_empty_project(self, client):
+        """Empty project returns valid structure with zero patterns."""
+        db = client.db
+        pid = db.create_project(name="Empty", purpose="Test", entity_schema=LENS_SCHEMA)
+        r = client.get(f"/api/lenses/design/patterns?project_id={pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert "patterns" in data
+        assert "categories" in data
+        assert "total_patterns" in data
+        assert "total_evidence" in data
+        assert data["total_patterns"] == 0
+        assert data["total_evidence"] == 0
+        assert isinstance(data["patterns"], list)
+        assert isinstance(data["categories"], list)
+
+    def test_patterns_with_screenshots(self, lens_project_with_evidence):
+        """Screenshots are classified and patterns extracted."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "landing"
+            mock_result.journey_confidence = 0.8
+            mock_result.ui_patterns = ["hero", "navigation"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/patterns?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["total_evidence"] > 0
+        assert data["total_patterns"] > 0
+        # Should have hero and navigation patterns
+        pattern_names = [p["name"] for p in data["patterns"]]
+        assert "hero" in pattern_names
+        assert "navigation" in pattern_names
+
+    def test_patterns_categorized_correctly(self, lens_project_with_evidence):
+        """UI patterns are mapped to the correct categories."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "dashboard"
+            mock_result.journey_confidence = 0.9
+            mock_result.ui_patterns = ["table", "card-grid", "form"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/patterns?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        pattern_by_name = {p["name"]: p for p in data["patterns"]}
+
+        if "table" in pattern_by_name:
+            assert pattern_by_name["table"]["category"] == "data_display"
+        if "card-grid" in pattern_by_name:
+            assert pattern_by_name["card-grid"]["category"] == "layout"
+        if "form" in pattern_by_name:
+            assert pattern_by_name["form"]["category"] == "form"
+
+    def test_patterns_with_design_attributes(self, lens_project):
+        """Design-related entity attributes contribute to patterns."""
+        c = lens_project["client"]
+        db = lens_project["db"]
+        pid = lens_project["project_id"]
+        eid = lens_project["entity_ids"][0]
+
+        # Add design-related attributes
+        db.set_entity_attribute(eid, "ui_layout", "Card Grid")
+        db.set_entity_attribute(eid, "navigation_style", "Sidebar")
+
+        r = c.get(f"/api/lenses/design/patterns?project_id={pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["total_patterns"] >= 2
+        pattern_names = [p["name"].lower() for p in data["patterns"]]
+        assert "card grid" in pattern_names
+        assert "sidebar" in pattern_names
+
+    def test_patterns_include_entity_names(self, lens_project):
+        """Each pattern includes which entities exhibit it."""
+        c = lens_project["client"]
+        db = lens_project["db"]
+        pid = lens_project["project_id"]
+        eid1 = lens_project["entity_ids"][0]
+        eid2 = lens_project["entity_ids"][1]
+
+        db.set_entity_attribute(eid1, "design_pattern", "Modal Dialog")
+        db.set_entity_attribute(eid2, "design_pattern", "Modal Dialog")
+
+        r = c.get(f"/api/lenses/design/patterns?project_id={pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        modal = [p for p in data["patterns"] if p["name"].lower() == "modal dialog"]
+        assert len(modal) == 1
+        assert len(modal[0]["entities"]) == 2
+
+    def test_patterns_response_structure(self, lens_project_with_evidence):
+        """Each pattern has the expected fields."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "landing"
+            mock_result.journey_confidence = 0.7
+            mock_result.ui_patterns = ["hero"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/patterns?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        if data["patterns"]:
+            p = data["patterns"][0]
+            assert "name" in p
+            assert "category" in p
+            assert "occurrences" in p
+            assert "entities" in p
+            assert "evidence_ids" in p
+            assert "description" in p
+            assert isinstance(p["entities"], list)
+            assert isinstance(p["evidence_ids"], list)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Design Lens: UX Scoring
+# ═══════════════════════════════════════════════════════════════
+
+class TestDesignScoring:
+    """Tests for GET /api/lenses/design/scoring."""
+
+    def test_missing_project_id(self, client):
+        r = client.get("/api/lenses/design/scoring")
+        assert r.status_code == 400
+        assert "project_id" in r.get_json()["error"]
+
+    def test_scoring_empty_project(self, client):
+        """Empty project returns valid structure with no entities."""
+        db = client.db
+        pid = db.create_project(name="Empty", purpose="Test", entity_schema=LENS_SCHEMA)
+        r = client.get(f"/api/lenses/design/scoring?project_id={pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["entities"] == []
+        assert data["max_evidence"] == 0
+        assert data["average_score"] == 0
+
+    def test_scoring_entities_without_evidence(self, lens_project):
+        """Entities without evidence are not scored."""
+        c = lens_project["client"]
+        pid = lens_project["project_id"]
+        r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        # No entities have evidence, so list should be empty
+        assert data["entities"] == []
+
+    def test_scoring_computes_scores(self, lens_project_with_evidence):
+        """Entities with evidence get scores computed."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "landing"
+            mock_result.journey_confidence = 0.8
+            mock_result.ui_patterns = ["hero", "navigation"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        assert len(data["entities"]) >= 1
+        assert data["max_evidence"] > 0
+        assert data["average_score"] >= 0
+
+    def test_scoring_response_structure(self, lens_project_with_evidence):
+        """Each scored entity has the expected fields."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "dashboard"
+            mock_result.journey_confidence = 0.9
+            mock_result.ui_patterns = ["table"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        assert len(data["entities"]) >= 1
+
+        e = data["entities"][0]
+        assert "entity_id" in e
+        assert "entity_name" in e
+        assert "overall_score" in e
+        assert "journey_coverage" in e
+        assert "evidence_depth" in e
+        assert "pattern_diversity" in e
+        assert "attribute_completeness" in e
+        assert "journey_stages_covered" in e
+        assert "total_evidence" in e
+        assert "patterns_found" in e
+        assert isinstance(e["journey_stages_covered"], list)
+        assert isinstance(e["patterns_found"], list)
+
+    def test_scoring_normalizes_evidence_depth(self, lens_project_with_evidence):
+        """Evidence depth is normalized: entity with most evidence = 1.0."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "landing"
+            mock_result.journey_confidence = 0.7
+            mock_result.ui_patterns = []
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        entities = data["entities"]
+        if len(entities) >= 2:
+            # The entity with the most evidence should have evidence_depth close to 1.0
+            evidence_depths = [e["evidence_depth"] for e in entities]
+            assert max(evidence_depths) == 1.0
+
+    def test_scoring_journey_stages_populated(self, lens_project_with_evidence):
+        """Journey stages covered list reflects classified screenshots."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "pricing"
+            mock_result.journey_confidence = 0.9
+            mock_result.ui_patterns = ["form"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        # At least one entity should have "pricing" in journey_stages_covered
+        all_stages = []
+        for e in data["entities"]:
+            all_stages.extend(e["journey_stages_covered"])
+        assert "pricing" in all_stages
+
+    def test_scoring_patterns_found_populated(self, lens_project_with_evidence):
+        """Patterns found list reflects classified screenshots."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "dashboard"
+            mock_result.journey_confidence = 0.8
+            mock_result.ui_patterns = ["chart", "navigation"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        all_patterns = []
+        for e in data["entities"]:
+            all_patterns.extend(e["patterns_found"])
+        assert "chart" in all_patterns
+        assert "navigation" in all_patterns
+
+    def test_scoring_scores_between_0_and_1(self, lens_project_with_evidence):
+        """All scores should be in the [0, 1] range."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "landing"
+            mock_result.journey_confidence = 0.5
+            mock_result.ui_patterns = ["hero"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        for e in data["entities"]:
+            assert 0 <= e["overall_score"] <= 1
+            assert 0 <= e["journey_coverage"] <= 1
+            assert 0 <= e["evidence_depth"] <= 1
+            assert 0 <= e["pattern_diversity"] <= 1
+            assert 0 <= e["attribute_completeness"] <= 1
+
+    def test_scoring_sorted_by_overall_descending(self, lens_project_with_evidence):
+        """Entities are sorted by overall score descending."""
+        c = lens_project_with_evidence["client"]
+        pid = lens_project_with_evidence["project_id"]
+
+        with patch("core.extractors.screenshot.classify_by_context") as mock_classify:
+            mock_result = MagicMock()
+            mock_result.journey_stage = "landing"
+            mock_result.journey_confidence = 0.6
+            mock_result.ui_patterns = ["hero"]
+            mock_classify.return_value = mock_result
+
+            r = c.get(f"/api/lenses/design/scoring?project_id={pid}")
+
+        assert r.status_code == 200
+        data = r.get_json()
+        scores = [e["overall_score"] for e in data["entities"]]
+        assert scores == sorted(scores, reverse=True)
