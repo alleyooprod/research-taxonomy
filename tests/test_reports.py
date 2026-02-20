@@ -468,7 +468,7 @@ class TestReportExport:
         r = c.get(f"/api/synthesis/{rid}/export?format=xml")
         assert r.status_code == 400
         data = r.get_json()
-        assert "pdf" in data["error"]  # error message should mention pdf as valid format
+        assert "canvas" in data["error"]  # error message should mention canvas as valid format
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -643,3 +643,179 @@ class TestReportEdgeCases:
         expected = {"market_overview", "competitive_landscape", "product_teardown",
                     "design_patterns", "change_report"}
         assert expected == slugs
+
+
+# ═══════════════════════════════════════════════════════════════
+# Canvas Export Tests
+# ═══════════════════════════════════════════════════════════════
+
+class TestReportCanvasExport:
+    """Tests for GET /api/synthesis/<id>/export?format=canvas."""
+
+    def _create_report(self, client, pid, template="market_overview"):
+        r = client.post("/api/synthesis/generate", json={
+            "project_id": pid, "template": template,
+        })
+        return r.get_json()
+
+    def test_canvas_export_returns_json_with_correct_structure(self, report_project):
+        """Canvas export should return JSON with type, version, source, elements, appState."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        assert r.status_code == 200
+        assert r.content_type.startswith("application/json")
+
+        data = r.get_json()
+        assert data["type"] == "excalidraw"
+        assert data["version"] == 2
+        assert data["source"] == "research-workbench"
+        assert "elements" in data
+        assert isinstance(data["elements"], list)
+        assert "appState" in data
+        assert data["appState"]["viewBackgroundColor"] == "#ffffff"
+
+    def test_canvas_export_has_excalidraw_elements(self, report_project):
+        """Canvas export should produce Excalidraw elements with required fields."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        data = r.get_json()
+        elements = data["elements"]
+        assert len(elements) > 0
+
+        # Every element must have standard Excalidraw fields
+        for el in elements:
+            assert "id" in el
+            assert "type" in el
+            assert el["type"] in ("rectangle", "text", "arrow", "line", "diamond", "ellipse")
+            assert "x" in el
+            assert "y" in el
+            assert "width" in el
+            assert "height" in el
+            assert el["isDeleted"] is False
+
+    def test_canvas_export_title_element_exists(self, report_project):
+        """Canvas export should contain a title rectangle with bound text."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        data = r.get_json()
+        elements = data["elements"]
+
+        # Find the title rectangle (first rectangle element)
+        rects = [el for el in elements if el["type"] == "rectangle"]
+        assert len(rects) >= 1, "Expected at least one rectangle for the title block"
+        title_rect = rects[0]
+
+        # Title rectangle should have boundElements linking to a text element
+        assert title_rect["boundElements"] is not None
+        assert len(title_rect["boundElements"]) == 1
+        bound_text_id = title_rect["boundElements"][0]["id"]
+
+        # Find the bound text element
+        bound_texts = [el for el in elements if el["id"] == bound_text_id]
+        assert len(bound_texts) == 1, "Bound text element for title not found"
+        title_text = bound_texts[0]
+        assert title_text["type"] == "text"
+        assert title_text["containerId"] == title_rect["id"]
+        assert title_text["fontSize"] == 28
+
+        # Title text should contain the report title
+        assert "Market Overview" in title_text["text"]
+
+    def test_canvas_export_sections_rendered(self, report_project):
+        """Canvas export should render report sections as text elements."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        data = r.get_json()
+        elements = data["elements"]
+
+        # Text elements (excluding the title bound text)
+        text_elements = [el for el in elements if el["type"] == "text" and el.get("containerId") is None]
+
+        # A market overview report has sections: Summary, Entity Types, Category Distribution, etc.
+        # Each section has heading (fontSize 20) + content (fontSize 14)
+        headings = [el for el in text_elements if el["fontSize"] == 20]
+        content_blocks = [el for el in text_elements if el["fontSize"] == 14]
+
+        assert len(headings) >= 3, f"Expected at least 3 section headings, got {len(headings)}"
+        assert len(content_blocks) >= 3, f"Expected at least 3 content blocks, got {len(content_blocks)}"
+
+        # Check that heading texts include expected section names
+        heading_texts = [el["text"] for el in headings]
+        assert any("Summary" in t for t in heading_texts), f"Expected 'Summary' heading, got: {heading_texts}"
+
+    def test_canvas_export_with_empty_report(self, report_project):
+        """Canvas export should work for a report with no sections."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+
+        # Create a report then strip its sections
+        created = self._create_report(c, pid)
+        rid = created["id"]
+        c.put(f"/api/synthesis/{rid}", json={"sections": []})
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        assert r.status_code == 200
+        data = r.get_json()
+
+        assert data["type"] == "excalidraw"
+        assert isinstance(data["elements"], list)
+        # Should still have title block (rectangle + text = 2 elements)
+        assert len(data["elements"]) == 2
+
+    def test_canvas_export_nonexistent_report(self, report_project):
+        """Canvas export of nonexistent report should return 404."""
+        c = report_project["client"]
+        r = c.get("/api/synthesis/99999/export?format=canvas")
+        assert r.status_code == 404
+
+    def test_canvas_export_element_positions_increase(self, report_project):
+        """Canvas elements should be laid out vertically — Y positions increase."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        data = r.get_json()
+        elements = data["elements"]
+
+        # Filter to non-bound text elements (headings and content) which should stack vertically
+        free_elements = [el for el in elements if el["type"] == "text" and el.get("containerId") is None]
+        if len(free_elements) >= 2:
+            y_positions = [el["y"] for el in free_elements]
+            # Each subsequent element should be at a greater or equal Y position
+            for i in range(1, len(y_positions)):
+                assert y_positions[i] >= y_positions[i - 1], (
+                    f"Element {i} y={y_positions[i]} should be >= element {i-1} y={y_positions[i-1]}"
+                )
+
+    def test_canvas_export_text_has_explicit_dimensions(self, report_project):
+        """All text elements must have explicit width and height (non-zero)."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        r = c.get(f"/api/synthesis/{rid}/export?format=canvas")
+        data = r.get_json()
+        text_elements = [el for el in data["elements"] if el["type"] == "text"]
+
+        for el in text_elements:
+            assert el["width"] > 0, f"Text element {el['id']} has zero width"
+            assert el["height"] > 0, f"Text element {el['id']} has zero height"

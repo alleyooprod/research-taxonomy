@@ -600,6 +600,45 @@ function _makeElement(type, overrides) {
     return base;
 }
 
+// --- Load Canvas from Report Export ---
+
+/**
+ * Load an Excalidraw scene from a report canvas export.
+ * If Excalidraw is already mounted, updates the scene.
+ * Otherwise, initializes Excalidraw with the provided elements.
+ *
+ * @param {Object} data - Excalidraw-compatible JSON with elements and appState
+ */
+async function loadCanvasFromReport(data) {
+    if (!data || !data.elements) {
+        if (typeof showToast === 'function') showToast('No canvas data to load');
+        return;
+    }
+
+    const elements = data.elements || [];
+    const appState = data.appState || {};
+
+    // Show the canvas workspace UI
+    const wrapper = document.getElementById('canvasWrapper');
+    const empty = document.getElementById('canvasEmptyState');
+    if (wrapper) wrapper.classList.remove('hidden');
+    if (empty) empty.classList.add('hidden');
+
+    if (_excalidrawAPI) {
+        // Excalidraw already mounted — update scene directly
+        _excalidrawAPI.updateScene({
+            elements: elements,
+            appState: appState,
+        });
+        _excalidrawAPI.scrollToContent();
+    } else {
+        // Excalidraw not yet mounted — initialize with these elements
+        await initExcalidrawCanvas(elements, appState);
+    }
+}
+
+window.loadCanvasFromReport = loadCanvasFromReport;
+
 // Expose key functions globally for cross-module access
 window._excalidrawAPI = null;
 window._currentCanvasId = null;

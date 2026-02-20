@@ -6,6 +6,7 @@ Available extractors:
 - changelog: Extract version history, release frequency, and maturity from changelogs
 - press_release: Extract announcements, quotes, and implications from press releases
 - funding_round: Extract funding round details from investment announcements
+- ipid: Extract insurance product information from IPID documents (EU/UK IDD)
 - generic: Generic HTML/text content extractor (fallback)
 
 Each extractor provides:

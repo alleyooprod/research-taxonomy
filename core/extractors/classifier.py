@@ -5,7 +5,7 @@ dispatches to the appropriate specialized extractor.
 """
 import logging
 
-from core.extractors import product_page, pricing_page, changelog, press_release, funding_round, generic
+from core.extractors import product_page, pricing_page, changelog, press_release, funding_round, ipid, generic
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ EXTRACTORS = [
     (changelog, "changelog"),
     (press_release, "press_release"),
     (funding_round, "funding_round"),
+    (ipid, "ipid"),
     (product_page, "product_page"),
 ]
 
@@ -74,6 +75,7 @@ def extract_with_classification(content, entity_name=None, model=None,
             "changelog": changelog,
             "press_release": press_release,
             "funding_round": funding_round,
+            "ipid": ipid,
             "generic": generic,
         }
         extractor = extractor_map.get(force_extractor, generic)
@@ -95,4 +97,4 @@ def extract_with_classification(content, entity_name=None, model=None,
 
 def get_available_extractors():
     """Return list of available extractor names."""
-    return ["product_page", "pricing_page", "changelog", "press_release", "funding_round", "generic"]
+    return ["product_page", "pricing_page", "changelog", "press_release", "funding_round", "ipid", "generic"]

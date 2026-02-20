@@ -1,6 +1,6 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 2-7 Complete + all deferred items batch + schema refinement. 1480 tests.
+> **Status:** Phase 1-7 COMPLETE — all deferred items implemented. Only IPID parser + Canvas composition remain deferred. 1480 tests.
 > **Created:** 2026-02-20 (Session 10)
 > **Last Updated:** 2026-02-20 (Session 23)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
@@ -240,8 +240,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Evidence file serving (`GET /api/evidence/<id>/file`)
 - [x] Evidence file + record deletion (`DELETE /api/evidence/<id>/file`)
 - [x] Evidence storage stats per project (`GET /api/evidence/stats`)
-- [ ] Drag-and-drop onto entity cards (frontend) — deferred to 2.7
-- [ ] Paste from clipboard (screenshot capture while using a product) — deferred to 2.7
+- [x] Drag-and-drop onto entity cards (frontend) — drop zone overlay on capture section + entity detail panel, entity auto-selection
+- [x] Paste from clipboard (screenshot capture while using a product) — Ctrl/Cmd+V on Process/Companies tabs, auto-names as screenshot_YYYY-MM-DD_HHmmss.png
 - [x] **Files:** `core/capture.py` (store_upload, validate_upload), `web/blueprints/capture.py` (upload/serve/delete/stats)
 - [x] **Tests:** 7 upload tests + 7 serve/delete tests + 3 stats tests + 1 integration test in `test_api_capture.py`; 7 store_upload tests in `test_capture.py`
 
@@ -271,8 +271,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] `web/static/css/capture.css` (~160 lines) — stats grid, action bar, job list, bulk progress bar, responsive
 - [x] Updated `web/templates/index.html` — capture section HTML, CSS/JS includes
 - [x] Updated `web/static/js/core.js` — calls `initCaptureUI()` when Process tab shown
-- [ ] Drag-and-drop upload onto entity cards (deferred to future session)
-- [ ] Clipboard paste for screenshots (deferred to future session)
+- [x] Drag-and-drop upload onto entity cards — drop zone overlay, auto-links to entity on entity detail panel
+- [x] Clipboard paste for screenshots — paste event listener, auto-generates timestamped filename
 - [x] **Files:** `web/static/js/capture.js`, `web/static/css/capture.css`, `web/templates/index.html`, `web/static/js/core.js`
 
 #### 2.8 Tests — Capture Engine
@@ -381,8 +381,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 #### 4.4 Design Lens ✅
 - [x] Evidence gallery per entity (grouped by evidence_type, lightbox viewer)
 - [x] Journey map viewer (screenshots classified into journey stages, ordered by UX flow)
-- [ ] Pattern library (design principles extracted from captures) — deferred
-- [ ] UX scoring / comparison — deferred
+- [x] Pattern library (design principles extracted from captures) — `/api/lenses/design/patterns`, aggregates from extraction results + screenshot classifications + entity attributes, pattern cards with category filter
+- [x] UX scoring / comparison — `/api/lenses/design/scoring`, 4 sub-scores (journey coverage, evidence depth, pattern diversity, attribute completeness), weighted composite, entity comparison bars
 - [x] **Activation:** Entities with screenshot evidence
 
 #### 4.5 Temporal Lens ✅
@@ -431,7 +431,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Interactive HTML (standalone with inline CSS)
 - [x] Markdown export
 - [x] JSON export
-- [ ] PDF (traditional, formatted, printable) — deferred
+- [x] PDF (traditional, formatted, printable) — via WeasyPrint (graceful fallback if not installed), `GET /api/synthesis/<id>/export?format=pdf`, styled A4 template
 - [ ] Canvas composition (report as Excalidraw workspace) — deferred
 
 #### 5.4 Evidence Provenance
@@ -464,8 +464,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 #### 6.3 News/Announcement Monitoring
 - [x] RSS/Atom feed monitoring for tracked entities
 - [x] New entry detection since last check
-- [ ] Press release detection — deferred
-- [ ] Funding round detection — deferred
+- [x] Press release detection — `core/extractors/press_release.py` (classify + extract headline/type/entities/quotes/implications), registered in classifier
+- [x] Funding round detection — `core/extractors/funding_round.py` (classify + extract round_type/amount/investors/valuation), registered in classifier
 
 #### 6.4 Market Radar Dashboard
 - [x] Unified change feed with filters (type, severity, read/unread)
@@ -544,7 +544,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 1. All 266 original tests continue to pass unchanged
 2. Company API remains fully functional — entity system runs alongside, not replacing
 3. New test suites added with every implementation step — test count grows in lockstep
-4. **Current total: 1051 tests** (266 original + 62 entity DB + 119 entity API + 64 capture DB + 31 capture API + 27 scraper DB + 15 scraper API + 58 extraction DB + 38 extraction API + 27 extractor + 42 screenshot classifier)
+4. **Current total: 1480 tests** across 30+ test files — every feature has both DB-layer and API-layer tests
 
 ---
 
@@ -571,7 +571,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 20 | 2026-02-20 | Phase 7.3-7.4: Research Playbooks + Cross-Project Intelligence — playbook CRUD with 4 built-in templates (Market Mapping, Product Teardown, Design Research, Competitive Intelligence), run lifecycle with step-by-step progress tracking, auto-complete, AI improvement suggestions, template seeding/protection; entity overlap detection (Dice coefficient + URL domain matching), manual/auto entity linking, attribute sync between linked entities, attribute diff comparison, 3 cross-project detectors (multi-project overlap, attribute divergence, coverage gaps), cross-project insights + stats; Intelligence tab sub-nav extended to 5 views (Monitoring/Insights/Hypotheses/Playbooks/Cross-Project), 1188-line + 696-line JS, 954-line + 693-line CSS frontends, 117 new tests, 1168 total | ✅ Complete |
 | 21 | 2026-02-20 | Phase 4.6 + 5.4: Signals Lens + Evidence Provenance — signals lens with 4 views (timeline, activity, trends, heatmap) combining change_feed + entity_attributes + evidence data; provenance blueprint with 8 read-only endpoints (attribute trace, entity summary, evidence map, project coverage, project sources, search, report claims, stats), full chain tracing attribute→extraction→evidence→URL; signals integrated into Analysis tab lens system, provenance integrated as 6th Intelligence sub-view with Coverage/Sources/Search; 101 new tests (44 signals + 57 provenance), 1269 total | ✅ Complete |
 | 22 | 2026-02-20 | Deferred items batch: Company→Entity migration (`core/migration.py`, 28-column field map, idempotent, dry-run, `POST /api/migrate/companies`); backwards-compatible company API wrapper (`core/compat.py` + companies.py delegates to entities for migrated projects); changelog extractor (`core/extractors/changelog.py`, classify + extract version/frequency/features/maturity); re-capture trigger on major/critical changes (`_trigger_recapture` in monitoring.py); taxonomy matrix + AI Discovery entity integration via compat layer; E2E Playwright tests (project setup + entity browser, 17 test groups); market-level change summary (5th signals sub-view); 87 new tests (17 migration + 48 compat + 22 changelog), 1356 total | ✅ Complete |
-| 23 | 2026-02-20 | Phase 1.6 deferred: AI schema refinement — `POST /api/schema/refine` endpoint with LLM-powered analysis (3-6 ranked suggestions with schema_change dicts, challenges, 4-dimension completeness scoring) + deterministic rule-based fallback (detects sparse types, missing URLs, text→enum candidates, missing relationships); frontend `refineSchema()` flow with prompt dialog, completeness bars, suggestion cards with Apply buttons, iterate-with-feedback; CSS refinement panel (score bars, sub-scores, challenge list, suggestion cards with type badges); 23 new tests in `test_schema_refine.py` (AI mock, rule-based fallback, scoring, validation), 1480 total | ✅ Complete |
+| 23 | 2026-02-20 | All remaining deferred items: **Drag-and-drop upload** (drop zone overlay on capture section + entity detail panel, auto-links to entity) + **Clipboard paste** (Ctrl/Cmd+V on Process/Companies tabs, timestamped filename); **PDF export** (WeasyPrint with graceful fallback, A4 styled template, `?format=pdf`); **Press release extractor** (`core/extractors/press_release.py`, classify + extract headline/type/entities/quotes/implications, 39 tests); **Funding round extractor** (`core/extractors/funding_round.py`, classify + extract round_type/amount/investors/valuation, 38 tests); **Pattern library** (`/api/lenses/design/patterns`, aggregates from extractions + screenshots + attributes, category filter grid); **UX scoring** (`/api/lenses/design/scoring`, 4 sub-scores weighted composite, entity comparison); **AI schema refinement** (`POST /api/schema/refine`, LLM-powered + rule-based fallback, completeness scoring, apply suggestions, iterate with feedback, 23 tests); 17 new lens tests + 7 PDF tests. 1480 total tests | ✅ Complete |
 
 ---
 

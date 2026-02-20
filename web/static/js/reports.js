@@ -359,6 +359,7 @@ function _renderReportView(report) {
                 <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'markdown')">Markdown</button>
                 <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'json')">JSON</button>
                 <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'pdf')">PDF</button>
+                <button class="btn btn-sm" onclick="_exportReportToCanvas(${report.id})">Canvas</button>
             </div>
             <div class="report-footer">
                 ${createdAt ? '<span class="report-footer-item">Created: ' + esc(createdAt) + '</span>' : ''}
@@ -704,15 +705,59 @@ function _truncateReportLabel(str, maxLen) {
     return str.length <= maxLen ? str : str.substring(0, maxLen - 1) + '\u2026';
 }
 
+// ── Canvas Export ─────────────────────────────────────────────
+
+/**
+ * Export a report as an Excalidraw canvas composition.
+ * Fetches the canvas JSON from the backend, switches to the Canvas tab,
+ * and loads the data into Excalidraw.
+ */
+async function _exportReportToCanvas(reportId) {
+    const url = '/api/synthesis/' + reportId + '/export?format=canvas';
+
+    try {
+        const resp = await fetch(url, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(function() { return {}; });
+            if (window.notyf) window.notyf.error(err.error || 'Canvas export failed');
+            return;
+        }
+
+        const canvasData = await resp.json();
+
+        // Switch to the Canvas tab
+        if (typeof showTab === 'function') {
+            showTab('canvas');
+        }
+
+        // Load the canvas data into Excalidraw
+        if (typeof window.loadCanvasFromReport === 'function') {
+            window.loadCanvasFromReport(canvasData);
+        } else {
+            console.warn('loadCanvasFromReport not available — canvas module may not be loaded');
+            if (window.notyf) window.notyf.error('Canvas module not available');
+            return;
+        }
+
+        if (window.notyf) window.notyf.success('Report loaded into Canvas');
+    } catch (e) {
+        console.error('Canvas export failed:', e);
+        if (window.notyf) window.notyf.error('Canvas export failed');
+    }
+}
+
 // ── Global Exposure ───────────────────────────────────────────
 
-window.initReports        = initReports;
-window._selectTemplate    = _selectTemplate;
-window._generateReport    = _generateReport;
-window._loadReport        = _loadReport;
-window._exportReport      = _exportReport;
-window._editReportTitle   = _editReportTitle;
-window._deleteReport      = _deleteReport;
-window._showExportBar     = _showExportBar;
-window._runGeneration     = _runGeneration;
-window._cancelGeneration  = _cancelGeneration;
+window.initReports             = initReports;
+window._selectTemplate         = _selectTemplate;
+window._generateReport         = _generateReport;
+window._loadReport             = _loadReport;
+window._exportReport           = _exportReport;
+window._exportReportToCanvas   = _exportReportToCanvas;
+window._editReportTitle        = _editReportTitle;
+window._deleteReport           = _deleteReport;
+window._showExportBar          = _showExportBar;
+window._runGeneration          = _runGeneration;
+window._cancelGeneration       = _cancelGeneration;

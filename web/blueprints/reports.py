@@ -8,6 +8,7 @@ Provides endpoints for:
 - Report export (HTML, JSON, Markdown, PDF)
 """
 import json
+import uuid
 from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, current_app, Response
@@ -1631,18 +1632,19 @@ def delete_report(report_id):
 def export_report(report_id):
     """Export a report in the specified format.
 
-    Query: ?format=html|json|markdown|pdf  (default: json)
+    Query: ?format=html|json|markdown|pdf|canvas  (default: json)
 
     Returns:
         html: standalone HTML document
         json: raw JSON of the report data
         markdown: formatted markdown
         pdf: PDF document (requires weasyprint)
+        canvas: Excalidraw-compatible JSON for the Canvas tab
     """
     export_format = request.args.get("format", "json").lower()
 
-    if export_format not in ("html", "json", "markdown", "pdf"):
-        return jsonify({"error": f"Invalid format: {export_format}. Use html, json, markdown, or pdf."}), 400
+    if export_format not in ("html", "json", "markdown", "pdf", "canvas"):
+        return jsonify({"error": f"Invalid format: {export_format}. Use html, json, markdown, pdf, or canvas."}), 400
 
     db = current_app.db
 
@@ -1681,6 +1683,10 @@ def export_report(report_id):
             mimetype="text/html",
             headers={"Content-Disposition": f'attachment; filename="{_safe_filename(report["title"])}.html"'},
         )
+
+    elif export_format == "canvas":
+        canvas_data = _report_to_canvas(report)
+        return jsonify(canvas_data)
 
     elif export_format == "pdf":
         try:
@@ -2012,3 +2018,220 @@ def _report_to_pdf_html(report):
     </div>
 </body>
 </html>"""
+
+
+# ── Canvas (Excalidraw) composition helpers ──────────────────
+
+def _canvas_element_id():
+    """Generate a short unique ID for an Excalidraw element."""
+    return uuid.uuid4().hex[:8]
+
+
+def _canvas_seed():
+    """Generate a random seed for Excalidraw element rendering."""
+    import random
+    return random.randint(1, 2147483647)
+
+
+def _canvas_text_wrap(text, max_chars=80):
+    """Wrap text to fit within a maximum character width.
+
+    Preserves existing newlines and wraps long lines at word boundaries.
+    """
+    if not text:
+        return ""
+    result_lines = []
+    for line in text.split("\n"):
+        if len(line) <= max_chars:
+            result_lines.append(line)
+        else:
+            # Word-wrap long lines
+            words = line.split(" ")
+            current = ""
+            for word in words:
+                if current and len(current) + 1 + len(word) > max_chars:
+                    result_lines.append(current)
+                    current = word
+                else:
+                    current = current + " " + word if current else word
+            if current:
+                result_lines.append(current)
+    return "\n".join(result_lines)
+
+
+def _make_canvas_element(element_type, overrides):
+    """Create a base Excalidraw element with sensible defaults."""
+    base = {
+        "id": _canvas_element_id(),
+        "type": element_type,
+        "x": 0,
+        "y": 0,
+        "width": 100,
+        "height": 40,
+        "angle": 0,
+        "strokeColor": "#000000",
+        "backgroundColor": "transparent",
+        "fillStyle": "solid",
+        "strokeWidth": 1,
+        "strokeStyle": "solid",
+        "roughness": 0,
+        "opacity": 100,
+        "seed": _canvas_seed(),
+        "version": 1,
+        "versionNonce": _canvas_seed(),
+        "isDeleted": False,
+        "boundElements": None,
+        "updated": 1,
+        "link": None,
+        "locked": False,
+        "groupIds": [],
+        "frameId": None,
+        "roundness": None,
+    }
+
+    if element_type == "text":
+        text = overrides.get("text", "")
+        font_size = overrides.get("fontSize", 16)
+        lines = text.split("\n") if text else [""]
+        char_w = font_size * 0.6
+        longest = max(lines, key=len) if lines else ""
+        w = max(int(len(longest) * char_w) + 4, 20)
+        h = max(int(len(lines) * font_size * 1.5) + 4, font_size + 4)
+        base.update({
+            "text": text,
+            "originalText": text,
+            "fontSize": font_size,
+            "fontFamily": 3,  # monospace
+            "textAlign": "left",
+            "verticalAlign": "top",
+            "containerId": None,
+            "autoResize": True,
+            "lineHeight": 1.25,
+            "width": w,
+            "height": h,
+            "backgroundColor": "transparent",
+        })
+
+    base.update(overrides)
+
+    # Ensure originalText stays in sync
+    if element_type == "text" and "text" in base:
+        base["originalText"] = base["text"]
+
+    return base
+
+
+def _report_to_canvas(report):
+    """Convert a report to an Excalidraw-compatible JSON structure.
+
+    Layout: vertical stack, left-aligned, monochrome.
+    - Title in a bordered rectangle at the top
+    - Each section: heading text + body text below
+    """
+    elements = []
+    x_start = 60
+    y_cursor = 60
+    canvas_width = 800
+
+    title = report.get("title") or "Untitled Report"
+    sections = report.get("sections") or []
+
+    # ── Title block: rectangle + bound text ──
+    title_rect_id = _canvas_element_id()
+    title_text_id = _canvas_element_id()
+    title_font_size = 28
+    title_lines = title.split("\n") if title else [""]
+    title_text_h = max(int(len(title_lines) * title_font_size * 1.5) + 4, 40)
+    title_rect_h = max(60, title_text_h + 20)
+
+    elements.append(_make_canvas_element("rectangle", {
+        "id": title_rect_id,
+        "x": x_start,
+        "y": y_cursor,
+        "width": canvas_width,
+        "height": title_rect_h,
+        "strokeColor": "#000000",
+        "backgroundColor": "#ffffff",
+        "fillStyle": "solid",
+        "strokeWidth": 2,
+        "boundElements": [{"type": "text", "id": title_text_id}],
+    }))
+
+    elements.append(_make_canvas_element("text", {
+        "id": title_text_id,
+        "x": x_start,
+        "y": y_cursor,
+        "width": canvas_width,
+        "height": title_rect_h,
+        "text": title,
+        "fontSize": title_font_size,
+        "fontFamily": 3,
+        "textAlign": "center",
+        "verticalAlign": "middle",
+        "containerId": title_rect_id,
+        "strokeColor": "#000000",
+    }))
+
+    y_cursor += title_rect_h + 40
+
+    # ── Sections ──
+    for section in sections:
+        heading = section.get("heading") or ""
+        content = section.get("content") or ""
+
+        # Section heading
+        if heading:
+            heading_font_size = 20
+            heading_wrapped = _canvas_text_wrap(heading, max_chars=80)
+            heading_lines = heading_wrapped.split("\n")
+            heading_w = max(int(len(max(heading_lines, key=len)) * heading_font_size * 0.6) + 4, 100)
+            heading_h = max(int(len(heading_lines) * heading_font_size * 1.5) + 4, heading_font_size + 4)
+
+            elements.append(_make_canvas_element("text", {
+                "x": x_start,
+                "y": y_cursor,
+                "width": heading_w,
+                "height": heading_h,
+                "text": heading_wrapped,
+                "fontSize": heading_font_size,
+                "fontFamily": 3,
+                "strokeColor": "#000000",
+            }))
+
+            y_cursor += heading_h + 16
+
+        # Section content
+        if content:
+            content_font_size = 14
+            content_wrapped = _canvas_text_wrap(content, max_chars=80)
+            content_lines = content_wrapped.split("\n")
+            content_w = max(int(len(max(content_lines, key=len)) * content_font_size * 0.6) + 4, 100)
+            content_h = max(int(len(content_lines) * content_font_size * 1.5) + 4, content_font_size + 4)
+
+            elements.append(_make_canvas_element("text", {
+                "x": x_start,
+                "y": y_cursor,
+                "width": content_w,
+                "height": content_h,
+                "text": content_wrapped,
+                "fontSize": content_font_size,
+                "fontFamily": 3,
+                "strokeColor": "#000000",
+            }))
+
+            y_cursor += content_h + 40
+
+        # Extra spacing if no content but heading present
+        if heading and not content:
+            y_cursor += 24
+
+    return {
+        "type": "excalidraw",
+        "version": 2,
+        "source": "research-workbench",
+        "elements": elements,
+        "appState": {
+            "viewBackgroundColor": "#ffffff",
+            "gridSize": None,
+        },
+    }
