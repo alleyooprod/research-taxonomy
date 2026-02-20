@@ -717,3 +717,35 @@ def entity_locations():
             })
 
     return jsonify(results)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Company → Entity Migration
+# ═══════════════════════════════════════════════════════════════
+
+@entities_bp.route("/api/migrate/companies", methods=["POST"])
+def migrate_companies():
+    """Migrate companies from the legacy table into the entity system.
+
+    Body: { project_id: int, dry_run: bool (optional, default false) }
+
+    Returns migration stats including entities created, attributes migrated,
+    and any errors encountered.
+    """
+    from core.migration import migrate_companies_to_entities
+
+    data = request.json or {}
+    project_id = data.get("project_id")
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    dry_run = data.get("dry_run", False)
+
+    try:
+        stats = migrate_companies_to_entities(
+            current_app.db, project_id, dry_run=dry_run,
+        )
+        return jsonify({"status": "ok", "dry_run": dry_run, **stats})
+    except Exception as e:
+        logger.error("Migration failed: %s", e)
+        return jsonify({"error": str(e)}), 500

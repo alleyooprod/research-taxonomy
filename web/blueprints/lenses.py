@@ -1710,3 +1710,179 @@ def signals_heatmap():
         "matrix": matrix,
         "raw": raw_list,
     })
+
+
+@lenses_bp.route("/api/lenses/signals/summary")
+def signals_summary():
+    """Market-level change summary: what shifted across all entities.
+
+    Aggregates changes by field, calculates most active entities,
+    identifies recently changed attributes, and finds common change patterns.
+
+    Query: ?project_id=N&days=30
+
+    Returns:
+        {
+            period_days, entity_count, total_events,
+            most_active_entities: [{entity_id, entity_name, event_count}],
+            top_changed_fields: [{field_name, change_count, entities_affected}],
+            recent_highlights: [{entity_name, change_type, field_name, old_value, new_value, timestamp}],
+            source_breakdown: {change_detected, attribute_updated, evidence_captured},
+            severity_breakdown: {critical, high, medium, low, info}
+        }
+    """
+    project_id, err = _require_project_id()
+    if err:
+        return err
+
+    days = request.args.get("days", 30, type=int)
+    days = min(max(days, 1), 365)
+
+    db = current_app.db
+
+    with db._get_conn() as conn:
+        # 1. Entity activity counts
+        entity_rows = conn.execute(
+            """SELECT id, name FROM entities
+               WHERE project_id = ? AND is_deleted = 0
+               ORDER BY name COLLATE NOCASE""",
+            (project_id,),
+        ).fetchall()
+
+        if not entity_rows:
+            return jsonify({
+                "period_days": days,
+                "entity_count": 0,
+                "total_events": 0,
+                "most_active_entities": [],
+                "top_changed_fields": [],
+                "recent_highlights": [],
+                "source_breakdown": {"change_detected": 0, "attribute_updated": 0, "evidence_captured": 0},
+                "severity_breakdown": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+            })
+
+        entity_ids = [r["id"] for r in entity_rows]
+        entity_map = {r["id"]: r["name"] for r in entity_rows}
+        placeholders = ",".join("?" * len(entity_ids))
+
+        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+
+        # 2. Change feed analysis
+        change_counts = {}  # entity_id -> count
+        field_changes = {}  # field_name -> {count, entity_ids}
+        severity_breakdown = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+        recent_highlights = []
+
+        try:
+            cf_rows = conn.execute(
+                f"""SELECT cf.change_type, cf.field_name, cf.old_value, cf.new_value,
+                           cf.detected_at, cf.severity,
+                           m.entity_id
+                    FROM change_feed cf
+                    JOIN monitors m ON m.id = cf.monitor_id
+                    WHERE m.entity_id IN ({placeholders})
+                      AND cf.detected_at >= ?
+                    ORDER BY cf.detected_at DESC""",
+                entity_ids + [cutoff],
+            ).fetchall()
+
+            for row in cf_rows:
+                eid = row["entity_id"]
+                change_counts[eid] = change_counts.get(eid, 0) + 1
+
+                fname = row["field_name"] or "unknown"
+                if fname not in field_changes:
+                    field_changes[fname] = {"count": 0, "entity_ids": set()}
+                field_changes[fname]["count"] += 1
+                field_changes[fname]["entity_ids"].add(eid)
+
+                sev = row["severity"] or "info"
+                if sev in severity_breakdown:
+                    severity_breakdown[sev] += 1
+
+                if len(recent_highlights) < 10:
+                    recent_highlights.append({
+                        "entity_name": entity_map.get(eid, ""),
+                        "change_type": row["change_type"],
+                        "field_name": fname,
+                        "old_value": row["old_value"],
+                        "new_value": row["new_value"],
+                        "timestamp": row["detected_at"],
+                    })
+        except Exception:
+            logger.debug("change_feed not available for signals summary")
+
+        # 3. Attribute update counts
+        attr_counts = {}  # entity_id -> count
+        try:
+            ea_rows = conn.execute(
+                f"""SELECT entity_id, COUNT(*) as cnt
+                    FROM entity_attributes
+                    WHERE entity_id IN ({placeholders})
+                      AND captured_at >= ?
+                    GROUP BY entity_id""",
+                entity_ids + [cutoff],
+            ).fetchall()
+            for row in ea_rows:
+                attr_counts[row["entity_id"]] = row["cnt"]
+        except Exception:
+            logger.debug("entity_attributes not available for signals summary")
+
+        # 4. Evidence capture counts
+        evidence_counts = {}  # entity_id -> count
+        try:
+            ev_rows = conn.execute(
+                f"""SELECT entity_id, COUNT(*) as cnt
+                    FROM evidence
+                    WHERE entity_id IN ({placeholders})
+                      AND captured_at >= ?
+                    GROUP BY entity_id""",
+                entity_ids + [cutoff],
+            ).fetchall()
+            for row in ev_rows:
+                evidence_counts[row["entity_id"]] = row["cnt"]
+        except Exception:
+            logger.debug("evidence not available for signals summary")
+
+    # Build results
+    total_changes = sum(change_counts.values())
+    total_attrs = sum(attr_counts.values())
+    total_evidence = sum(evidence_counts.values())
+    total_events = total_changes + total_attrs + total_evidence
+
+    # Most active entities (by total events, top 10)
+    entity_activity = []
+    for eid in entity_ids:
+        total = change_counts.get(eid, 0) + attr_counts.get(eid, 0) + evidence_counts.get(eid, 0)
+        if total > 0:
+            entity_activity.append({
+                "entity_id": eid,
+                "entity_name": entity_map.get(eid, ""),
+                "event_count": total,
+            })
+    entity_activity.sort(key=lambda e: e["event_count"], reverse=True)
+    most_active = entity_activity[:10]
+
+    # Top changed fields (from change feed)
+    top_fields = []
+    for fname, data in sorted(field_changes.items(), key=lambda x: x[1]["count"], reverse=True)[:10]:
+        top_fields.append({
+            "field_name": fname,
+            "change_count": data["count"],
+            "entities_affected": len(data["entity_ids"]),
+        })
+
+    return jsonify({
+        "period_days": days,
+        "entity_count": len(entity_rows),
+        "total_events": total_events,
+        "most_active_entities": most_active,
+        "top_changed_fields": top_fields,
+        "recent_highlights": recent_highlights,
+        "source_breakdown": {
+            "change_detected": total_changes,
+            "attribute_updated": total_attrs,
+            "evidence_captured": total_evidence,
+        },
+        "severity_breakdown": severity_breakdown,
+    })

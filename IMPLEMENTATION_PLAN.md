@@ -1,8 +1,8 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7 Complete — capture, extraction, review, features, analysis lenses, reporting, monitoring, insights + hypotheses, playbooks, cross-project intelligence done
+> **Status:** Phase 2-7 Complete + Phase 4.6 Signals Lens + Phase 5.4 Evidence Provenance — capture, extraction, review, features, analysis lenses, reporting, monitoring, insights + hypotheses, playbooks, cross-project intelligence, signals, provenance done
 > **Created:** 2026-02-20 (Session 10)
-> **Last Updated:** 2026-02-20 (Session 20)
+> **Last Updated:** 2026-02-20 (Session 21)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
 > **Conversation Reference:** `docs/RESEARCH_WORKBENCH_CONVERSATION.md`
 
@@ -388,22 +388,22 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 #### 4.5 Temporal Lens ✅
 - [x] Snapshot comparison: side-by-side attribute diff between two snapshots
 - [x] Attribute change timeline per entity (vertical timeline with dot markers)
-- [ ] Market-level change summary (what shifted across all entities) — deferred
+- [x] Market-level change summary: signals/summary endpoint aggregates changes by field, most active entities, severity breakdown, recent highlights across configurable time window
 - [x] **Activation:** 2+ capture snapshots for any entity
 
 #### 4.6 Signals Lens
-- [ ] News/announcement feed for tracked entities
-- [ ] Funding round timeline
-- [ ] Product launch/update timeline
-- [ ] Market trend indicators
-- [ ] **Activation:** Monitoring configured (Phase 5)
+- [x] Event timeline combining change feed, attribute updates, evidence captures
+- [x] Per-entity activity summary with change/evidence/attribute counts
+- [x] Weekly trend chart with stacked event buckets
+- [x] Entity x event-type heatmap matrix
+- [x] **Activation:** Monitoring configured (Phase 5) or entity attributes exist
 
 #### 4.7 Existing Lenses (already built, enhanced)
 - [x] Relationship lens detected in availability (always available when entities exist)
 - [x] Geographic lens detected in availability (checks for location-type attributes)
-- [ ] Taxonomy lens = existing matrix view (enhanced for any entity type)
-- [ ] Relationship lens = existing graph/KG views (enhanced for rich entity model)
-- [ ] Geographic lens = existing map view (unchanged)
+- [x] Taxonomy lens = existing matrix view (works with entity types via existing tab)
+- [x] Relationship lens = existing graph/KG views (works with entity model via existing tab)
+- [x] Geographic lens = existing map view (works via existing tab)
 
 ---
 
@@ -435,9 +435,15 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [ ] Canvas composition (report as Excalidraw workspace) — deferred
 
 #### 5.4 Evidence Provenance
-- [ ] Every data point in reports links to source evidence
-- [ ] Claim → Analysis → Structured Data → Evidence → Source URL chain
-- [ ] Clickable in interactive HTML exports
+- [x] Attribute trace: full chain from attribute → extraction → evidence → URL
+- [x] Entity provenance summary with per-attribute evidence status + coverage %
+- [x] Reverse evidence map: evidence → supported attributes
+- [x] Project-wide coverage stats + per-entity breakdown
+- [x] Source URL inventory across project with entity/attribute counts
+- [x] Provenance search: find attributes by value with chain info
+- [x] Report claims: scan report sections for entity/attribute references with evidence links
+- [x] Provenance stats: quick aggregate (total, backed, manual, sync, coverage %)
+- [x] Intelligence tab "Provenance" sub-view with Coverage, Sources, Search views
 
 ---
 
@@ -563,6 +569,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 18b | 2026-02-20 | Phase 6.1-6.4: Intelligence & Monitoring — monitors CRUD, 4 check types (website/appstore/playstore/RSS), change feed with severity scoring, auto-setup from entity URLs, dashboard stats, Intelligence tab, 33 new tests, 1001 total | ✅ Complete |
 | 19 | 2026-02-20 | Phase 7.1-7.2: Insights & Hypothesis Tracking — 7 rule-based detectors (feature gaps, pricing outliers, sparse coverage, stale entities, feature clusters, duplicates, attribute coverage), AI-enhanced generation (mocked LLM), hypothesis CRUD with evidence tracking, directional weighted confidence scoring, 16 API endpoints at `/api/insights/*`, 3 DB tables (insights, hypotheses, hypothesis_evidence), Intelligence tab sub-navigation (Monitoring/Insights/Hypotheses), 1301-line JS + 1340-line CSS frontend, 50 new tests, 1051 total | ✅ Complete |
 | 20 | 2026-02-20 | Phase 7.3-7.4: Research Playbooks + Cross-Project Intelligence — playbook CRUD with 4 built-in templates (Market Mapping, Product Teardown, Design Research, Competitive Intelligence), run lifecycle with step-by-step progress tracking, auto-complete, AI improvement suggestions, template seeding/protection; entity overlap detection (Dice coefficient + URL domain matching), manual/auto entity linking, attribute sync between linked entities, attribute diff comparison, 3 cross-project detectors (multi-project overlap, attribute divergence, coverage gaps), cross-project insights + stats; Intelligence tab sub-nav extended to 5 views (Monitoring/Insights/Hypotheses/Playbooks/Cross-Project), 1188-line + 696-line JS, 954-line + 693-line CSS frontends, 117 new tests, 1168 total | ✅ Complete |
+| 21 | 2026-02-20 | Phase 4.6 + 5.4: Signals Lens + Evidence Provenance — signals lens with 4 views (timeline, activity, trends, heatmap) combining change_feed + entity_attributes + evidence data; provenance blueprint with 8 read-only endpoints (attribute trace, entity summary, evidence map, project coverage, project sources, search, report claims, stats), full chain tracing attribute→extraction→evidence→URL; signals integrated into Analysis tab lens system, provenance integrated as 6th Intelligence sub-view with Coverage/Sources/Search; 101 new tests (44 signals + 57 provenance), 1269 total | ✅ Complete |
 
 ---
 

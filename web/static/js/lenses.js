@@ -1070,6 +1070,8 @@ async function _loadSignalsLens() {
                     onclick="_switchSignalsSubView('trends')">Trends</button>
             <button class="lens-subview-btn"
                     onclick="_switchSignalsSubView('heatmap')">Heatmap</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchSignalsSubView('summary')">Summary</button>
         </div>
         <div id="signalsSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading timeline&hellip;</div>
@@ -1084,7 +1086,7 @@ function _switchSignalsSubView(view) {
     _lensSubView = view;
     const bar = document.getElementById('signalsSubBar');
     if (bar) {
-        const viewMap = { timeline: 0, activity: 1, trends: 2, heatmap: 3 };
+        const viewMap = { timeline: 0, activity: 1, trends: 2, heatmap: 3, summary: 4 };
         bar.querySelectorAll('.lens-subview-btn').forEach((btn, i) => {
             btn.classList.toggle('lens-subview-btn-active', i === viewMap[view]);
         });
@@ -1094,6 +1096,7 @@ function _switchSignalsSubView(view) {
         case 'activity': _loadSignalsActivityData(); break;
         case 'trends':   _loadSignalsTrendsData();   break;
         case 'heatmap':  _loadSignalsHeatmapData();  break;
+        case 'summary':  _loadSignalsSummaryData();  break;
     }
 }
 
@@ -1361,6 +1364,112 @@ function _renderSignalsHeatmap(data) {
             <span class="sig-hm-legend-high">High</span>
         </div>
         <div class="sig-hm-meta">${entities.length} entities &times; ${eventTypes.length} event types</div>
+    `;
+}
+
+async function _loadSignalsSummaryData() {
+    const sub = document.getElementById('signalsSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading market summary&hellip;</div>';
+
+    try {
+        const resp = await safeFetch(`/api/lenses/signals/summary?project_id=${currentProjectId}&days=30`);
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Summary Data', 'No market activity in the last 30 days.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderSignalsSummary(data);
+    } catch (e) {
+        console.warn('Signals summary load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load market summary.');
+    }
+}
+
+function _renderSignalsSummary(data) {
+    if (!data.total_events) {
+        return _lensEmptyState('No Market Activity', 'No events recorded in the last ' + data.period_days + ' days.');
+    }
+
+    const sb = data.source_breakdown || {};
+    const sv = data.severity_breakdown || {};
+
+    // Stats bar
+    const statsHtml = `
+        <div class="sig-summary-stats">
+            <div class="sig-summary-stat">
+                <span class="sig-summary-stat-value">${data.total_events}</span>
+                <span class="sig-summary-stat-label">Total Events</span>
+            </div>
+            <div class="sig-summary-stat">
+                <span class="sig-summary-stat-value">${data.entity_count || 0}</span>
+                <span class="sig-summary-stat-label">Entities</span>
+            </div>
+            <div class="sig-summary-stat">
+                <span class="sig-summary-stat-value">${sb.change_detected || 0}</span>
+                <span class="sig-summary-stat-label">Changes</span>
+            </div>
+            <div class="sig-summary-stat">
+                <span class="sig-summary-stat-value">${sb.attribute_updated || 0}</span>
+                <span class="sig-summary-stat-label">Attributes</span>
+            </div>
+            <div class="sig-summary-stat">
+                <span class="sig-summary-stat-value">${sb.evidence_captured || 0}</span>
+                <span class="sig-summary-stat-label">Evidence</span>
+            </div>
+        </div>
+    `;
+
+    // Most active entities
+    const activeEntities = (data.most_active_entities || []).map(e => `
+        <div class="sig-summary-active-row">
+            <span class="sig-summary-active-name">${esc(e.entity_name)}</span>
+            <span class="sig-summary-active-count">${e.event_count}</span>
+        </div>
+    `).join('') || '<div class="sig-summary-none">No active entities</div>';
+
+    // Top changed fields
+    const changedFields = (data.top_changed_fields || []).map(f => `
+        <div class="sig-summary-field-row">
+            <span class="sig-summary-field-name">${esc(f.field_name)}</span>
+            <span class="sig-summary-field-count">${f.change_count} changes across ${f.entities_affected} entities</span>
+        </div>
+    `).join('') || '<div class="sig-summary-none">No field changes detected</div>';
+
+    // Recent highlights
+    const highlights = (data.recent_highlights || []).map(h => `
+        <div class="sig-summary-highlight">
+            <span class="sig-summary-hl-entity">${esc(h.entity_name)}</span>
+            <span class="sig-summary-hl-field">${esc(h.field_name || '')}</span>
+            <span class="sig-summary-hl-change">${esc((h.old_value || '').substring(0, 20))} &rarr; ${esc((h.new_value || '').substring(0, 20))}</span>
+            <span class="sig-summary-hl-ts">${h.timestamp ? h.timestamp.substring(0, 10) : ''}</span>
+        </div>
+    `).join('') || '<div class="sig-summary-none">No recent highlights</div>';
+
+    // Severity breakdown
+    const sevHtml = Object.entries(sv)
+        .filter(([_, v]) => v > 0)
+        .map(([k, v]) => `<span class="sig-summary-sev sig-sev-${k}">${k}: ${v}</span>`)
+        .join(' ') || '<span class="sig-summary-none">No severity data</span>';
+
+    return `
+        <div class="sig-summary-period">Last ${data.period_days} days</div>
+        ${statsHtml}
+        <div class="sig-summary-sections">
+            <div class="sig-summary-section">
+                <h3>Most Active Entities</h3>
+                ${activeEntities}
+            </div>
+            <div class="sig-summary-section">
+                <h3>Top Changed Fields</h3>
+                ${changedFields}
+            </div>
+            <div class="sig-summary-section">
+                <h3>Severity</h3>
+                <div class="sig-summary-sev-bar">${sevHtml}</div>
+            </div>
+            <div class="sig-summary-section">
+                <h3>Recent Highlights</h3>
+                ${highlights}
+            </div>
+        </div>
     `;
 }
 
