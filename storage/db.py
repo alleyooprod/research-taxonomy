@@ -14,11 +14,13 @@ from config import DB_PATH, SEED_CATEGORIES
 from storage.repos import (
     CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin,
     ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin,
+    EntityMixin,
 )
 
 
 class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin,
-               ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin):
+               ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin,
+               EntityMixin):
     def __init__(self, db_path=None):
         self.db_path = db_path or DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,6 +58,7 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
                 self._migrate_phase4(conn)
                 self._migrate_phase5(conn)
                 self._migrate_phase6(conn)
+                self._migrate_phase7_entities(conn)
 
             if "triage_results" in tables:
                 triage_cols = {r[1] for r in conn.execute("PRAGMA table_info(triage_results)").fetchall()}
@@ -289,22 +292,31 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
         if "features" not in project_cols:
             conn.execute("ALTER TABLE projects ADD COLUMN features TEXT DEFAULT '{}'")
 
+    def _migrate_phase7_entities(self, conn):
+        """Add entity schema support to projects."""
+        project_cols = {r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        if "entity_schema" not in project_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN entity_schema TEXT")
+
     # --- Projects ---
 
     def create_project(self, name, purpose="", outcome="", seed_categories=None,
-                       example_links=None, market_keywords=None, description=""):
+                       example_links=None, market_keywords=None, description="",
+                       entity_schema=None):
         slug = self._make_slug(name)
         cats = seed_categories or []
+        schema_json = json.dumps(entity_schema) if entity_schema else None
         with self._get_conn() as conn:
             cursor = conn.execute(
                 """INSERT INTO projects (name, slug, purpose, outcome, description,
-                   seed_categories, example_links, market_keywords)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   seed_categories, example_links, market_keywords, entity_schema)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     name, slug, purpose, outcome, description,
                     json.dumps(cats),
                     json.dumps(example_links or []),
                     json.dumps(market_keywords or []),
+                    schema_json,
                 ),
             )
             project_id = cursor.lastrowid
@@ -313,6 +325,11 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
                     "INSERT OR IGNORE INTO categories (project_id, name) VALUES (?, ?)",
                     (project_id, cat_name),
                 )
+
+            # Sync entity type definitions if schema provided
+            if entity_schema:
+                self.sync_entity_types(project_id, entity_schema)
+
             return project_id
 
     def get_projects(self):
@@ -337,6 +354,7 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
     _PROJECT_FIELDS = {
         "name", "purpose", "outcome", "description", "seed_categories",
         "example_links", "market_keywords", "updated_at", "features",
+        "entity_schema",
     }
 
     def update_project(self, project_id, fields):

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
     is_active INTEGER DEFAULT 1,
-    features TEXT DEFAULT '{}'   -- JSON: {"discovery_enabled": true, "dimensions_enabled": true}
+    features TEXT DEFAULT '{}',   -- JSON: {"discovery_enabled": true, "dimensions_enabled": true}
+    entity_schema TEXT             -- JSON: research workbench entity schema definition
 );
 
 -- Categories table: the living taxonomy (scoped per project)
@@ -376,3 +377,117 @@ CREATE INDEX IF NOT EXISTS idx_companies_subcategory ON companies(subcategory_id
 CREATE INDEX IF NOT EXISTS idx_jobs_batch_status ON jobs(batch_id, status);
 CREATE INDEX IF NOT EXISTS idx_notes_company_pinned ON company_notes(company_id, is_pinned);
 CREATE INDEX IF NOT EXISTS idx_triage_batch_status ON triage_results(batch_id, status);
+
+-- ═══════════════════════════════════════════════════════════════
+-- RESEARCH WORKBENCH: Entity System (Phase 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Entity type definitions: per-project schema for entity types
+CREATE TABLE IF NOT EXISTS entity_type_defs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    slug TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    icon TEXT DEFAULT 'circle',
+    parent_type_slug TEXT,              -- slug of parent entity type (NULL for root types)
+    attributes_json TEXT DEFAULT '[]',  -- JSON array of attribute definitions
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(project_id, slug)
+);
+
+-- Entity relationship definitions: named relationship types between entity types
+CREATE TABLE IF NOT EXISTS entity_relationship_defs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    from_type_slug TEXT NOT NULL,
+    to_type_slug TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(project_id, name)
+);
+
+-- Entities: the actual entity instances
+CREATE TABLE IF NOT EXISTS entities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    type_slug TEXT NOT NULL,            -- references entity_type_defs.slug
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    parent_entity_id INTEGER REFERENCES entities(id),  -- hierarchy (Company > Product > Plan)
+    category_id INTEGER REFERENCES categories(id),     -- taxonomy classification
+    is_starred INTEGER DEFAULT 0,
+    is_deleted INTEGER DEFAULT 0,
+    deleted_at TEXT,
+    status TEXT DEFAULT 'active',       -- active | draft | archived
+    confidence_score REAL,
+    tags TEXT,                          -- JSON array
+    raw_research TEXT,                  -- full LLM output from research
+    source TEXT DEFAULT 'manual',       -- manual | ai | import | migration
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Entity attributes: timestamped values for temporal versioning
+-- Each row is a point-in-time value. Current = most recent per attr_slug.
+CREATE TABLE IF NOT EXISTS entity_attributes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    attr_slug TEXT NOT NULL,            -- references attribute slug from entity_type_defs
+    value TEXT,                         -- all values stored as text (JSON for complex types)
+    source TEXT DEFAULT 'manual',       -- manual | ai | import | scrape
+    confidence REAL,                    -- 0.0 to 1.0
+    captured_at TEXT DEFAULT (datetime('now')),  -- when this value was captured
+    snapshot_id INTEGER REFERENCES entity_snapshots(id)  -- groups updates from same session
+);
+
+-- Entity relationships: many-to-many between entities (graph edges)
+CREATE TABLE IF NOT EXISTS entity_relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    to_entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    relationship_type TEXT NOT NULL,    -- references entity_relationship_defs.name
+    metadata_json TEXT DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(from_entity_id, to_entity_id, relationship_type)
+);
+
+-- Entity snapshots: groups attribute updates from a single capture session
+CREATE TABLE IF NOT EXISTS entity_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    description TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Evidence: captured artefacts linked to entities
+CREATE TABLE IF NOT EXISTS evidence (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    evidence_type TEXT NOT NULL,         -- screenshot | document | page_archive | video | other
+    file_path TEXT NOT NULL,             -- path relative to project evidence directory
+    source_url TEXT,                     -- original URL where captured
+    source_name TEXT,                    -- human-readable source (Mobbin, App Store, etc.)
+    metadata_json TEXT DEFAULT '{}',     -- additional metadata (dimensions, file size, etc.)
+    captured_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Indexes for entity system
+CREATE INDEX IF NOT EXISTS idx_entity_type_defs_project ON entity_type_defs(project_id);
+CREATE INDEX IF NOT EXISTS idx_entity_rel_defs_project ON entity_relationship_defs(project_id);
+CREATE INDEX IF NOT EXISTS idx_entities_project ON entities(project_id);
+CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(project_id, type_slug);
+CREATE INDEX IF NOT EXISTS idx_entities_parent ON entities(parent_entity_id);
+CREATE INDEX IF NOT EXISTS idx_entities_category ON entities(category_id);
+CREATE INDEX IF NOT EXISTS idx_entities_active ON entities(project_id, is_deleted, type_slug);
+CREATE INDEX IF NOT EXISTS idx_entity_attrs_entity ON entity_attributes(entity_id);
+CREATE INDEX IF NOT EXISTS idx_entity_attrs_slug ON entity_attributes(entity_id, attr_slug);
+CREATE INDEX IF NOT EXISTS idx_entity_attrs_captured ON entity_attributes(entity_id, attr_slug, captured_at);
+CREATE INDEX IF NOT EXISTS idx_entity_attrs_snapshot ON entity_attributes(snapshot_id);
+CREATE INDEX IF NOT EXISTS idx_entity_rels_from ON entity_relationships(from_entity_id);
+CREATE INDEX IF NOT EXISTS idx_entity_rels_to ON entity_relationships(to_entity_id);
+CREATE INDEX IF NOT EXISTS idx_entity_snapshots_project ON entity_snapshots(project_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_entity ON evidence(entity_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_type ON evidence(entity_id, evidence_type);
