@@ -1,8 +1,8 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 (core) Complete — capture, extraction, review, features, analysis lenses, reporting, monitoring done
+> **Status:** Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7.1-7.2 Complete — capture, extraction, review, features, analysis lenses, reporting, monitoring, insights + hypotheses done
 > **Created:** 2026-02-20 (Session 10)
-> **Last Updated:** 2026-02-20 (Session 18)
+> **Last Updated:** 2026-02-20 (Session 19)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
 > **Conversation Reference:** `docs/RESEARCH_WORKBENCH_CONVERSATION.md`
 
@@ -476,15 +476,15 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 **Depends on:** Phases 1-5 substantially complete
 
 #### 7.1 "So What?" Engine
-- [ ] Proactive insight generation from structured data
-- [ ] Pattern detection across entities (feature trends, pricing patterns, design patterns)
-- [ ] Hypothesis suggestions based on data
+- [x] Proactive insight generation from structured data
+- [x] Pattern detection across entities (feature trends, pricing patterns, design patterns)
+- [x] Hypothesis suggestions based on data
 
 #### 7.2 Hypothesis Tracking
-- [ ] State hypotheses about the market
-- [ ] Track supporting / contradicting evidence
-- [ ] Surface "insufficient data" areas to guide further research
-- [ ] Hypothesis dashboard with evidence weight
+- [x] State hypotheses about the market
+- [x] Track supporting / contradicting evidence
+- [x] Surface "insufficient data" areas to guide further research
+- [x] Hypothesis dashboard with evidence weight
 
 #### 7.3 Research Playbooks
 - [ ] Save reusable research methodologies
@@ -538,7 +538,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 1. All 266 original tests continue to pass unchanged
 2. Company API remains fully functional — entity system runs alongside, not replacing
 3. New test suites added with every implementation step — test count grows in lockstep
-4. **Current total: 749 tests** (266 original + 62 entity DB + 119 entity API + 64 capture DB + 31 capture API + 27 scraper DB + 15 scraper API + 58 extraction DB + 38 extraction API + 27 extractor + 42 screenshot classifier)
+4. **Current total: 1051 tests** (266 original + 62 entity DB + 119 entity API + 64 capture DB + 31 capture API + 27 scraper DB + 15 scraper API + 58 extraction DB + 38 extraction API + 27 extractor + 42 screenshot classifier)
 
 ---
 
@@ -561,7 +561,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 17 | 2026-02-20 | Phase 4.1-4.5: Analysis Lenses — lens framework, competitive (matrix/gaps/positioning), product (pricing), design (gallery/journey), temporal (timeline/compare), Analysis tab + full wiring, 41 new tests, 935 total | ✅ Complete |
 | 18 | 2026-02-20 | Phase 5.1-5.3: Reporting & Synthesis — 5 report templates (market overview, competitive landscape, product teardown, design patterns, change report), AI-enhanced generation (mocked LLM), template availability detection, report CRUD, export (HTML/Markdown/JSON), `/api/synthesis` routes, frontend in Export tab, 33 new tests, 968 total | ✅ Complete |
 | 18b | 2026-02-20 | Phase 6.1-6.4: Intelligence & Monitoring — monitors CRUD, 4 check types (website/appstore/playstore/RSS), change feed with severity scoring, auto-setup from entity URLs, dashboard stats, Intelligence tab, 33 new tests, 1001 total | ✅ Complete |
-| 19 | TBD | Phase 5.4 + Phase 7: Evidence provenance + Advanced Features | ⬜ Not started |
+| 19 | 2026-02-20 | Phase 7.1-7.2: Insights & Hypothesis Tracking — 7 rule-based detectors (feature gaps, pricing outliers, sparse coverage, stale entities, feature clusters, duplicates, attribute coverage), AI-enhanced generation (mocked LLM), hypothesis CRUD with evidence tracking, directional weighted confidence scoring, 16 API endpoints at `/api/insights/*`, 3 DB tables (insights, hypotheses, hypothesis_evidence), Intelligence tab sub-navigation (Monitoring/Insights/Hypotheses), 1301-line JS + 1340-line CSS frontend, 50 new tests, 1051 total | ✅ Complete |
+| 20 | TBD | Phase 7.3-7.4: Research Playbooks + Cross-Project Intelligence | ⬜ Not started |
 
 ---
 
