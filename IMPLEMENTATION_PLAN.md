@@ -211,10 +211,14 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [ ] **Files affected:** New `core/scrapers/` directory with per-source modules
 
 #### 2.3 App Store Scraper
-- [ ] Apple App Store: screenshots, description, rating, version history (via iTunes Search API)
-- [ ] Google Play Store: screenshots, description, rating (scraping, no official API)
-- [ ] Auto-link to product entity
-- [ ] **Files affected:** `core/scrapers/appstore.py`, `core/scrapers/playstore.py`
+- [x] Apple App Store: search, details, screenshots, icon, metadata via iTunes Search API
+- [x] Google Play Store: details, screenshots, icon via HTML scraping + BeautifulSoup
+- [x] Auto-link to product entity (evidence records with source_name and metadata)
+- [x] App metadata extraction for entity attributes (app_store_rating, play_store_id, etc.)
+- [x] Partial failure handling (some screenshots fail but rest succeed)
+- [x] API endpoints: search, details, screenshot download for both stores
+- [x] **Files:** `core/scrapers/__init__.py`, `core/scrapers/appstore.py` (280+ lines), `core/scrapers/playstore.py` (300+ lines), `web/blueprints/capture.py` (scraper endpoints)
+- [x] **Tests:** 27 scraper tests in `test_scrapers.py` (parsing, search, details, download, metadata, dataclasses), 15 API tests in `test_api_scrapers.py`
 
 #### 2.4 Document Capture
 - [x] Download and store PDFs (IPIDs, regulatory docs, whitepapers)
@@ -268,7 +272,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] API-layer tests: 31 tests in `tests/test_api_capture.py` (upload, serve, delete, document capture, website capture, stats, jobs, integration)
 - [x] `capture` marker added to `pytest.ini` for selective running (`pytest -m capture`)
 - [x] All 447 original tests still pass after capture engine addition
-- [x] **Total: 542 tests passing** (447 original + 64 capture DB + 31 capture API)
+- [x] **Total: 584 tests passing** (447 original + 64 capture DB + 31 capture API + 27 scraper DB + 15 scraper API)
 
 ---
 
@@ -492,7 +496,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 1. All 266 original tests continue to pass unchanged
 2. Company API remains fully functional — entity system runs alongside, not replacing
 3. New test suites added with every implementation step — test count grows in lockstep
-4. **Current total: 542 tests** (266 original + 62 entity DB + 119 entity API + 64 capture DB + 31 capture API)
+4. **Current total: 584 tests** (266 original + 62 entity DB + 119 entity API + 64 capture DB + 31 capture API + 27 scraper DB + 15 scraper API)
 
 ---
 
@@ -508,8 +512,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 10 | 2026-02-20 | Research Workbench brainstorm + planning | ✅ Complete |
 | 11 | 2026-02-20 | Phase 1.1-1.5 + 1.9: Schema, entities, temporal, evidence, API, tests | ✅ Complete |
 | 12 | 2026-02-20 | Phase 1.6-1.8: Project setup + entity browser + view compat (46 new tests, 447 total) | ✅ Complete |
-| 13 | 2026-02-20 | Phase 2.1/2.4/2.5/2.5a: Capture engine core — file storage, website capture, document download, manual upload, evidence serve/delete/stats (95 new tests, 542 total) | ✅ Complete |
-| 14 | TBD | Phase 2.2/2.3: Scrapers (UI galleries, app stores) | ⬜ Not started |
+| 13 | 2026-02-20 | Phase 2.1/2.4/2.5/2.5a/2.3: Capture engine + scrapers — file storage, website capture, document download, manual upload, App Store + Play Store scrapers (137 new tests, 584 total) | ✅ Complete |
+| 14 | TBD | Phase 2.2: UI gallery scrapers (Mobbin, Screenlane, Refero) | ⬜ Not started |
 | 15 | TBD | Phase 2.6/2.7: Bulk capture + Capture UI | ⬜ Not started |
 
 ---

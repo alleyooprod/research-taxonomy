@@ -491,3 +491,50 @@ CREATE INDEX IF NOT EXISTS idx_entity_rels_to ON entity_relationships(to_entity_
 CREATE INDEX IF NOT EXISTS idx_entity_snapshots_project ON entity_snapshots(project_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_entity ON evidence(entity_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_type ON evidence(entity_id, evidence_type);
+
+-- ═══════════════════════════════════════════════════════════════
+-- RESEARCH WORKBENCH: Extraction System (Phase 3)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Extraction jobs: track AI extraction requests against evidence
+CREATE TABLE IF NOT EXISTS extraction_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    evidence_id INTEGER REFERENCES evidence(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending',       -- pending | running | completed | failed
+    source_type TEXT NOT NULL DEFAULT 'evidence',  -- evidence | url | text
+    source_ref TEXT,                               -- URL or description of source
+    model TEXT,                                    -- LLM model used
+    cost_usd REAL DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    result_count INTEGER DEFAULT 0,                -- number of attributes extracted
+    error TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT
+);
+
+-- Extraction results: individual extracted attribute values pending review
+CREATE TABLE IF NOT EXISTS extraction_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL REFERENCES extraction_jobs(id) ON DELETE CASCADE,
+    entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    attr_slug TEXT NOT NULL,
+    extracted_value TEXT,
+    confidence REAL DEFAULT 0.5,                   -- 0.0 to 1.0
+    reasoning TEXT,                                -- AI's reasoning for this extraction
+    source_evidence_id INTEGER REFERENCES evidence(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending',         -- pending | accepted | rejected | edited
+    reviewed_value TEXT,                           -- user-edited value (if status=edited)
+    reviewed_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Indexes for extraction system
+CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project ON extraction_jobs(project_id);
+CREATE INDEX IF NOT EXISTS idx_extraction_jobs_entity ON extraction_jobs(entity_id);
+CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status ON extraction_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_extraction_results_job ON extraction_results(job_id);
+CREATE INDEX IF NOT EXISTS idx_extraction_results_entity ON extraction_results(entity_id);
+CREATE INDEX IF NOT EXISTS idx_extraction_results_status ON extraction_results(entity_id, status);
+CREATE INDEX IF NOT EXISTS idx_extraction_results_attr ON extraction_results(entity_id, attr_slug);

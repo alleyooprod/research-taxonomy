@@ -14,13 +14,13 @@ from config import DB_PATH, SEED_CATEGORIES
 from storage.repos import (
     CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin,
     ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin,
-    EntityMixin,
+    EntityMixin, ExtractionMixin,
 )
 
 
 class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixin,
                ResearchMixin, CanvasMixin, TemplateMixin, DimensionsMixin, DiscoveryMixin,
-               EntityMixin):
+               EntityMixin, ExtractionMixin):
     def __init__(self, db_path=None):
         self.db_path = db_path or DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

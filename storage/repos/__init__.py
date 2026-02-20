@@ -9,3 +9,4 @@ from storage.repos.templates import TemplateMixin
 from storage.repos.dimensions import DimensionsMixin
 from storage.repos.discovery import DiscoveryMixin
 from storage.repos.entities import EntityMixin
+from storage.repos.extraction import ExtractionMixin
