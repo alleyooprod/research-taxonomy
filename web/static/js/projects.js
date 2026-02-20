@@ -88,6 +88,11 @@ async function _loadProjectSchema(projectId) {
     } catch (e) {
         window._currentProjectSchema = null;
     }
+
+    // Initialize entity browser if schema has multiple types
+    if (typeof initEntityBrowser === 'function') {
+        initEntityBrowser();
+    }
 }
 
 function switchProject() {

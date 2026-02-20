@@ -414,6 +414,51 @@
 
             <!-- Companies Tab -->
             <section id="tab-companies" class="tab-content active" role="tabpanel" aria-label="Companies">
+                <!-- ===== Entity Browser (shown for multi-type schemas) ===== -->
+                <div id="entityBrowser" class="hidden">
+                    <div class="entity-type-bar" id="entityTypeBar">
+                        <!-- Type buttons rendered by entities.js -->
+                    </div>
+                    <div class="entity-breadcrumbs hidden" id="entityBreadcrumbs"></div>
+                    <div class="entity-controls">
+                        <input type="text" id="entitySearchInput" placeholder="Search entities... (/)" oninput="debounceEntitySearch()" aria-label="Search entities">
+                        <button class="primary-btn" onclick="openEntityCreateModal()">+ New</button>
+                    </div>
+
+                    <div id="entityEmptyState" class="entity-empty-state hidden">
+                        <div class="empty-state-title">No entities yet</div>
+                        <div class="empty-state-desc">Create your first entity to get started</div>
+                        <button class="primary-btn" onclick="openEntityCreateModal()">+ Create</button>
+                    </div>
+
+                    <table id="entityTable" class="entity-table">
+                        <thead id="entityTableHead"></thead>
+                        <tbody id="entityTableBody"></tbody>
+                    </table>
+
+                    <!-- Entity Bulk Bar -->
+                    <div id="entityBulkBar" class="bulk-action-bar hidden">
+                        <span id="entityBulkCount">0 selected</span>
+                        <button class="btn" onclick="entityBulkAction('star')">Star</button>
+                        <button class="btn" onclick="entityBulkAction('unstar')">Unstar</button>
+                        <button class="danger-btn" onclick="entityBulkAction('delete')">Delete</button>
+                        <button class="btn" onclick="clearEntityBulkSelection()" aria-label="Clear selection">&times;</button>
+                    </div>
+
+                    <!-- Entity Detail Panel -->
+                    <div id="entityDetailPanel" class="detail-panel hidden"></div>
+
+                    <!-- Entity Create/Edit Modal -->
+                    <div id="entityModal" class="modal-overlay hidden">
+                        <div class="modal-content">
+                            <h2 id="entityModalTitle"></h2>
+                            <div id="entityModalBody"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== Company View (original, shown for flat schemas) ===== -->
+                <div id="companyViewWrapper">
                 <div class="controls">
                     <input type="text" id="searchInput" placeholder="Search companies... (/)" oninput="debounceSearch()" aria-label="Search companies">
                     <select id="categoryFilter" onchange="addFilterFromSelect('category')" aria-label="Filter by category">
@@ -539,6 +584,7 @@
                     </div>
                   </div>
                 </template>
+                </div><!-- /companyViewWrapper -->
             </section>
 
             <!-- Taxonomy Tab -->
@@ -1639,6 +1685,7 @@
     <script src="{{ url_for('static', filename='js/core.js') }}"></script>
     <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
     <script src="{{ url_for('static', filename='js/companies.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/entities.js') }}"></script>
     <script src="{{ url_for('static', filename='js/taxonomy.js') }}"></script>
     <script src="{{ url_for('static', filename='js/maps.js') }}"></script>
     <script src="{{ url_for('static', filename='js/processing.js') }}"></script>

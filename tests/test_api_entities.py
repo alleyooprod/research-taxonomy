@@ -1429,3 +1429,213 @@ class TestBulkEntityOperations:
         })
         assert r.status_code == 400
         assert "attr_slug is required" in r.get_json()["error"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.7: Entity Browser Query Patterns
+# ---------------------------------------------------------------------------
+
+class TestEntityBrowserQueries:
+    """ENT-BROWSE: Query patterns used by the entity browser UI."""
+
+    def test_list_root_entities_by_type(self, entity_hierarchy):
+        """Entity browser lists root entities of a specific type."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+
+        r = c.get(f"/api/entities?project_id={pid}&type=company&parent_id=root")
+        entities = r.get_json()
+        assert len(entities) == 1
+        assert entities[0]["name"] == "Acme Corp"
+        assert entities[0]["type_slug"] == "company"
+        assert "child_count" in entities[0]
+        assert "evidence_count" in entities[0]
+        assert "attributes" in entities[0]
+
+    def test_drill_down_to_children(self, entity_hierarchy):
+        """Entity browser drills down to children of a parent entity."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+        company_id = entity_hierarchy["entity_id"]
+
+        r = c.get(f"/api/entities?project_id={pid}&parent_id={company_id}")
+        children = r.get_json()
+        assert len(children) == 1
+        assert children[0]["name"] == "Acme Pro"
+        assert children[0]["type_slug"] == "product"
+
+    def test_search_entities(self, entity_hierarchy):
+        """Entity browser search works across entity names."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+
+        r = c.get(f"/api/entities?project_id={pid}&search=Acme")
+        entities = r.get_json()
+        assert len(entities) >= 1
+        assert any(e["name"] == "Acme Corp" for e in entities)
+
+    def test_entity_detail_includes_attributes(self, entity_with_company):
+        """Entity detail returns attributes with metadata."""
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+
+        r = c.get(f"/api/entities/{eid}")
+        entity = r.get_json()
+        assert "attributes" in entity
+        assert "url" in entity["attributes"]
+        url_attr = entity["attributes"]["url"]
+        assert url_attr["value"] == "https://acme.com"
+        assert "source" in url_attr
+        assert "captured_at" in url_attr
+
+    def test_entity_hierarchy_endpoint(self, client):
+        """Entity type hierarchy endpoint for breadcrumb building."""
+        r = client.post("/api/projects", json={
+            "name": "Hierarchy Browse Test",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        r = client.get(f"/api/entity-types/hierarchy?project_id={pid}")
+        hierarchy = r.get_json()
+        assert len(hierarchy) == 1
+        assert hierarchy[0]["type"]["slug"] == "company"
+        assert len(hierarchy[0]["children"]) == 1  # product
+        assert len(hierarchy[0]["children"][0]["children"]) == 1  # plan
+
+    def test_entity_type_counts(self, entity_hierarchy):
+        """Entity stats used for type bar counts."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+
+        r = c.get(f"/api/entity-stats?project_id={pid}")
+        stats = r.get_json()
+        assert stats["company"] >= 1
+        assert stats["product"] >= 1
+
+    def test_create_entity_at_root_level(self, client):
+        """Creating an entity without parent_id puts it at root level."""
+        r = client.post("/api/projects", json={
+            "name": "Root Test",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        r = client.post("/api/entities", json={
+            "project_id": pid,
+            "type": "company",
+            "name": "Root Corp",
+            "attributes": {"url": "https://root.com"},
+        })
+        assert r.status_code == 201
+        eid = r.get_json()["id"]
+
+        # Should appear in root listing
+        r = client.get(f"/api/entities?project_id={pid}&type=company&parent_id=root")
+        entities = r.get_json()
+        assert any(e["id"] == eid for e in entities)
+
+    def test_create_entity_as_child(self, client):
+        """Creating an entity with parent_id creates it as a child."""
+        r = client.post("/api/projects", json={
+            "name": "Child Test",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        # Create parent
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "Parent Corp",
+            "attributes": {"url": "https://parent.com"},
+        })
+        parent_id = r.get_json()["id"]
+
+        # Create child
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "product",
+            "name": "Child Product",
+            "parent_id": parent_id,
+        })
+        assert r.status_code == 201
+        child_id = r.get_json()["id"]
+
+        # Verify parent has child_count
+        r = client.get(f"/api/entities/{parent_id}")
+        assert r.get_json()["child_count"] == 1
+
+        # Verify child is in parent's children listing
+        r = client.get(f"/api/entities?project_id={pid}&parent_id={parent_id}")
+        assert any(e["id"] == child_id for e in r.get_json())
+
+    def test_entity_update_name_and_attributes(self, entity_with_company):
+        """Entity browser edit updates name and attributes."""
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+
+        r = c.post(f"/api/entities/{eid}", json={
+            "name": "Acme Renamed",
+            "attributes": {"what": "Now does AI", "url": "https://acme-new.com"},
+        })
+        assert r.status_code == 200
+
+        # Verify changes
+        r = c.get(f"/api/entities/{eid}")
+        entity = r.get_json()
+        assert entity["name"] == "Acme Renamed"
+        assert entity["attributes"]["what"]["value"] == "Now does AI"
+        assert entity["attributes"]["url"]["value"] == "https://acme-new.com"
+
+    def test_toggle_entity_star(self, entity_with_company):
+        """Entity browser star toggle."""
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+
+        # Initially not starred
+        r = c.get(f"/api/entities/{eid}")
+        assert not r.get_json()["is_starred"]
+
+        # Star
+        r = c.post(f"/api/entities/{eid}/star")
+        assert r.get_json()["is_starred"]
+
+        # Unstar
+        r = c.post(f"/api/entities/{eid}/star")
+        assert not r.get_json()["is_starred"]
+
+    def test_delete_entity_cascade(self, entity_hierarchy):
+        """Entity browser delete cascades to children."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+        company_id = entity_hierarchy["entity_id"]
+
+        # Delete company — should cascade to product
+        r = c.delete(f"/api/entities/{company_id}")
+        assert r.status_code == 200
+
+        # Both should be gone from listings
+        r = c.get(f"/api/entities?project_id={pid}")
+        assert len(r.get_json()) == 0
+
+    def test_entity_sort_by_name(self, entity_project):
+        """Entity browser default sort by name."""
+        c = entity_project["client"]
+        pid = entity_project["id"]
+
+        # Create entities in non-alphabetical order
+        for name in ["Zeta Corp", "Alpha Corp", "Mid Corp"]:
+            c.post("/api/entities", json={
+                "project_id": pid, "type": "company",
+                "name": name, "attributes": {"url": f"https://{name.lower().replace(' ', '')}.com"},
+            })
+
+        r = c.get(f"/api/entities?project_id={pid}&type=company&parent_id=root&sort=name")
+        entities = r.get_json()
+        names = [e["name"] for e in entities]
+        assert names == sorted(names)
