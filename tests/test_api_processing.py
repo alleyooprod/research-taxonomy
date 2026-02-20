@@ -77,9 +77,9 @@ class TestRetryValidation:
     """PROC-RETRY: Retry validation."""
 
     def test_retry_timeouts_nonexistent_batch(self, client):
-        r = client.post("/api/jobs/nonexistent/retry-timeouts")
+        r = client.post("/api/jobs/nonexistent/retry-timeouts", json={})
         assert r.status_code == 400
 
     def test_retry_errors_nonexistent_batch(self, client):
-        r = client.post("/api/jobs/nonexistent/retry-errors")
+        r = client.post("/api/jobs/nonexistent/retry-errors", json={})
         assert r.status_code == 400
