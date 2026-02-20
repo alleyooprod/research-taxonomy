@@ -84,16 +84,17 @@
     <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js" defer integrity="sha384-u69h9ebXeSjlg6q/rb1zKTRAGu/h8deCl0409xpS/QJctMKnc4M9Fzkm01VOQdeF" crossorigin="anonymous"></script>
     <!-- fcose removed: requires cose-base dependency not available via CDN; code falls back to built-in cose layout -->
 
-    <!-- Canvas: Fabric.js drawing engine + layout + sketch -->
-    <script src="https://cdn.jsdelivr.net/npm/fabric@6.5.1/dist/index.min.js" defer integrity="sha384-uwizC/PmbWPkJCrTMrSBSXyEkEk8eLhbxzeLOSfquA3NAvTqOSzUr9PTojpzXK+w" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js" defer integrity="sha384-lNbBZ8yeW7Otl9YsPLeAvfxwUjrpXOnk/ujXsbt5s9wWhKWCYzMeFdZwKBpYxeDT" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js" defer integrity="sha384-1NLkwxMO2sOqcq7rQkFBhIAUJtbt8ziLxhVKVgKfFGMEU8pF+GEq5LVogviveup6" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js" defer integrity="sha384-KO35c6PFq7tFxAEx6FtATwL9vOBOmCzQYr7GM0iTr3oO22s7Jc9OkclOH4AV7jwK" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js" defer integrity="sha384-LE9qY46wSQtGLFdKk+na4saTOtmlGF3GByazLVjZXb8DPBJxCMTzshHEW0BzBszp" crossorigin="anonymous"></script>
-    <!-- Canvas: perfect-freehand (vendored locally) -->
-    <script type="module">
-        import getStroke from '/static/vendor/perfect-freehand.mjs';
-        window.getStroke = getStroke;
+    <!-- Canvas: Excalidraw (loaded lazily via dynamic import in canvas.js) -->
+    <link rel="stylesheet" href="https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/dev/index.css" />
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@19.0.0",
+            "react/jsx-runtime": "https://esm.sh/react@19.0.0/jsx-runtime",
+            "react-dom": "https://esm.sh/react-dom@19.0.0",
+            "react-dom/client": "https://esm.sh/react-dom@19.0.0/client"
+        }
+    }
     </script>
 
     <!-- Maps: Leaflet + plugins (markercluster, heat, turf) -->
@@ -762,99 +763,6 @@
                     </div>
                 </div>
 
-                <!-- Drawing toolbar (shown when a canvas is loaded) -->
-                <div id="canvasDrawToolbar" class="canvas-draw-toolbar hidden">
-                    <div class="draw-tool-group">
-                        <button class="draw-tool active" id="toolSelect" onclick="setCanvasTool('select')" title="Select (V)">
-                            <span class="material-symbols-outlined">arrow_selector_tool</span>
-                        </button>
-                        <button class="draw-tool" id="toolPan" onclick="setCanvasTool('pan')" title="Pan (H)">
-                            <span class="material-symbols-outlined">pan_tool</span>
-                        </button>
-                    </div>
-                    <div class="draw-tool-sep"></div>
-                    <div class="draw-tool-group">
-                        <button class="draw-tool" id="toolPen" onclick="setCanvasTool('pen')" title="Freehand Draw (P)">
-                            <span class="material-symbols-outlined">draw</span>
-                        </button>
-                        <button class="draw-tool" id="toolLine" onclick="setCanvasTool('line')" title="Line / Arrow (L)">
-                            <span class="material-symbols-outlined">arrow_right_alt</span>
-                        </button>
-                        <button class="draw-tool" id="toolRect" onclick="setCanvasTool('rect')" title="Rectangle (R)">
-                            <span class="material-symbols-outlined">rectangle</span>
-                        </button>
-                        <button class="draw-tool" id="toolCircle" onclick="setCanvasTool('circle')" title="Circle (O)">
-                            <span class="material-symbols-outlined">circle</span>
-                        </button>
-                        <button class="draw-tool" id="toolDiamond" onclick="setCanvasTool('diamond')" title="Diamond (D)">
-                            <span class="material-symbols-outlined">diamond</span>
-                        </button>
-                        <button class="draw-tool" id="toolText" onclick="setCanvasTool('text')" title="Text (T)">
-                            <span class="material-symbols-outlined">text_fields</span>
-                        </button>
-                        <button class="draw-tool" id="toolNote" onclick="setCanvasTool('note')" title="Sticky Note (N)">
-                            <span class="material-symbols-outlined">sticky_note_2</span>
-                        </button>
-                    </div>
-                    <div class="draw-tool-sep"></div>
-                    <div class="draw-tool-group">
-                        <button class="draw-tool draw-tool-text" id="toolHandDrawn" onclick="toggleHandDrawnMode()" title="Hand-drawn style (Rough.js)">
-                            Sketch
-                        </button>
-                    </div>
-                    <div class="draw-tool-sep"></div>
-                    <div class="draw-tool-group">
-                        <label class="draw-tool-label" title="Fill color">
-                            <input type="color" id="canvasFillColor" value="#ffffff" class="canvas-color-input" onchange="applyFillToSelected(this.value)">
-                        </label>
-                        <label class="draw-tool-label" title="Stroke color">
-                            <input type="color" id="canvasStrokeColor" value="#000000" class="canvas-color-input" onchange="applyStrokeToSelected(this.value)">
-                        </label>
-                        <select id="canvasStrokeWidth" class="draw-tool-select" title="Stroke width" onchange="applyStrokeWidthToSelected(+this.value)">
-                            <option value="1" selected>1px</option>
-                            <option value="2">2px</option>
-                            <option value="3">3px</option>
-                            <option value="5">5px</option>
-                            <option value="8">8px</option>
-                        </select>
-                        <select id="canvasFontSize" class="draw-tool-select" title="Font size" onchange="applyFontSizeToSelected(+this.value)">
-                            <option value="12">12</option>
-                            <option value="14" selected>14</option>
-                            <option value="18">18</option>
-                            <option value="24">24</option>
-                            <option value="32">32</option>
-                            <option value="48">48</option>
-                        </select>
-                    </div>
-                    <div class="draw-tool-sep"></div>
-                    <div class="draw-tool-group">
-                        <button class="draw-tool" onclick="deleteSelectedCanvasElements()" title="Delete (Del)">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>
-                        <button class="draw-tool" onclick="canvasUndo()" title="Undo (Cmd+Z)">
-                            <span class="material-symbols-outlined">undo</span>
-                        </button>
-                        <button class="draw-tool" onclick="canvasRedo()" title="Redo (Cmd+Shift+Z)">
-                            <span class="material-symbols-outlined">redo</span>
-                        </button>
-                    </div>
-                    <div class="draw-tool-sep"></div>
-                    <div class="draw-tool-group">
-                        <button class="draw-tool" onclick="canvasZoom(1.2)" title="Zoom in">
-                            <span class="material-symbols-outlined">zoom_in</span>
-                        </button>
-                        <button class="draw-tool" onclick="canvasZoom(0.8)" title="Zoom out">
-                            <span class="material-symbols-outlined">zoom_out</span>
-                        </button>
-                        <button class="draw-tool" onclick="canvasFitView()" title="Fit to view">
-                            <span class="material-symbols-outlined">fit_screen</span>
-                        </button>
-                        <button class="draw-tool" id="toolGrid" onclick="toggleCanvasGrid()" title="Toggle grid (G)">
-                            <span class="material-symbols-outlined">grid_on</span>
-                        </button>
-                    </div>
-                </div>
-
                 <div class="canvas-workspace">
                     <div class="canvas-sidebar" id="canvasSidebar">
                         <div class="canvas-sidebar-header">
@@ -901,15 +809,7 @@
                                 <option value="stacked_vertical">Stacked Vertical</option>
                                 <option value="stacked_horizontal">Stacked Horizontal</option>
                                 <option value="grid" selected>Grid</option>
-                                <option value="flow">Flow (dagre)</option>
-                                <option value="enterprise_stack">Enterprise Stack (ELK)</option>
                             </select>
-
-                            <label class="diagram-label">Visual style:</label>
-                            <div class="diagram-style-toggle">
-                                <label><input type="radio" name="diagramVisualStyle" value="clean" checked> Clean</label>
-                                <label><input type="radio" name="diagramVisualStyle" value="sketch"> Sketch</label>
-                            </div>
 
                             <label class="diagram-label" style="display:flex;align-items:center;gap:6px">
                                 <input type="checkbox" id="diagramClearCanvas" checked> Clear canvas first
@@ -931,7 +831,6 @@
                             <div id="diagramError" class="hidden" style="color:var(--accent-danger);font-size:12px;margin-top:6px"></div>
 
                             <div id="diagramPostActions" class="hidden" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-sm" onclick="autoArrangeDiagram()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">auto_fix_high</span> Auto-arrange</button>
                                 <button class="btn btn-sm" onclick="startDiagramGeneration()"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px">refresh</span> Regenerate</button>
                                 <button class="btn btn-sm" onclick="closeDiagramPanel()">Done</button>
                             </div>
@@ -941,15 +840,13 @@
                         <div class="canvas-empty-state" id="canvasEmptyState">
                             <span class="material-symbols-outlined" style="font-size:48px;color:var(--text-muted)">dashboard</span>
                             <p>Select or create a canvas to start arranging companies visually.</p>
-                            <p class="hint-text">Drag companies from the sidebar. Use the toolbar to draw shapes, lines, and text.</p>
+                            <p class="hint-text">Drag companies from the sidebar. Use Excalidraw's built-in tools to draw shapes, lines, and text.</p>
                         </div>
                         <div id="canvasWrapper" class="hidden">
-                            <canvas id="fabricCanvas"></canvas>
+                            <div id="excalidrawRoot"></div>
                         </div>
                     </div>
                 </div>
-                <!-- Canvas context menu -->
-                <div id="canvasCtxMenu" class="canvas-context-menu hidden"></div>
             </section>
 
             <!-- Process Tab -->
@@ -1725,6 +1622,18 @@
         <div class="confirm-sheet-actions">
           <button id="confirmSheetConfirm" class="confirm-btn-danger" style="border-radius: 0;">Delete</button>
           <button id="confirmSheetCancel" class="confirm-btn-cancel" style="border-radius: 0;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt/input sheet (for pywebview where prompt() is blocked) -->
+    <div id="promptSheet" class="confirm-sheet-overlay" style="display:none;">
+      <div class="confirm-sheet" style="border-radius: 0;">
+        <div id="promptSheetTitle" class="confirm-sheet-title" style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;">Enter a name</div>
+        <input id="promptSheetInput" type="text" style="width:100%;padding:8px 0;border:none;border-bottom:1px solid var(--border-default);border-radius:0;font-size:13px;background:transparent;color:var(--text-primary);font-family:'Plus Jakarta Sans',sans-serif;box-sizing:border-box;outline:none;" autocomplete="off" />
+        <div class="confirm-sheet-actions" style="margin-top:16px;">
+          <button id="promptSheetConfirm" class="confirm-btn-primary" style="border-radius: 0;">Create</button>
+          <button id="promptSheetCancel" class="confirm-btn-cancel" style="border-radius: 0;">Cancel</button>
         </div>
       </div>
     </div>

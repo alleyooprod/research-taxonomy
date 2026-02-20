@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "last_updated": "2026-02-20T02:11:12.156008",
+    "last_updated": "2026-02-20T08:31:03.896018",
     "total_companies": 0,
     "total_categories": 1,
-    "exported_at": "2026-02-20T02:11:12.156015"
+    "exported_at": "2026-02-20T08:31:03.896031"
   },
   "categories": [
     {
@@ -12,8 +12,8 @@
       "name": "Cat1",
       "parent_id": null,
       "description": null,
-      "created_at": "2026-02-20 02:11:12",
-      "updated_at": "2026-02-20 02:11:12",
+      "created_at": "2026-02-20 08:31:03",
+      "updated_at": "2026-02-20 08:31:03",
       "is_active": 1,
       "merged_into_id": null,
       "synonyms": null,

@@ -48,6 +48,7 @@ function selectProject(id, name) {
     loadTaxonomy();
     loadFilterOptions();
     loadSavedViews();
+    if (typeof resetCanvasState === 'function') resetCanvasState();
     document.getElementById('chatToggle').classList.remove('hidden');
     document.getElementById('tourBtn')?.classList.remove('hidden');
     connectSSE();

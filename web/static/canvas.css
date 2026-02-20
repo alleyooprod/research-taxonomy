@@ -1,4 +1,4 @@
-/* Feature: Canvas — full drawing workspace with Fabric.js */
+/* Feature: Canvas — visual workspace with Excalidraw */
 
 .canvas-toolbar {
     display: flex;
@@ -27,113 +27,6 @@
     min-width: 180px;
 }
 
-/* Drawing Toolbar */
-.canvas-draw-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 0;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--border-default);
-    border-radius: 0;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-
-.draw-tool-group {
-    display: flex;
-    gap: 0;
-    align-items: center;
-}
-
-.draw-tool-sep {
-    width: 1px;
-    height: 24px;
-    background: var(--border-default);
-    margin: 0 8px;
-}
-
-.draw-tool {
-    width: 32px;
-    height: 32px;
-    border: 1px solid transparent;
-    border-radius: 0;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.1s linear;
-    padding: 0;
-}
-
-.draw-tool:hover {
-    background: transparent;
-    color: var(--text-primary);
-    border-color: var(--border-default);
-}
-
-.draw-tool.active {
-    background: transparent;
-    color: var(--text-primary);
-    border-color: var(--text-primary);
-}
-
-.draw-tool .material-symbols-outlined {
-    font-size: 18px;
-}
-
-/* Text-based toggle button variant (e.g. "Sketch") */
-.draw-tool.draw-tool-text {
-    width: auto;
-    padding: 0 10px;
-    font-size: 11px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    letter-spacing: 0.02em;
-    text-transform: none;
-}
-
-.draw-tool.draw-tool-text.active {
-    background: var(--text-primary);
-    color: var(--bg-page, #fff);
-    border-color: var(--text-primary);
-}
-
-.draw-tool-label {
-    display: flex;
-    align-items: center;
-}
-
-.canvas-color-input {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--border-default);
-    border-radius: 0;
-    cursor: pointer;
-    padding: 0;
-    background: none;
-}
-
-.canvas-color-input::-webkit-color-swatch-wrapper { padding: 2px; }
-.canvas-color-input::-webkit-color-swatch { border: none; border-radius: 0; }
-
-.draw-tool-select {
-    padding: 4px 0;
-    border: none;
-    border-bottom: 1px solid var(--border-default);
-    border-radius: 0;
-    font-size: 11px;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    min-width: 48px;
-    font-family: 'JetBrains Mono', monospace;
-}
-
 /* Workspace */
 .canvas-workspace {
     display: flex;
@@ -141,7 +34,7 @@
     border: 1px solid var(--border-default);
     border-radius: 0;
     overflow: hidden;
-    height: calc(100vh - 300px);
+    height: calc(100vh - 240px);
     min-height: 400px;
 }
 
@@ -220,19 +113,16 @@
     flex-direction: column;
 }
 
-/* Use ID selector to avoid collision with Fabric.js internal .canvas-container wrapper */
+/* Excalidraw container */
 #canvasWrapper {
     flex: 1;
     position: relative;
     background: var(--bg-surface);
-    box-shadow: none;
-    border-left: 1px solid var(--border-default);
 }
 
-/* Do NOT force Fabric.js canvas dimensions — it manages sizing internally.
-   The old 100% !important rule caused coordinate misalignment. */
-#canvasWrapper > canvas {
-    display: block;
+#excalidrawRoot {
+    width: 100%;
+    height: 100%;
 }
 
 .canvas-empty-state {
@@ -247,36 +137,6 @@
 .canvas-empty-state p {
     margin: 8px 0;
     font-size: 13px;
-}
-
-/* Context menu */
-.canvas-context-menu {
-    position: absolute;
-    background: var(--bg-container);
-    border: 1px solid var(--border-default);
-    border-radius: 0;
-    box-shadow: none;
-    z-index: 200;
-    min-width: 160px;
-    padding: 0;
-}
-
-.canvas-context-menu.hidden {
-    display: none;
-}
-
-.canvas-ctx-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    font-size: 13px;
-    cursor: pointer;
-    color: var(--text-primary);
-}
-
-.canvas-ctx-item:hover {
-    background: var(--bg-hover);
 }
 
 /* AI Diagram Panel */
@@ -396,15 +256,71 @@
     white-space: nowrap;
 }
 
-.diagram-style-toggle {
-    display: flex;
-    gap: 16px;
+.draw-tool-select {
+    padding: 4px 0;
+    border: none;
+    border-bottom: 1px solid var(--border-default);
+    border-radius: 0;
     font-size: 11px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    min-width: 48px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
-.diagram-style-toggle label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
+/* ─── Excalidraw Theme Overrides ("The Instrument") ─── */
+
+/* Remove all border-radius from Excalidraw UI */
+.excalidraw,
+.excalidraw .App-toolbar,
+.excalidraw .App-toolbar__extra,
+.excalidraw .ToolIcon_type_button,
+.excalidraw .ToolIcon,
+.excalidraw .Island,
+.excalidraw button,
+.excalidraw input,
+.excalidraw select,
+.excalidraw .popover,
+.excalidraw .dropdown-menu-container,
+.excalidraw .dropdown-menu,
+.excalidraw .context-menu,
+.excalidraw .context-menu li,
+.excalidraw .color-picker,
+.excalidraw .color-picker__button,
+.excalidraw .Dialog,
+.excalidraw .Modal,
+.excalidraw .HintViewer {
+    border-radius: 0 !important;
+}
+
+/* Override Excalidraw CSS variables for "The Instrument" aesthetic */
+.excalidraw {
+    --color-primary: #000000 !important;
+    --color-primary-darker: #1a1a1a !important;
+    --color-primary-darkest: #000000 !important;
+    --color-primary-light: #f0f0f0 !important;
+    --border-radius-lg: 0px !important;
+    --border-radius-md: 0px !important;
+    --space-factor: 6px !important;
+}
+
+/* Match font to The Instrument */
+.excalidraw .Island,
+.excalidraw label,
+.excalidraw .ToolIcon__label,
+.excalidraw .HintViewer {
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+}
+
+/* Subtle toolbar background — monochrome */
+.excalidraw .App-toolbar {
+    box-shadow: none !important;
+    border: 1px solid var(--border-default) !important;
+}
+
+[data-theme="dark"] .excalidraw {
+    --color-primary: #ffffff !important;
+    --color-primary-darker: #e0e0e0 !important;
+    --color-primary-light: #333333 !important;
 }
