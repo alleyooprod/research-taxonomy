@@ -1,8 +1,8 @@
 # Test Catalogue — Research Taxonomy Library
 
-> **Last updated:** 2026-02-20
-> **Total tests:** 266 pytest + 132 Playwright spec + 18 integration scripts = **416 tests**
-> **Status:** All 266 pytest tests passing
+> **Last updated:** 2026-02-20 (Session 11)
+> **Total tests:** 401 pytest + 132 Playwright spec + 18 integration scripts = **551 tests**
+> **Status:** All 401 pytest tests passing
 
 ---
 
@@ -10,7 +10,7 @@
 
 ```bash
 # --- FULL SUITES ---
-pytest tests/ -v                           # All 266 pytest tests (~17s)
+pytest tests/ -v                           # All 401 pytest tests (~28s)
 npm run test:e2e                           # All Playwright spec tests
 npm run test:e2e:headed                    # Playwright with browser visible
 
@@ -28,6 +28,7 @@ pytest -m dimensions                       # Custom dimensions CRUD (17 tests)
 pytest -m settings                         # Settings, backups, logs (22 tests)
 pytest -m static                           # Static files, health (16 tests)
 pytest -m db                               # Database layer (18 tests)
+pytest -m entities                         # Entity system: schema, CRUD, attrs, rels, evidence (135 tests)
 pytest -m security                         # CSRF, soft-delete, atomicity (13 tests)
 pytest -m async_jobs                       # Async job system (10 tests)
 
@@ -51,7 +52,7 @@ node e2e/take_ux_evidence.cjs              # Screenshot UX updates
 
 ---
 
-## Pytest Test Files (266 tests)
+## Pytest Test Files (401 tests)
 
 ### test_api_projects.py — `pytest -m projects` (15 tests)
 | ID | Test | What it verifies |
@@ -318,6 +319,54 @@ node e2e/take_ux_evidence.cjs              # Screenshot UX updates
 | STATIC-FILE-11 | `TestStaticFiles::test_ai_js` | ai.js loads |
 | STATIC-FILE-12 | `TestStaticFiles::test_integrations_js` | integrations.js loads |
 
+### test_entities.py — `pytest -m entities` (62 DB-layer tests)
+| ID | Test | What it verifies |
+|----|------|-----------------|
+| ENT-SCH-VAL-01 | `TestSchemaValidation::test_valid_schema` | Valid schema passes validation |
+| ENT-SCH-VAL-02 | `TestSchemaValidation::test_empty_entity_types_invalid` | [] entity_types fails |
+| ENT-SCH-VAL-03 | `TestSchemaValidation::test_missing_entity_types_invalid` | Missing key fails |
+| ENT-SCH-VAL-04 | `TestSchemaValidation::test_duplicate_slugs_invalid` | Duplicate slug detected |
+| ENT-SCH-VAL-05 | `TestSchemaValidation::test_unknown_data_type_invalid` | Bad data_type flagged |
+| ENT-SCH-VAL-06 | `TestSchemaValidation::test_enum_without_values_invalid` | Enum needs values |
+| ENT-SCH-VAL-07 | `TestSchemaValidation::test_missing_entity_name_invalid` | Name required |
+| ENT-SCH-VAL-08 | `TestSchemaValidation::test_duplicate_attributes_invalid` | Attr slug dupe detected |
+| ENT-SCH-VAL-09 | `TestSchemaValidation::test_relationship_validation` | Rel types validated |
+| ENT-SCH-VAL-10 | `TestSchemaValidation::test_non_dict_invalid` | Non-dict rejected |
+| ENT-SCH-NORM-01-04 | `TestSchemaNormalization::*` | Slug gen, defaults, version, immutability |
+| ENT-SCH-HELP-01-10 | `TestSchemaHelpers::*` | get_type, root/child, hierarchy, add type/attr/rel |
+| ENT-TYPE-01-03 | `TestEntityTypeDefs::*` | Sync, get single, get missing |
+| ENT-CRUD-01-10 | `TestEntityCRUD::*` | Create, read, list, filter, search, update, delete, cascade, restore |
+| ENT-ATTR-01-07 | `TestEntityAttributes::*` | Set/get, history, latest, point-in-time, bulk, boolean, JSON |
+| ENT-REL-01-04 | `TestEntityRelationships::*` | Create, bidirectional, both, delete |
+| ENT-EV-01-05 | `TestEvidence::*` | Add, filter, metadata, delete, count |
+| ENT-SNAP-01-03 | `TestSnapshots::*` | Create, list, attr count |
+| ENT-STATS-01 | `TestEntityStats::*` | Counts per type |
+| ENT-PROJ-01-03 | `TestProjectWithSchema::*` | With/without schema, sync |
+| ENT-HIER-01 | `TestHierarchicalEntities::*` | 5-level Company→Feature hierarchy |
+
+### test_api_entities.py — `pytest -m entities` (73 API-layer tests)
+| ID | Test | What it verifies |
+|----|------|-----------------|
+| ENT-API-TMPL-01 | `TestSchemaTemplates::test_list_templates` | GET /api/schema/templates |
+| ENT-API-TMPL-02 | `TestSchemaTemplates::test_template_has_required_fields` | All fields present |
+| ENT-API-TMPL-03 | `TestSchemaTemplates::test_product_analysis_template` | 5-type hierarchy |
+| ENT-API-VAL-01 | `TestSchemaValidation::test_validate_valid_schema` | POST validates OK |
+| ENT-API-VAL-02 | `TestSchemaValidation::test_validate_missing_schema` | 400 no schema |
+| ENT-API-VAL-03 | `TestSchemaValidation::test_validate_empty_entity_types` | Errors returned |
+| ENT-API-VAL-04 | `TestSchemaValidation::test_validate_invalid_data_type` | Error detail |
+| ENT-API-TYPE-01-07 | `TestEntityTypes::*` | List, hierarchy, sync, validation, requirements |
+| ENT-API-CREATE-01-06 | `TestEntityCreate::*` | Basic, attrs, parent, validation |
+| ENT-API-READ-01-09 | `TestEntityRead::*` | Get, list, filter type/parent/root, search |
+| ENT-API-UPD-01-04 | `TestEntityUpdate::*` | Name, attrs, star, 404 |
+| ENT-API-DEL-01-06 | `TestEntityDelete::*` | Delete, cascade, no-cascade, restore, star toggle |
+| ENT-API-ATTR-01-09 | `TestEntityAttributes::*` | Set, history, point-in-time, confidence, snapshot |
+| ENT-API-REL-01-07 | `TestEntityRelationships::*` | Create, list dirs, delete, metadata |
+| ENT-API-EV-01-08 | `TestEvidence::*` | Add, list, filter type/source, delete, metadata |
+| ENT-API-SNAP-01-05 | `TestSnapshots::*` | Create, list, attr count, validation |
+| ENT-API-STATS-01-03 | `TestEntityStats::*` | Stats, validation, empty |
+| ENT-API-WF-01 | `TestEntityWorkflow::test_full_product_analysis_workflow` | 5-level hierarchy e2e |
+| ENT-API-WF-02 | `TestEntityWorkflow::test_design_research_workflow` | Many-to-many relations e2e |
+
 ### test_db.py — `pytest -m db` (18 tests)
 Database layer tests for projects, categories, companies, jobs, and triage.
 
@@ -396,6 +445,6 @@ Run individually: `node e2e/<filename>`
 1. **When adding a new API endpoint**: Add tests to the corresponding `test_api_*.py` file
 2. **When adding a new UI feature**: Add tests to the relevant `.spec.js` file
 3. **When fixing a bug**: Add a regression test that would have caught it
-4. **Run before committing**: `pytest tests/ -v` (17 seconds)
+4. **Run before committing**: `pytest tests/ -v` (~28 seconds)
 5. **Run e2e after UI changes**: `npm run test:e2e`
 6. **Run specific area after targeted changes**: `pytest -m <marker>`

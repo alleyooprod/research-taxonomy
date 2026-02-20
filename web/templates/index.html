@@ -310,6 +310,33 @@
                         <label for="npOutcome">Expected Outcome</label>
                         <textarea id="npOutcome" rows="2" placeholder="What deliverable will this produce? e.g. FigJam board, market map, report"></textarea>
                     </div>
+
+                    <!-- Schema Template Picker -->
+                    <div class="form-group full-width">
+                        <label>Research Template</label>
+                        <div id="templatePicker" class="template-picker">
+                            <!-- Populated by JS -->
+                        </div>
+                        <input type="hidden" id="npTemplate" value="blank">
+                    </div>
+
+                    <!-- Schema Preview -->
+                    <div id="schemaPreview" class="schema-preview hidden">
+                        <h3 class="section-label">SCHEMA PREVIEW</h3>
+                        <div id="schemaPreviewContent"></div>
+                    </div>
+
+                    <!-- AI Schema Suggestion -->
+                    <div class="form-group full-width">
+                        <label>AI Schema Suggestion</label>
+                        <p class="form-hint">Describe your research and AI will propose entity types and attributes.</p>
+                        <div class="ai-suggest-row">
+                            <textarea id="npAiDescription" rows="2" placeholder="e.g. I want to compare pet insurance products across UK providers, focusing on coverage tiers, pricing, and exclusions"></textarea>
+                            <button type="button" class="btn" id="aiSuggestBtn" onclick="suggestSchema()">Suggest Schema</button>
+                        </div>
+                        <div id="aiSuggestStatus" class="hidden"></div>
+                    </div>
+
                     <div class="form-group full-width">
                         <label for="npCategories">Starting Categories *</label>
                         <textarea id="npCategories" rows="3" required placeholder="Enter category names, one per line. These seed the initial taxonomy structure."></textarea>

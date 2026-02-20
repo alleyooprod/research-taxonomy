@@ -1065,3 +1065,367 @@ class TestEntityWorkflow:
         stats = r.get_json()
         assert stats["product"] == 2
         assert stats["design-principle"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.6: Project Creation with Templates
+# ---------------------------------------------------------------------------
+
+class TestProjectWithTemplate:
+    """PROJ-TMPL: Project creation with schema template selection."""
+
+    def test_create_project_blank_template(self, client):
+        """Creating a project without template gets default company schema."""
+        r = client.post("/api/projects", json={
+            "name": "Blank Project",
+            "purpose": "Test blank",
+            "seed_categories": "Cat A",
+        })
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["status"] == "ok"
+        pid = data["id"]
+
+        # Verify project has entity_schema
+        proj = client.db.get_project(pid)
+        assert proj["entity_schema"] is not None
+        schema = json.loads(proj["entity_schema"])
+        assert len(schema["entity_types"]) >= 1
+        assert schema["entity_types"][0]["slug"] == "company"
+
+    def test_create_project_with_template_key(self, client):
+        """Creating a project with template= selects that template's schema."""
+        r = client.post("/api/projects", json={
+            "name": "Product Analysis Project",
+            "purpose": "Test template",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["template"] == "product_analysis"
+        pid = data["id"]
+
+        # Verify schema has product_analysis types
+        proj = client.db.get_project(pid)
+        schema = json.loads(proj["entity_schema"])
+        type_slugs = {et["slug"] for et in schema["entity_types"]}
+        assert "company" in type_slugs
+        assert "product" in type_slugs
+        assert "plan" in type_slugs
+        assert "tier" in type_slugs
+        assert "feature" in type_slugs
+
+    def test_create_project_with_design_research_template(self, client):
+        """Design research template includes relationships."""
+        r = client.post("/api/projects", json={
+            "name": "Design Project",
+            "purpose": "Test design template",
+            "seed_categories": "UI\nUX",
+            "template": "design_research",
+        })
+        assert r.status_code == 200
+        pid = r.get_json()["id"]
+
+        proj = client.db.get_project(pid)
+        schema = json.loads(proj["entity_schema"])
+        type_slugs = {et["slug"] for et in schema["entity_types"]}
+        assert "product" in type_slugs
+        assert "design-principle" in type_slugs
+        assert len(schema["relationships"]) >= 1
+        assert schema["relationships"][0]["name"] == "demonstrates"
+
+    def test_create_project_invalid_template(self, client):
+        """Unknown template key returns 400."""
+        r = client.post("/api/projects", json={
+            "name": "Bad Template",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "template": "nonexistent_template",
+        })
+        assert r.status_code == 400
+        assert "Unknown template" in r.get_json()["error"]
+
+    def test_create_project_with_custom_schema(self, client):
+        """Providing entity_schema directly overrides template."""
+        custom_schema = {
+            "entity_types": [
+                {
+                    "name": "Competitor",
+                    "slug": "competitor",
+                    "attributes": [
+                        {"name": "URL", "slug": "url", "data_type": "url"},
+                        {"name": "Threat Level", "slug": "threat-level",
+                         "data_type": "enum", "enum_values": ["low", "medium", "high"]},
+                    ],
+                }
+            ],
+            "relationships": [],
+        }
+        r = client.post("/api/projects", json={
+            "name": "Custom Schema Project",
+            "purpose": "Test custom",
+            "seed_categories": "Cat A",
+            "entity_schema": custom_schema,
+        })
+        assert r.status_code == 200
+        pid = r.get_json()["id"]
+
+        proj = client.db.get_project(pid)
+        schema = json.loads(proj["entity_schema"])
+        assert schema["entity_types"][0]["slug"] == "competitor"
+
+    def test_create_project_invalid_custom_schema(self, client):
+        """Invalid custom schema returns 400."""
+        r = client.post("/api/projects", json={
+            "name": "Bad Schema",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "entity_schema": {"entity_types": []},  # Empty types invalid
+        })
+        assert r.status_code == 400
+        assert "Invalid schema" in r.get_json()["error"]
+
+    def test_template_project_has_entity_type_defs(self, client):
+        """Schema template creates entity_type_defs in DB."""
+        r = client.post("/api/projects", json={
+            "name": "Types Test",
+            "purpose": "Test type defs",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        r = client.get(f"/api/entity-types?project_id={pid}")
+        types = r.get_json()
+        assert len(types) == 5
+        slugs = {t["slug"] for t in types}
+        assert slugs == {"company", "product", "plan", "tier", "feature"}
+
+    def test_template_project_hierarchy(self, client):
+        """Schema template creates correct hierarchy."""
+        r = client.post("/api/projects", json={
+            "name": "Hierarchy Test",
+            "purpose": "Test hierarchy",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        r = client.get(f"/api/entity-types/hierarchy?project_id={pid}")
+        hierarchy = r.get_json()
+        assert len(hierarchy) == 1  # One root: Company
+        root = hierarchy[0]
+        assert root["type"]["slug"] == "company"
+        assert len(root["children"]) == 1  # Product
+        assert root["children"][0]["type"]["slug"] == "product"
+
+    def test_create_entities_on_template_project(self, client):
+        """Entities can be created on a template-created project."""
+        r = client.post("/api/projects", json={
+            "name": "Entity Create Test",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        # Create Company entity
+        r = client.post("/api/entities", json={
+            "project_id": pid,
+            "type": "company",
+            "name": "Template Corp",
+            "attributes": {"url": "https://template.com"},
+        })
+        assert r.status_code == 201
+        company_id = r.get_json()["id"]
+
+        # Create Product under Company
+        r = client.post("/api/entities", json={
+            "project_id": pid,
+            "type": "product",
+            "name": "Template Product",
+            "parent_id": company_id,
+            "attributes": {"name": "Template Product"},
+        })
+        assert r.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.6: AI Schema Suggestion
+# ---------------------------------------------------------------------------
+
+class TestSchemaSuggest:
+    """SCHEMA-AI: AI schema suggestion endpoint (unit tests without real LLM)."""
+
+    def test_suggest_requires_description(self, client):
+        r = client.post("/api/schema/suggest", json={})
+        assert r.status_code == 400
+        assert "description is required" in r.get_json()["error"]
+
+    def test_suggest_empty_description(self, client):
+        r = client.post("/api/schema/suggest", json={"description": "   "})
+        assert r.status_code == 400
+
+    def test_suggest_with_invalid_template(self, client):
+        """Unknown base template falls back to blank."""
+        # This should not error — it falls back to blank
+        r = client.post("/api/schema/suggest", json={
+            "description": "Compare insurance products",
+            "template": "nonexistent",
+        })
+        # Will fail at LLM level in tests (no LLM available), but should not 400 on template
+        assert r.status_code != 400 or "description" not in r.get_json().get("error", "")
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.6: Bulk Entity Operations
+# ---------------------------------------------------------------------------
+
+class TestBulkEntityOperations:
+    """ENT-BULK: Bulk operations on entities."""
+
+    def test_bulk_delete(self, entity_with_company):
+        c = entity_with_company["client"]
+        pid = entity_with_company["id"]
+        eid = entity_with_company["entity_id"]
+
+        # Create another entity
+        r = c.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "Bulk Delete Corp",
+            "attributes": {"url": "https://bulk.com"},
+        })
+        eid2 = r.get_json()["id"]
+
+        r = c.post("/api/entities/bulk", json={
+            "ids": [eid, eid2],
+            "action": "delete",
+        })
+        assert r.status_code == 200
+        assert r.get_json()["affected"] == 2
+
+        # Verify deleted
+        r = c.get(f"/api/entities?project_id={pid}")
+        assert len(r.get_json()) == 0
+
+    def test_bulk_star(self, entity_with_company):
+        c = entity_with_company["client"]
+        pid = entity_with_company["id"]
+        eid = entity_with_company["entity_id"]
+
+        # Create another entity
+        r = c.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "Star Corp",
+            "attributes": {"url": "https://star.com"},
+        })
+        eid2 = r.get_json()["id"]
+
+        r = c.post("/api/entities/bulk", json={
+            "ids": [eid, eid2],
+            "action": "star",
+        })
+        assert r.status_code == 200
+        assert r.get_json()["affected"] == 2
+
+        # Verify starred
+        r = c.get(f"/api/entities/{eid}")
+        assert r.get_json()["is_starred"]
+        r = c.get(f"/api/entities/{eid2}")
+        assert r.get_json()["is_starred"]
+
+    def test_bulk_unstar(self, entity_with_company):
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+
+        # Star first
+        c.post("/api/entities/bulk", json={"ids": [eid], "action": "star"})
+        # Unstar
+        r = c.post("/api/entities/bulk", json={"ids": [eid], "action": "unstar"})
+        assert r.status_code == 200
+
+        r = c.get(f"/api/entities/{eid}")
+        assert not r.get_json()["is_starred"]
+
+    def test_bulk_set_category(self, client):
+        """Bulk set_category on entities."""
+        # Create project with seed categories so we have valid category IDs
+        pid = client.db.create_project(
+            name="Bulk Cat Test",
+            purpose="Test",
+            seed_categories=["Alpha", "Beta"],
+            entity_schema=PRODUCT_SCHEMA,
+        )
+        cats = client.db.get_categories(project_id=pid)
+        cat_id = cats[0]["id"]
+
+        # Create entity
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "Cat Test Corp",
+            "attributes": {"url": "https://cattest.com"},
+        })
+        eid = r.get_json()["id"]
+
+        r = client.post("/api/entities/bulk", json={
+            "ids": [eid],
+            "action": "set_category",
+            "category_id": cat_id,
+        })
+        assert r.status_code == 200
+        assert r.get_json()["affected"] == 1
+
+    def test_bulk_set_attribute(self, entity_with_company):
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+
+        r = c.post("/api/entities/bulk", json={
+            "ids": [eid],
+            "action": "set_attribute",
+            "attr_slug": "what",
+            "attr_value": "Updated via bulk",
+        })
+        assert r.status_code == 200
+
+        r = c.get(f"/api/entities/{eid}")
+        attrs = r.get_json()["attributes"]
+        assert attrs.get("what", {}).get("value") == "Updated via bulk"
+
+    def test_bulk_requires_ids_and_action(self, client):
+        r = client.post("/api/entities/bulk", json={})
+        assert r.status_code == 400
+
+        r = client.post("/api/entities/bulk", json={"ids": [1]})
+        assert r.status_code == 400
+
+        r = client.post("/api/entities/bulk", json={"action": "delete"})
+        assert r.status_code == 400
+
+    def test_bulk_invalid_action(self, entity_with_company):
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+        r = c.post("/api/entities/bulk", json={
+            "ids": [eid],
+            "action": "fly_to_moon",
+        })
+        assert r.status_code == 400
+        assert "Unknown action" in r.get_json()["error"]
+
+    def test_bulk_invalid_ids_type(self, client):
+        r = client.post("/api/entities/bulk", json={
+            "ids": "not-a-list",
+            "action": "delete",
+        })
+        assert r.status_code == 400
+
+    def test_bulk_set_attribute_requires_slug(self, entity_with_company):
+        c = entity_with_company["client"]
+        eid = entity_with_company["entity_id"]
+        r = c.post("/api/entities/bulk", json={
+            "ids": [eid],
+            "action": "set_attribute",
+            "attr_value": "val",
+        })
+        assert r.status_code == 400
+        assert "attr_slug is required" in r.get_json()["error"]

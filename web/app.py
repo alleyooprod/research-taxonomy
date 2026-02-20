@@ -201,6 +201,8 @@ def create_app():
 
     @app.route("/api/projects", methods=["POST"])
     def create_project():
+        from core.schema import SCHEMA_TEMPLATES, DEFAULT_COMPANY_SCHEMA, validate_schema, normalize_schema
+
         data = request.json
         name = data.get("name", "").strip()
         if not name:
@@ -219,13 +221,33 @@ def create_app():
         kw_text = data.get("market_keywords", "")
         market_keywords = [k.strip() for k in kw_text.split(",") if k.strip()]
 
+        # Resolve entity schema: explicit schema > template > default
+        entity_schema = data.get("entity_schema")
+        template_key = data.get("template")
+
+        if entity_schema:
+            # Direct schema provided — validate and normalize
+            valid, errors = validate_schema(entity_schema)
+            if not valid:
+                return jsonify({"error": f"Invalid schema: {'; '.join(errors)}"}), 400
+            entity_schema = normalize_schema(entity_schema)
+        elif template_key:
+            if template_key not in SCHEMA_TEMPLATES:
+                return jsonify({"error": f"Unknown template: {template_key}"}), 400
+            entity_schema = normalize_schema(SCHEMA_TEMPLATES[template_key]["schema"])
+        else:
+            # Default: blank company schema
+            entity_schema = normalize_schema(DEFAULT_COMPANY_SCHEMA)
+
         try:
             project_id = app.db.create_project(
                 name=name, purpose=purpose, outcome=outcome,
                 seed_categories=seed_categories, example_links=example_links,
                 market_keywords=market_keywords, description=description,
+                entity_schema=entity_schema,
             )
-            return jsonify({"id": project_id, "name": name, "status": "ok"})
+            return jsonify({"id": project_id, "name": name, "status": "ok",
+                            "template": template_key or "blank"})
         except Exception as e:
             return jsonify({"error": str(e)}), 400
 

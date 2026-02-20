@@ -1,8 +1,8 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Planning Complete — Phase 1 Ready to Build
+> **Status:** Phase 1 In Progress — Schema + Entity System Built
 > **Created:** 2026-02-20 (Session 10)
-> **Last Updated:** 2026-02-20
+> **Last Updated:** 2026-02-20 (Session 11)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
 > **Conversation Reference:** `docs/RESEARCH_WORKBENCH_CONVERSATION.md`
 
@@ -12,7 +12,9 @@
 
 Evolving the Research Taxonomy Library from a flat company taxonomy tool into a **personal research workbench** for structured market and product intelligence. The app should let a solo analyst conduct research at a depth that normally requires a team — competing not on data volume (like IDC/Mintel) but on **structure, methodology, and living evidence**.
 
-**Core principle:** Evolve, don't rebuild. The existing Flask/pywebview app, design system, Excalidraw canvas, graph views, maps, AI integration, and 266 tests are preserved. The data layer transforms underneath; the UI evolves progressively on top.
+**Core principle:** Evolve, don't rebuild. The existing Flask/pywebview app, design system, Excalidraw canvas, graph views, maps, AI integration, and tests are preserved. The data layer transforms underneath; the UI evolves progressively on top.
+
+**Testing principle:** The comprehensive test suite is simultaneously updated with every implementation step. Every new feature gets both DB-layer and API-layer tests. All existing tests must continue to pass. Test count grows in lockstep with implementation.
 
 ---
 
@@ -44,8 +46,11 @@ Evolving the Research Taxonomy Library from a flat company taxonomy tool into a 
 | Design System (The Instrument) | ✅ Working | `base.css` + 12 CSS files |
 | Tippy.js Tooltips | ✅ Working | `core.js` |
 | Custom Prompt/Select Dialogs | ✅ Working | `core.js` |
-| 266 pytest tests | ✅ Passing | 14 test files |
+| 401 pytest tests | ✅ Passing | 16 test files |
 | 132 Playwright specs | ✅ Written | 24 spec files |
+| Entity schema system | ✅ Working | `core/schema.py` |
+| Entity CRUD + temporal attrs | ✅ Working | `storage/repos/entities.py` |
+| Entity API (23 endpoints) | ✅ Working | `web/blueprints/entities.py` |
 
 ### Current Data Model (Flat)
 ```
@@ -74,42 +79,58 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 **Priority:** CRITICAL — everything else depends on this.
 
 #### 1.1 Schema System
-- [ ] Design schema definition format (JSON-based, stored per project)
-- [ ] Schema defines: entity types, hierarchy relationships, attributes per type, attribute types (text, number, boolean, currency, enum, url, image-ref)
-- [ ] Support both tree hierarchies (Company → Product → Plan → Tier → Feature) AND graph relationships (Product ↔ Design Principle)
-- [ ] Built-in templates: Market Analysis, Product Analysis, Design Research, blank
-- [ ] Schema stored in project metadata (SQLite JSON field or separate table)
-- [ ] Schema amendment API (add/modify entity types and attributes mid-project)
-- [ ] **Files affected:** New `core/schema.py`, new `web/blueprints/schema.py`, `storage/` schema tables
+- [x] Design schema definition format (JSON-based, stored per project)
+- [x] Schema defines: entity types, hierarchy relationships, attributes per type, attribute types (text, number, boolean, currency, enum, url, date, json, image_ref, tags)
+- [x] Support both tree hierarchies (Company → Product → Plan → Tier → Feature) AND graph relationships (Product ↔ Design Principle)
+- [x] Built-in templates: Market Analysis, Product Analysis, Design Research, blank
+- [x] Schema stored in project metadata (`entity_schema` JSON field) + `entity_type_defs` table for query efficiency
+- [x] Schema amendment API (add/modify entity types and attributes mid-project) — `POST /api/entity-types/sync`
+- [x] Schema validation + normalization (slug generation, defaults, duplicate detection)
+- [x] **Files:** `core/schema.py` (350+ lines), `web/blueprints/entities.py` (schema endpoints)
+- [x] **Tests:** 10 schema validation + 4 normalization + 10 helper tests (DB), 4 schema template + 4 validation + 7 type API tests
 
 #### 1.2 Entity Data Model
-- [ ] New database tables: `entity_types`, `entities`, `entity_attributes`, `entity_relationships`
-- [ ] Entity table: id, project_id, entity_type_id, parent_entity_id (nullable), name, created_at, updated_at
-- [ ] Attribute table: entity_id, attribute_key, attribute_value, captured_at (temporal)
-- [ ] Relationship table: from_entity_id, to_entity_id, relationship_type, created_at
-- [ ] Migration path: existing companies become entities of type "Company" — zero data loss
-- [ ] All existing company fields (name, description, website, location, tags, category) become attributes
-- [ ] **Files affected:** `storage/` (new tables + migration), new `core/entities.py`
+- [x] New database tables: `entity_type_defs`, `entity_relationship_defs`, `entities`, `entity_attributes`, `entity_relationships`, `entity_snapshots`, `evidence` (7 tables, 16 indexes)
+- [x] Entity table: id, project_id, type_slug, name, slug, parent_entity_id, category_id, is_starred, is_deleted, status, confidence_score, tags, raw_research, source, created_at, updated_at
+- [x] Attribute table: entity_id, attr_slug, value, source, confidence, captured_at, snapshot_id
+- [x] Relationship table: from_entity_id, to_entity_id, relationship_type, metadata_json, UNIQUE constraint
+- [x] Non-destructive migration: `_migrate_phase7_entities()` adds `entity_schema` to existing projects
+- [ ] Migration path: existing companies become entities of type "Company" — zero data loss (deferred to Phase 1.8)
+- [x] **Files:** `storage/schema.sql` (7 tables), `storage/repos/entities.py` (EntityMixin, 400+ lines), `storage/db.py` (migration + schema support)
+- [x] **Tests:** 10 CRUD + 3 type def + 1 hierarchy tests (DB), 6 create + 9 read + 4 update + 6 delete API tests
 
 #### 1.3 Temporal Versioning
-- [ ] Every attribute value is timestamped (`captured_at`)
-- [ ] Current value = most recent capture for that attribute
-- [ ] Historical values preserved — can query "what was this attribute on date X?"
-- [ ] Snapshot grouping: a "capture session" groups multiple attribute updates
-- [ ] **Files affected:** `storage/` (versioning logic), `core/entities.py`
+- [x] Every attribute value is timestamped (`captured_at`)
+- [x] Current value = most recent capture for that attribute (MAX(id) per attr_slug)
+- [x] Historical values preserved — `GET /api/entities/<id>/attributes/<slug>/history`
+- [x] Point-in-time query — `GET /api/entities/<id>/attributes/at?date=...`
+- [x] Snapshot grouping: `entity_snapshots` table, `snapshot_id` FK on attributes
+- [x] Confidence scoring per attribute value (0-1)
+- [x] Source tracking per value (manual, ai, import, scrape)
+- [x] **Files:** `storage/repos/entities.py` (temporal methods), `web/blueprints/entities.py` (temporal endpoints)
+- [x] **Tests:** 7 temporal attribute tests (DB), 9 attribute API tests + 5 snapshot API tests
 
 #### 1.4 Evidence Library
-- [ ] New `evidence/` directory in project storage for captured artefacts
-- [ ] Database table: `evidence` (id, entity_id, type [screenshot/document/page_archive/other], source_url, source_name, file_path, captured_at, metadata_json)
-- [ ] Evidence linked to entities at any schema level
-- [ ] File storage: screenshots as PNG/JPG, documents as PDF, page archives as MHTML or HTML
-- [ ] **Files affected:** `storage/` (new table), new `core/evidence.py`, new `web/blueprints/evidence.py`
+- [x] Database table: `evidence` (id, entity_id, evidence_type, file_path, source_url, source_name, metadata_json, captured_at)
+- [x] Evidence linked to entities at any schema level
+- [x] Evidence CRUD: add, list (with type/source filters), delete
+- [x] Evidence count displayed on entity cards
+- [ ] File storage engine (actual file write/read to `evidence/` directory) — deferred to Phase 2
+- [x] **Files:** `storage/repos/entities.py` (evidence methods), `web/blueprints/entities.py` (evidence endpoints)
+- [x] **Tests:** 5 evidence tests (DB), 8 evidence API tests
 
 #### 1.5 API Layer Update
-- [ ] New entity CRUD endpoints (replace or augment company-specific endpoints)
-- [ ] Entity endpoints are schema-aware (return attributes defined by project schema)
-- [ ] Backwards-compatible: existing company API routes still work, internally mapped to entity API
-- [ ] **Files affected:** New `web/blueprints/entities.py`, modify `web/blueprints/companies.py` (thin wrapper)
+- [x] Full entity CRUD endpoints (alongside existing company endpoints)
+- [x] Entity endpoints return attributes, child_count, evidence_count, type metadata
+- [x] Schema template listing, validation, type sync, hierarchy endpoints
+- [x] Relationship CRUD endpoints (create, list with direction filter, delete)
+- [x] Evidence CRUD endpoints
+- [x] Snapshot CRUD endpoints
+- [x] Entity stats endpoint
+- [x] Blueprint registered in `web/app.py`
+- [ ] Backwards-compatible company API wrapper (existing company routes delegate to entity API) — deferred to Phase 1.8
+- [x] **Files:** `web/blueprints/entities.py` (300+ lines, 23 endpoints), `web/app.py` (blueprint registration)
+- [x] **Tests:** 73 API tests in `tests/test_api_entities.py` (including 2 full workflow integration tests)
 
 #### 1.6 Project Setup Flow (AI-Guided Interview)
 - [ ] New project creation flow with guided interview
@@ -136,11 +157,18 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [ ] AI Discovery enhanced to populate sub-entities when adding companies
 - [ ] **Files affected:** `taxonomy.js`, `maps.js`, `ai.js`, `ai.py`
 
-#### 1.9 Tests
-- [ ] Migrate existing 266 tests to work with new entity model
-- [ ] New tests for schema CRUD, entity CRUD, temporal queries, evidence storage
-- [ ] E2E tests for project setup flow and entity browser
-- [ ] Target: all existing tests pass + new coverage
+#### 1.9 Tests — Simultaneous Test Development
+> **Rule:** Every implementation step must include corresponding tests. Test suite grows in lockstep with features. All previous tests must continue to pass.
+
+- [x] All 266 original tests still pass after entity system addition
+- [x] DB-layer tests: 62 tests in `tests/test_entities.py` (schema, entity CRUD, temporal, relationships, evidence, snapshots, hierarchy)
+- [x] API-layer tests: 73 tests in `tests/test_api_entities.py` (all endpoints, validation, error cases, workflows)
+- [x] Integration tests: full product analysis workflow (5-level hierarchy) and design research workflow (many-to-many)
+- [x] `entities` marker added to `pytest.ini` for selective running (`pytest -m entities`)
+- [x] **Total: 401 tests passing** (266 original + 62 entity DB + 73 entity API)
+- [ ] E2E Playwright tests for entity browser UI (Phase 1.7)
+- [ ] E2E tests for project setup flow (Phase 1.6)
+- [ ] Migration tests: verify company→entity data integrity (Phase 1.8)
 
 ---
 
@@ -415,9 +443,10 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 5. Users can optionally "upgrade" a project by defining a richer schema
 
 ### Existing Tests
-1. Company API tests updated to use entity API internally
-2. All 266 tests must pass after Phase 1
-3. New test suites added per phase
+1. All 266 original tests continue to pass unchanged
+2. Company API remains fully functional — entity system runs alongside, not replacing
+3. New test suites added with every implementation step — test count grows in lockstep
+4. **Current total: 401 tests** (266 original + 135 entity system)
 
 ---
 
@@ -431,7 +460,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 8 | 2026-02 | UX/UI overhaul (design tokens, micro-interactions) | ✅ Complete |
 | 9 | 2026-02 | Test architecture (266 pytest, 132 Playwright) | ✅ Complete |
 | 10 | 2026-02-20 | Research Workbench brainstorm + planning | ✅ Complete |
-| 11 | TBD | Phase 1 build begins | ⬜ Not started |
+| 11 | 2026-02-20 | Phase 1.1-1.5 + 1.9: Schema, entities, temporal, evidence, API, tests | ✅ Complete |
+| 12 | TBD | Phase 1.6-1.8: Project setup flow, entity browser UI, view compat | ⬜ Not started |
 
 ---
 

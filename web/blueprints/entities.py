@@ -56,6 +56,136 @@ def validate_schema_endpoint():
     return jsonify({"valid": valid, "errors": errors})
 
 
+@entities_bp.route("/api/schema/suggest", methods=["POST"])
+def suggest_schema():
+    """AI-powered schema suggestion based on research description.
+
+    Input: {description: str, template: str (optional starting point)}
+    Output: {schema: {...}, explanation: str}
+    """
+    data = request.json or {}
+    description = data.get("description", "").strip()
+    if not description:
+        return jsonify({"error": "description is required"}), 400
+
+    base_template = data.get("template", "blank")
+    if base_template not in SCHEMA_TEMPLATES:
+        base_template = "blank"
+
+    prompt = f"""You are a research methodology expert helping design a data schema for a research workbench.
+
+The user wants to conduct research described as:
+"{description}"
+
+They've selected the "{SCHEMA_TEMPLATES[base_template]['name']}" template as a starting point.
+
+Design an entity schema that captures the right data structure for this research.
+
+Rules:
+- Entity types represent the things being researched (companies, products, features, etc.)
+- Use parent_type to create hierarchies (e.g. Company > Product > Feature)
+- Use relationships for many-to-many connections (e.g. Product demonstrates Design Principle)
+- Each entity type needs meaningful attributes with correct data_types
+- Available data_types: text, number, boolean, currency, enum, url, date, json, image_ref, tags
+- Enum attributes need enum_values array
+- Keep it focused — 2-6 entity types is ideal
+- Every entity type needs at least a name attribute"""
+
+    schema_spec = {
+        "type": "object",
+        "properties": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "version": {"type": "integer"},
+                    "entity_types": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "slug": {"type": "string"},
+                                "description": {"type": "string"},
+                                "icon": {"type": "string"},
+                                "parent_type": {"type": ["string", "null"]},
+                                "attributes": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string"},
+                                            "slug": {"type": "string"},
+                                            "data_type": {"type": "string"},
+                                            "required": {"type": "boolean"},
+                                            "enum_values": {"type": "array", "items": {"type": "string"}}
+                                        },
+                                        "required": ["name", "slug", "data_type"]
+                                    }
+                                }
+                            },
+                            "required": ["name", "slug"]
+                        }
+                    },
+                    "relationships": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "from_type": {"type": "string"},
+                                "to_type": {"type": "string"},
+                                "description": {"type": "string"}
+                            },
+                            "required": ["name", "from_type", "to_type"]
+                        }
+                    }
+                },
+                "required": ["entity_types"]
+            },
+            "explanation": {"type": "string"}
+        },
+        "required": ["schema", "explanation"]
+    }
+
+    try:
+        from core.llm import run_cli
+        result = run_cli(
+            prompt=prompt,
+            model="sonnet",
+            timeout=60,
+            json_schema=schema_spec,
+        )
+
+        if result.get("is_error"):
+            return jsonify({"error": "AI suggestion failed", "detail": result.get("result", "")}), 500
+
+        structured = result.get("structured_output")
+        if not structured or "schema" not in structured:
+            return jsonify({"error": "AI did not return a valid schema"}), 500
+
+        suggested = structured["schema"]
+        suggested = normalize_schema(suggested)
+        valid, errors = validate_schema(suggested)
+
+        if not valid:
+            return jsonify({
+                "error": "AI-generated schema has validation errors",
+                "details": errors,
+                "schema": suggested,
+                "explanation": structured.get("explanation", ""),
+            }), 422
+
+        return jsonify({
+            "schema": suggested,
+            "explanation": structured.get("explanation", ""),
+            "cost_usd": result.get("cost_usd", 0),
+        })
+
+    except Exception as e:
+        logger.exception("Schema suggestion failed")
+        return jsonify({"error": f"Schema suggestion failed: {str(e)}"}), 500
+
+
 # ═══════════════════════════════════════════════════════════════
 # Entity Type Definitions
 # ═══════════════════════════════════════════════════════════════
@@ -236,6 +366,66 @@ def toggle_star(entity_id):
     new_val = 0 if entity.get("is_starred") else 1
     current_app.db.update_entity(entity_id, {"is_starred": new_val})
     return jsonify({"is_starred": bool(new_val)})
+
+
+# ═══════════════════════════════════════════════════════════════
+# Bulk Entity Operations
+# ═══════════════════════════════════════════════════════════════
+
+@entities_bp.route("/api/entities/bulk", methods=["POST"])
+def bulk_entity_action():
+    """Perform bulk operations on multiple entities.
+
+    Actions: delete, star, unstar, set_category, set_attribute
+    """
+    data = request.json or {}
+    entity_ids = data.get("ids", [])
+    action = data.get("action")
+
+    if not entity_ids or not action:
+        return jsonify({"error": "ids and action are required"}), 400
+
+    if not isinstance(entity_ids, list) or not all(isinstance(i, int) for i in entity_ids):
+        return jsonify({"error": "ids must be a list of integers"}), 400
+
+    affected = 0
+
+    if action == "delete":
+        cascade = data.get("cascade", True)
+        for eid in entity_ids:
+            current_app.db.delete_entity(eid, cascade=cascade)
+            affected += 1
+
+    elif action == "star":
+        for eid in entity_ids:
+            current_app.db.update_entity(eid, {"is_starred": 1})
+            affected += 1
+
+    elif action == "unstar":
+        for eid in entity_ids:
+            current_app.db.update_entity(eid, {"is_starred": 0})
+            affected += 1
+
+    elif action == "set_category":
+        category_id = data.get("category_id")
+        for eid in entity_ids:
+            current_app.db.update_entity(eid, {"category_id": category_id})
+            affected += 1
+
+    elif action == "set_attribute":
+        attr_slug = data.get("attr_slug")
+        attr_value = data.get("attr_value")
+        source = data.get("source", "manual")
+        if not attr_slug:
+            return jsonify({"error": "attr_slug is required for set_attribute"}), 400
+        for eid in entity_ids:
+            current_app.db.set_entity_attributes(eid, {attr_slug: attr_value}, source=source)
+            affected += 1
+
+    else:
+        return jsonify({"error": f"Unknown action: {action}"}), 400
+
+    return jsonify({"status": "ok", "affected": affected})
 
 
 # ═══════════════════════════════════════════════════════════════
