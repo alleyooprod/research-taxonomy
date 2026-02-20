@@ -74,6 +74,7 @@
     <link rel="stylesheet" href="/static/css/lenses.css">
     <link rel="stylesheet" href="/static/css/reports.css">
     <link rel="stylesheet" href="/static/css/monitoring.css">
+    <link rel="stylesheet" href="/static/css/insights.css">
 
     <!-- Print styles -->
     <link rel="stylesheet" href="/static/css/print.css" media="print">
@@ -1241,6 +1242,8 @@
 
             <!-- Intelligence Tab -->
             <section id="tab-intelligence" class="tab-content" role="tabpanel" aria-label="Intelligence">
+                <!-- Sub-nav + insights/hypotheses containers injected by insights.js -->
+                <!-- Monitoring dashboard (always present, toggled by sub-nav) -->
                 <div class="monitoring-dashboard" id="monitoringDashboard">
                     <div class="monitoring-header">
                         <h2>Market Radar</h2>
@@ -1849,6 +1852,7 @@
     <script src="{{ url_for('static', filename='js/lenses.js') }}"></script>
     <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
     <script src="{{ url_for('static', filename='js/monitoring.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
 
     <script>

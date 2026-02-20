@@ -1,6 +1,6 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 2 + Phase 3 + Phase 4 + Phase 5 (core) Complete — capture, extraction, review, features, analysis lenses, reporting done
+> **Status:** Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 (core) Complete — capture, extraction, review, features, analysis lenses, reporting, monitoring done
 > **Created:** 2026-02-20 (Session 10)
 > **Last Updated:** 2026-02-20 (Session 18)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
@@ -447,23 +447,26 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 **Depends on:** Phase 2 (capture engine), Phase 1 (entity model)
 
 #### 6.1 Website Change Detection
-- [ ] Periodic re-capture of tracked entity URLs
-- [ ] Visual diff + content diff against previous capture
-- [ ] Surface significant changes in project feed
+- [x] Periodic re-capture of tracked entity URLs
+- [x] Content diff via SHA-256 hash comparison
+- [x] Surface significant changes in project feed
 
 #### 6.2 App Store Monitoring
-- [ ] Track version updates, new screenshots, rating changes
-- [ ] Diff against previous snapshot
+- [x] Track version updates, new screenshots, rating changes via iTunes/Play Store scrapers
+- [x] Fingerprint-based diff against previous snapshot
 
 #### 6.3 News/Announcement Monitoring
-- [ ] RSS/news feed monitoring for tracked entities
-- [ ] Press release detection
-- [ ] Funding round detection
+- [x] RSS/Atom feed monitoring for tracked entities
+- [x] New entry detection since last check
+- [ ] Press release detection — deferred
+- [ ] Funding round detection — deferred
 
 #### 6.4 Market Radar Dashboard
-- [ ] Unified feed of all detected changes
-- [ ] Significance scoring (routine update vs. major change)
-- [ ] Trigger re-capture and re-extraction on major changes
+- [x] Unified change feed with filters (type, severity, read/unread)
+- [x] Significance scoring (info/minor/major/critical)
+- [x] Auto-setup monitors from entity URL attributes
+- [x] Intelligence tab with stats bar, feed, monitor table
+- [ ] Trigger re-capture and re-extraction on major changes — deferred
 
 ---
 
@@ -557,7 +560,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 16 | 2026-02-20 | Phase 2.6/2.7/2.2: Bulk capture + capture UI + 8 UI gallery scrapers (Dribbble, Scrnshts, CollectUI, Godly, Siteinspire, OnePageLove, SaaSPages, Httpster) — generic gallery API, 42 new tests, 894 total | ✅ Complete |
 | 17 | 2026-02-20 | Phase 4.1-4.5: Analysis Lenses — lens framework, competitive (matrix/gaps/positioning), product (pricing), design (gallery/journey), temporal (timeline/compare), Analysis tab + full wiring, 41 new tests, 935 total | ✅ Complete |
 | 18 | 2026-02-20 | Phase 5.1-5.3: Reporting & Synthesis — 5 report templates (market overview, competitive landscape, product teardown, design patterns, change report), AI-enhanced generation (mocked LLM), template availability detection, report CRUD, export (HTML/Markdown/JSON), `/api/synthesis` routes, frontend in Export tab, 33 new tests, 968 total | ✅ Complete |
-| 19 | TBD | Phase 5.4 + Phase 6: Evidence provenance in reports + Intelligence & Monitoring | ⬜ Not started |
+| 18b | 2026-02-20 | Phase 6.1-6.4: Intelligence & Monitoring — monitors CRUD, 4 check types (website/appstore/playstore/RSS), change feed with severity scoring, auto-setup from entity URLs, dashboard stats, Intelligence tab, 33 new tests, 1001 total | ✅ Complete |
+| 19 | TBD | Phase 5.4 + Phase 7: Evidence provenance + Advanced Features | ⬜ Not started |
 
 ---
 

@@ -241,7 +241,7 @@ function showTab(name) {
     if (name === 'process') { loadBatches(); if (typeof initCaptureUI === 'function') initCaptureUI(); }
     if (name === 'review') { if (typeof initReviewQueue === 'function') initReviewQueue(); if (typeof initFeatures === 'function') initFeatures(); }
     if (name === 'analysis') { if (typeof initLenses === 'function') initLenses(); }
-    if (name === 'intelligence') { if (typeof initMonitoring === 'function') initMonitoring(); }
+    if (name === 'intelligence') { if (typeof initInsights === 'function') initInsights(); if (typeof initMonitoring === 'function') initMonitoring(); }
     if (name === 'export') { loadShareTokens(); loadNotifPrefs(); if (typeof initReports === 'function') initReports(); }
     if (name === 'settings') { if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); if (typeof loadDefaultModel === 'function') loadDefaultModel(); }
 

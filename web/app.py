@@ -303,6 +303,7 @@ def create_app():
     from web.blueprints.lenses import lenses_bp
     from web.blueprints.reports import reports_bp
     from web.blueprints.monitoring import monitoring_bp
+    from web.blueprints.insights import insights_bp
 
     app.register_blueprint(companies_bp)
     app.register_blueprint(taxonomy_bp)
@@ -321,6 +322,7 @@ def create_app():
     app.register_blueprint(lenses_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(monitoring_bp)
+    app.register_blueprint(insights_bp)
 
     return app
 
