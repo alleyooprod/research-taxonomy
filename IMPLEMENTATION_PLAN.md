@@ -1,6 +1,6 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 1-7 COMPLETE — all deferred items implemented. Only IPID parser + Canvas composition remain deferred. 1480 tests.
+> **Status:** ALL PHASES COMPLETE — every item implemented, zero deferred. 1517 tests passing.
 > **Created:** 2026-02-20 (Session 10)
 > **Last Updated:** 2026-02-20 (Session 23)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
@@ -312,7 +312,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Auto-routing classifier: scores content against all extractors, routes to best match above threshold (0.4)
 - [x] `extract_with_classification()` — classifies then extracts, supports forced extractor override
 - [x] API endpoints: `POST /api/extract/classify` (classify + extract), `GET /api/extract/extractors` (list available)
-- [ ] IPID parser (standardised EU/UK insurance document format) — deferred
+- [x] IPID parser (standardised EU/UK insurance document format) — `core/extractors/ipid.py`, section heading detection, 14 extracted fields, registered in classifier, 29 tests
 - [x] Changelog parser (`core/extractors/changelog.py` — classify + extract version/frequency/features/maturity, registered in classifier)
 - [x] **Files:** `core/extractors/__init__.py`, `core/extractors/product_page.py`, `core/extractors/pricing_page.py`, `core/extractors/generic.py`, `core/extractors/classifier.py`
 - [x] **Tests:** 27 tests in `tests/test_extractors.py` (classification, prompts, extraction with mocked LLM, API endpoints)
@@ -432,7 +432,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Markdown export
 - [x] JSON export
 - [x] PDF (traditional, formatted, printable) — via WeasyPrint (graceful fallback if not installed), `GET /api/synthesis/<id>/export?format=pdf`, styled A4 template
-- [ ] Canvas composition (report as Excalidraw workspace) — deferred
+- [x] Canvas composition (report as Excalidraw workspace) — `?format=canvas` export, generates Excalidraw JSON with title block + sections, loads into Canvas tab via `loadCanvasFromReport()`, 8 tests
 
 #### 5.4 Evidence Provenance
 - [x] Attribute trace: full chain from attribute → extraction → evidence → URL
@@ -571,7 +571,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 20 | 2026-02-20 | Phase 7.3-7.4: Research Playbooks + Cross-Project Intelligence — playbook CRUD with 4 built-in templates (Market Mapping, Product Teardown, Design Research, Competitive Intelligence), run lifecycle with step-by-step progress tracking, auto-complete, AI improvement suggestions, template seeding/protection; entity overlap detection (Dice coefficient + URL domain matching), manual/auto entity linking, attribute sync between linked entities, attribute diff comparison, 3 cross-project detectors (multi-project overlap, attribute divergence, coverage gaps), cross-project insights + stats; Intelligence tab sub-nav extended to 5 views (Monitoring/Insights/Hypotheses/Playbooks/Cross-Project), 1188-line + 696-line JS, 954-line + 693-line CSS frontends, 117 new tests, 1168 total | ✅ Complete |
 | 21 | 2026-02-20 | Phase 4.6 + 5.4: Signals Lens + Evidence Provenance — signals lens with 4 views (timeline, activity, trends, heatmap) combining change_feed + entity_attributes + evidence data; provenance blueprint with 8 read-only endpoints (attribute trace, entity summary, evidence map, project coverage, project sources, search, report claims, stats), full chain tracing attribute→extraction→evidence→URL; signals integrated into Analysis tab lens system, provenance integrated as 6th Intelligence sub-view with Coverage/Sources/Search; 101 new tests (44 signals + 57 provenance), 1269 total | ✅ Complete |
 | 22 | 2026-02-20 | Deferred items batch: Company→Entity migration (`core/migration.py`, 28-column field map, idempotent, dry-run, `POST /api/migrate/companies`); backwards-compatible company API wrapper (`core/compat.py` + companies.py delegates to entities for migrated projects); changelog extractor (`core/extractors/changelog.py`, classify + extract version/frequency/features/maturity); re-capture trigger on major/critical changes (`_trigger_recapture` in monitoring.py); taxonomy matrix + AI Discovery entity integration via compat layer; E2E Playwright tests (project setup + entity browser, 17 test groups); market-level change summary (5th signals sub-view); 87 new tests (17 migration + 48 compat + 22 changelog), 1356 total | ✅ Complete |
-| 23 | 2026-02-20 | All remaining deferred items: **Drag-and-drop upload** (drop zone overlay on capture section + entity detail panel, auto-links to entity) + **Clipboard paste** (Ctrl/Cmd+V on Process/Companies tabs, timestamped filename); **PDF export** (WeasyPrint with graceful fallback, A4 styled template, `?format=pdf`); **Press release extractor** (`core/extractors/press_release.py`, classify + extract headline/type/entities/quotes/implications, 39 tests); **Funding round extractor** (`core/extractors/funding_round.py`, classify + extract round_type/amount/investors/valuation, 38 tests); **Pattern library** (`/api/lenses/design/patterns`, aggregates from extractions + screenshots + attributes, category filter grid); **UX scoring** (`/api/lenses/design/scoring`, 4 sub-scores weighted composite, entity comparison); **AI schema refinement** (`POST /api/schema/refine`, LLM-powered + rule-based fallback, completeness scoring, apply suggestions, iterate with feedback, 23 tests); 17 new lens tests + 7 PDF tests. 1480 total tests | ✅ Complete |
+| 23 | 2026-02-20 | **ALL REMAINING DEFERRED ITEMS — PLAN COMPLETE**: **Drag-and-drop upload** (drop zone overlay on capture section + entity detail panel, auto-links to entity) + **Clipboard paste** (Ctrl/Cmd+V on Process/Companies tabs, timestamped filename); **PDF export** (WeasyPrint with graceful fallback, A4 styled template, `?format=pdf`, 7 tests); **Canvas composition** (report as Excalidraw workspace, `?format=canvas`, title block + sections, loads into Canvas tab, 8 tests); **Press release extractor** (`core/extractors/press_release.py`, 39 tests); **Funding round extractor** (`core/extractors/funding_round.py`, 38 tests); **IPID parser** (`core/extractors/ipid.py`, 14 fields, section heading detection, 29 tests); **Pattern library** (`/api/lenses/design/patterns`, 7 tests) + **UX scoring** (`/api/lenses/design/scoring`, 10 tests); **AI schema refinement** (`POST /api/schema/refine`, LLM + rule-based fallback, 23 tests); 161 new tests, 1517 total | ✅ Complete |
 
 ---
 
