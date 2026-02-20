@@ -97,7 +97,8 @@
     <!-- fcose removed: requires cose-base dependency not available via CDN; code falls back to built-in cose layout -->
 
     <!-- Canvas: Excalidraw (loaded lazily via dynamic import in canvas.js) -->
-    <link rel="stylesheet" href="https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/dev/index.css" />
+    <!-- Non-blocking: loads async, swaps to "all" when ready -->
+    <link rel="stylesheet" href="https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/dev/index.css" media="print" onload="this.media='all'" />
     <script type="importmap">
     {
         "imports": {
@@ -166,10 +167,12 @@
     <!-- UX: Lucide icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" defer integrity="sha384-hJnF5AwidE18GSWTAGHv3ByzzvfNZ1Tcx5y1UUV3WkauuMCEzBJBMSwSt/PUPXnM" crossorigin="anonymous"></script>
 
-    <!-- UX: ninja-keys (command palette web component — ESM-only, loaded as module) -->
-    <!-- Use esm.sh with ?bundle to avoid cascading /npm/* imports that hit the local server -->
-    <script type="module">
-        import 'https://esm.sh/ninja-keys@1.2.2?bundle';
+    <!-- UX: ninja-keys (command palette web component — ESM-only) -->
+    <!-- Dynamic import so it does NOT block DOMContentLoaded or window.onload -->
+    <script>
+        import('https://esm.sh/ninja-keys@1.2.2?bundle').catch(function() {
+            console.warn('ninja-keys: CDN unavailable');
+        });
     </script>
 
     <!-- UX: SortableJS (drag and drop) -->

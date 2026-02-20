@@ -235,7 +235,7 @@ function showTab(name) {
     if (name === 'companies') loadCompanies();
     if (name === 'taxonomy') loadTaxonomy();
     if (name === 'map') loadMarketMap();
-    if (name === 'reports') { loadSavedReports(); resumeActiveReport(); if (typeof loadSavedResearch === 'function') loadSavedResearch(); }
+    if (name === 'reports') { if (typeof loadSavedResearch === 'function') loadSavedResearch(); }
     if (name === 'canvas') { if (typeof loadCanvasList === 'function') loadCanvasList(); }
     if (name === 'discovery') { if (typeof loadDiscoveryTab === 'function') loadDiscoveryTab(); }
     if (name === 'process') { loadBatches(); if (typeof initCaptureUI === 'function') initCaptureUI(); }
