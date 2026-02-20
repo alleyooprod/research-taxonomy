@@ -1,8 +1,8 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 1 In Progress — Schema + Entity System Built
+> **Status:** Phase 1 Complete — Full Entity System + Browser + View Compatibility
 > **Created:** 2026-02-20 (Session 10)
-> **Last Updated:** 2026-02-20 (Session 11)
+> **Last Updated:** 2026-02-20 (Session 12)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
 > **Conversation Reference:** `docs/RESEARCH_WORKBENCH_CONVERSATION.md`
 
@@ -133,42 +133,56 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] **Tests:** 73 API tests in `tests/test_api_entities.py` (including 2 full workflow integration tests)
 
 #### 1.6 Project Setup Flow (AI-Guided Interview)
-- [ ] New project creation flow with guided interview
-- [ ] AI proposes schema based on research question description
-- [ ] Back-and-forth refinement (AI challenges user choices)
-- [ ] Template selection as starting point (or blank)
-- [ ] Final schema confirmation before project creation
-- [ ] "Quick create" option bypasses interview (flat Company schema, same as current)
-- [ ] **Files affected:** `web/static/js/projects.js`, `web/blueprints/projects.py`, `core/llm.py`
+- [x] New project creation flow with template selection
+- [x] AI proposes schema based on research question description (`POST /api/schema/suggest`)
+- [ ] Back-and-forth refinement (AI challenges user choices) — deferred to Phase 2+
+- [x] Template selection as starting point (or blank) — 4 templates: blank, market_analysis, product_analysis, design_research
+- [x] Schema preview panel in project creation form
+- [x] "Quick create" option bypasses interview (blank Company schema, same as current)
+- [x] All projects now get `entity_schema` on creation (default: blank company schema)
+- [x] Custom schema validation + normalization on project create
+- [x] **Files:** `web/app.py` (enhanced create_project), `web/static/js/projects.js` (template picker + AI suggest), `web/blueprints/entities.py` (suggest endpoint), `web/templates/index.html` (form), `web/static/layout.css` (template picker CSS)
+- [x] **Tests:** 10 project template tests + 3 AI suggest tests (in `test_api_entities.py`)
 
 #### 1.7 Entity Browser UI
-- [ ] Company list becomes entity browser — shows entities of current schema level
-- [ ] Drill-down navigation: click Company → see its Products → click Product → see its Plans
-- [ ] Breadcrumb navigation for hierarchy depth
-- [ ] Entity cards show attributes from schema + evidence count + child entity count
-- [ ] Existing search, filter, and bulk actions work across entity types
-- [ ] **Files affected:** `web/static/js/companies.js` (major refactor → may rename to `entities.js`), `web/templates/index.html`, `web/static/css/companies.css`
+- [x] Entity browser activates for multi-type schemas (single-type stays on company view)
+- [x] Drill-down navigation: click entity → see its children → breadcrumb back
+- [x] Breadcrumb navigation for hierarchy depth
+- [x] Entity table with schema-driven columns (first 5 attributes + child count + evidence count)
+- [x] Entity detail panel with full attribute display + source metadata
+- [x] Create/edit entity modals with schema-driven form fields (all data types: text, number, boolean, enum, url, date, currency, tags)
+- [x] Search across entity names
+- [x] Bulk operations: star, unstar, delete (via `POST /api/entities/bulk`)
+- [x] Entity type selector bar with count badges
+- [x] **Files:** `web/static/js/entities.js` (new, 500+ lines), `web/templates/index.html` (entity browser section + companyViewWrapper), `web/static/layout.css` (entity browser CSS)
+- [x] **Tests:** 12 entity browser query tests + 10 bulk operation tests (in `test_api_entities.py`)
 
 #### 1.8 Existing View Compatibility
-- [ ] Taxonomy matrix accepts any entity type (not just companies)
-- [ ] Graph/KG views work with the new entity + relationship model
-- [ ] Maps work for any entity with a location attribute
-- [ ] Canvas unchanged (still freeform)
-- [ ] AI Discovery enhanced to populate sub-entities when adding companies
-- [ ] **Files affected:** `taxonomy.js`, `maps.js`, `ai.js`, `ai.py`
+- [x] Entity graph endpoint (`GET /api/entity-graph`) returns nodes + edges for KG views (hierarchy + explicit relationships)
+- [x] Entity locations endpoint (`GET /api/entity-locations`) returns entities with location data for map views
+- [x] Stats bar shows entity type counts for schema-aware projects
+- [x] All projects now get entity_schema on creation — backwards compatible
+- [ ] Taxonomy matrix enhanced to show entities in category detail — deferred (categories work now, entity integration in Phase 2)
+- [ ] AI Discovery enhanced to populate sub-entities — deferred to Phase 2
+- [x] Canvas unchanged (still freeform) ✓
+- [x] **Files:** `web/blueprints/entities.py` (graph + location endpoints), `web/static/js/core.js` (entity stats in header)
+- [x] **Tests:** 6 graph view tests + 5 location tests + 2 schema retrieval tests (in `test_api_entities.py`)
 
 #### 1.9 Tests — Simultaneous Test Development
 > **Rule:** Every implementation step must include corresponding tests. Test suite grows in lockstep with features. All previous tests must continue to pass.
 
 - [x] All 266 original tests still pass after entity system addition
 - [x] DB-layer tests: 62 tests in `tests/test_entities.py` (schema, entity CRUD, temporal, relationships, evidence, snapshots, hierarchy)
-- [x] API-layer tests: 73 tests in `tests/test_api_entities.py` (all endpoints, validation, error cases, workflows)
+- [x] API-layer tests: 119 tests in `tests/test_api_entities.py` (all endpoints, validation, error cases, workflows, template creation, bulk ops, graph, locations)
 - [x] Integration tests: full product analysis workflow (5-level hierarchy) and design research workflow (many-to-many)
 - [x] `entities` marker added to `pytest.ini` for selective running (`pytest -m entities`)
-- [x] **Total: 401 tests passing** (266 original + 62 entity DB + 73 entity API)
-- [ ] E2E Playwright tests for entity browser UI (Phase 1.7)
-- [ ] E2E tests for project setup flow (Phase 1.6)
-- [ ] Migration tests: verify company→entity data integrity (Phase 1.8)
+- [x] **Total: 447 tests passing** (266 original + 62 entity DB + 119 entity API)
+- [x] Phase 1.6 tests: 10 project template + 3 AI suggest tests
+- [x] Phase 1.7 tests: 12 entity browser query + 10 bulk operation tests
+- [x] Phase 1.8 tests: 6 graph view + 5 location + 2 schema retrieval tests
+- [ ] E2E Playwright tests for entity browser UI (Phase 2+)
+- [ ] E2E tests for project setup flow (Phase 2+)
+- [ ] Migration tests: verify company→entity data integrity (Phase 2+)
 
 ---
 
@@ -446,7 +460,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 1. All 266 original tests continue to pass unchanged
 2. Company API remains fully functional — entity system runs alongside, not replacing
 3. New test suites added with every implementation step — test count grows in lockstep
-4. **Current total: 401 tests** (266 original + 135 entity system)
+4. **Current total: 447 tests** (266 original + 62 entity DB + 119 entity API)
 
 ---
 
@@ -461,7 +475,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 9 | 2026-02 | Test architecture (266 pytest, 132 Playwright) | ✅ Complete |
 | 10 | 2026-02-20 | Research Workbench brainstorm + planning | ✅ Complete |
 | 11 | 2026-02-20 | Phase 1.1-1.5 + 1.9: Schema, entities, temporal, evidence, API, tests | ✅ Complete |
-| 12 | TBD | Phase 1.6-1.8: Project setup flow, entity browser UI, view compat | ⬜ Not started |
+| 12 | 2026-02-20 | Phase 1.6-1.8: Project setup + entity browser + view compat (46 new tests, 447 total) | ✅ Complete |
+| 13 | TBD | Phase 2: Capture Engine (headless capture, scrapers, manual upload) | ⬜ Not started |
 
 ---
 
