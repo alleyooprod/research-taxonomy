@@ -1,0 +1,1093 @@
+/**
+ * Analysis Lenses — analysis views that activate based on available data.
+ * Phase 3 of the Research Workbench.
+ *
+ * Provides multiple analytical perspectives on entity data:
+ * - Competitive: Feature matrix, gap analysis, positioning map
+ * - Design: Evidence gallery, screenshot journey map
+ * - Temporal: Snapshot timeline, side-by-side comparison
+ * - Product: Pricing landscape, plan comparison grid
+ */
+
+// ── Lenses State ────────────────────────────────────────────
+
+let _lensesData = [];              // Available lenses from API
+let _activeLens = null;            // Currently loaded lens id
+let _lensEntityFilter = null;      // Selected entity_id for entity-scoped lenses
+let _lensSubView = null;           // Active sub-view within a lens
+let _lensExpandedImage = null;     // Currently expanded gallery image
+
+// ── Init ─────────────────────────────────────────────────────
+
+/**
+ * Initialize the Analysis tab — called when the Analysis tab is shown.
+ */
+async function initLenses() {
+    if (!currentProjectId) return;
+    await _loadAvailableLenses();
+}
+
+// ── Available Lenses ─────────────────────────────────────────
+
+async function _loadAvailableLenses() {
+    try {
+        const resp = await fetch(`/api/lenses/available?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) {
+            _renderLensError('Failed to load analysis lenses.');
+            return;
+        }
+        _lensesData = await resp.json();
+        _renderLensSelector(_lensesData);
+    } catch (e) {
+        console.warn('Failed to load lenses:', e);
+        _renderLensError('Unable to reach lenses endpoint.');
+    }
+}
+
+// ── Lens Selector ─────────────────────────────────────────────
+
+/**
+ * Render the horizontal lens selector bar.
+ * Available lenses are clickable; unavailable show a hint and are greyed out.
+ */
+function _renderLensSelector(lenses) {
+    const bar = document.getElementById('lensSelector');
+    const content = document.getElementById('lensContent');
+    if (!bar) return;
+
+    if (!lenses || lenses.length === 0) {
+        bar.innerHTML = '';
+        if (content) content.innerHTML = _lensEmptyState(
+            'No Lenses Available',
+            'Add entities with attributes to unlock analysis lenses.'
+        );
+        return;
+    }
+
+    bar.innerHTML = lenses.map(lens => {
+        const available = lens.available !== false;
+        const count = lens.entity_count != null ? lens.entity_count : 0;
+        const hint = lens.hint || 'Requires more data';
+
+        return `
+            <div class="lens-card ${available ? 'lens-card-available' : 'lens-card-unavailable'} ${_activeLens === lens.id ? 'lens-card-active' : ''}"
+                 ${available ? `onclick="_selectLens('${esc(lens.id)}')"` : ''}
+                 title="${available ? esc(lens.name) : esc(hint)}">
+                <div class="lens-card-name">${esc(lens.name)}</div>
+                <div class="lens-card-count">
+                    ${available
+                        ? `<span class="lens-card-count-value">${count}</span> ${count === 1 ? 'entity' : 'entities'}`
+                        : `<span class="lens-card-hint">${esc(hint)}</span>`
+                    }
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // If a lens was already active, re-render its content after selector refresh
+    if (_activeLens) {
+        const active = lenses.find(l => l.id === _activeLens);
+        if (!active || active.available === false) {
+            _activeLens = null;
+            if (content) content.innerHTML = '';
+        }
+    }
+}
+
+function _selectLens(lensId) {
+    _activeLens = lensId;
+    _lensSubView = null;
+    _lensEntityFilter = null;
+
+    // Re-render selector to update active state
+    _renderLensSelector(_lensesData);
+
+    switch (lensId) {
+        case 'competitive': _loadCompetitiveLens(); break;
+        case 'design':      _loadDesignLens();      break;
+        case 'temporal':    _loadTemporalLens();     break;
+        case 'product':     _loadProductLens();      break;
+        default:
+            _renderLensError(`Unknown lens: ${lensId}`);
+    }
+}
+
+// ── Competitive Lens ─────────────────────────────────────────
+
+/**
+ * Load the Competitive lens — three sub-views: Feature Matrix, Gap Analysis,
+ * Positioning Map.
+ */
+async function _loadCompetitiveLens() {
+    const content = document.getElementById('lensContent');
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="lens-subview-bar" id="competitiveSubBar">
+            <button class="lens-subview-btn lens-subview-btn-active"
+                    onclick="_switchCompetitiveSubView('matrix')">Feature Matrix</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchCompetitiveSubView('gap')">Gap Analysis</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchCompetitiveSubView('positioning')">Positioning</button>
+        </div>
+        <div id="competitiveSubContent" class="lens-sub-content">
+            <div class="lens-loading">Loading feature matrix&hellip;</div>
+        </div>
+    `;
+
+    _lensSubView = 'matrix';
+    await _loadFeatureMatrixData();
+}
+
+function _switchCompetitiveSubView(view) {
+    _lensSubView = view;
+
+    // Update button states
+    const bar = document.getElementById('competitiveSubBar');
+    if (bar) {
+        bar.querySelectorAll('.lens-subview-btn').forEach(btn => {
+            btn.classList.remove('lens-subview-btn-active');
+        });
+        const idx = { matrix: 0, gap: 1, positioning: 2 }[view];
+        const btns = bar.querySelectorAll('.lens-subview-btn');
+        if (btns[idx]) btns[idx].classList.add('lens-subview-btn-active');
+    }
+
+    switch (view) {
+        case 'matrix':      _loadFeatureMatrixData();   break;
+        case 'gap':         _loadGapAnalysisData();     break;
+        case 'positioning': _loadPositioningData();     break;
+    }
+}
+
+async function _loadFeatureMatrixData() {
+    const sub = document.getElementById('competitiveSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading feature matrix&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/competitive/matrix?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Data', 'No feature matrix data available.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderFeatureMatrix(data);
+    } catch (e) {
+        console.warn('Feature matrix load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load feature matrix.');
+    }
+}
+
+async function _loadGapAnalysisData() {
+    const sub = document.getElementById('competitiveSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading gap analysis&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/competitive/gaps?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Data', 'No gap analysis data available.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderGapAnalysis(data);
+    } catch (e) {
+        console.warn('Gap analysis load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load gap analysis.');
+    }
+}
+
+async function _loadPositioningData() {
+    const sub = document.getElementById('competitiveSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading positioning map&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/competitive/positioning?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Data', 'No positioning data available.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderPositioningMap(data);
+    } catch (e) {
+        console.warn('Positioning load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load positioning map.');
+    }
+}
+
+/**
+ * Render the feature matrix table.
+ * Rows = features/attributes, Columns = entities.
+ * Boolean values show a checkmark; missing values are highlighted as gaps.
+ */
+function _renderFeatureMatrix(data) {
+    // data = { entities: [{id, name}], features: [{slug, label, values: {entity_id: value}}] }
+    const entities = data.entities || [];
+    const features = data.features || [];
+
+    if (!entities.length || !features.length) {
+        return _lensEmptyState('No Matrix Data', 'Entities need attributes to build a feature matrix.');
+    }
+
+    const headerCells = entities.map(e =>
+        `<th class="matrix-col-header" title="${escAttr(e.name)}">${esc(_truncateLabel(e.name, 16))}</th>`
+    ).join('');
+
+    const rows = features.map((feat, rowIdx) => {
+        const cells = entities.map(e => {
+            const val = feat.values ? feat.values[e.id] : undefined;
+            const isGap = val === undefined || val === null || val === '';
+            const display = _matrixCellDisplay(val);
+            return `<td class="matrix-cell ${isGap ? 'matrix-cell-gap' : 'matrix-cell-filled'}" title="${escAttr(isGap ? 'No data' : String(val))}">${display}</td>`;
+        }).join('');
+
+        return `
+            <tr class="${rowIdx % 2 === 0 ? 'matrix-row-even' : 'matrix-row-odd'}">
+                <th class="matrix-row-header" title="${escAttr(feat.label || feat.slug)}">${esc(feat.label || feat.slug)}</th>
+                ${cells}
+            </tr>
+        `;
+    }).join('');
+
+    const gapCount = features.reduce((total, feat) => {
+        return total + entities.filter(e => {
+            const val = feat.values ? feat.values[e.id] : undefined;
+            return val === undefined || val === null || val === '';
+        }).length;
+    }, 0);
+    const totalCells = features.length * entities.length;
+    const coveragePct = totalCells > 0 ? Math.round(((totalCells - gapCount) / totalCells) * 100) : 0;
+
+    return `
+        <div class="matrix-meta">
+            <span class="matrix-meta-stat">${entities.length} entities</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="matrix-meta-stat">${features.length} features</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="matrix-meta-stat matrix-coverage">${coveragePct}% coverage</span>
+        </div>
+        <div class="matrix-scroll-wrap">
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th class="matrix-origin-cell"></th>
+                        ${headerCells}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </div>
+        <div class="matrix-legend">
+            <span class="matrix-legend-item matrix-legend-filled">Filled</span>
+            <span class="matrix-legend-item matrix-legend-gap">Gap</span>
+        </div>
+    `;
+}
+
+function _matrixCellDisplay(val) {
+    if (val === undefined || val === null || val === '') return '<span class="matrix-gap-marker">—</span>';
+    if (val === true || val === 'true' || val === 1 || val === '1') return '<span class="matrix-check">&#10003;</span>';
+    if (val === false || val === 'false' || val === 0 || val === '0') return '<span class="matrix-cross">&#215;</span>';
+    const str = String(val);
+    return `<span class="matrix-value">${esc(_truncateLabel(str, 12))}</span>`;
+}
+
+/**
+ * Render the gap analysis list.
+ * Features sorted by coverage ascending (lowest coverage first).
+ * Horizontal bars show fill percentage; red for low, green for high.
+ */
+function _renderGapAnalysis(data) {
+    // data = { features: [{slug, label, coverage_pct, filled, total}] }
+    const features = (data.features || []).slice().sort((a, b) => a.coverage_pct - b.coverage_pct);
+
+    if (!features.length) {
+        return _lensEmptyState('No Gap Data', 'No attribute data to analyse for gaps.');
+    }
+
+    const rows = features.map(feat => {
+        const pct = Math.round(feat.coverage_pct || 0);
+        let barClass = 'gap-bar-low';
+        if (pct >= 70) barClass = 'gap-bar-high';
+        else if (pct >= 40) barClass = 'gap-bar-medium';
+
+        return `
+            <div class="gap-row">
+                <div class="gap-label" title="${escAttr(feat.label || feat.slug)}">${esc(feat.label || feat.slug)}</div>
+                <div class="gap-bar-wrap">
+                    <div class="gap-bar ${barClass}" style="width: ${pct}%"></div>
+                </div>
+                <div class="gap-pct">${pct}%</div>
+                <div class="gap-counts">${feat.filled || 0} / ${feat.total || 0}</div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="gap-header-row">
+            <span class="gap-header-label">Feature</span>
+            <span class="gap-header-bar">Coverage</span>
+            <span class="gap-header-pct">%</span>
+            <span class="gap-header-counts">Filled / Total</span>
+        </div>
+        <div class="gap-list">
+            ${rows}
+        </div>
+        <div class="gap-legend">
+            <span class="gap-legend-item gap-bar-low">Low (&lt;40%)</span>
+            <span class="gap-legend-item gap-bar-medium">Medium (40–69%)</span>
+            <span class="gap-legend-item gap-bar-high">High (&ge;70%)</span>
+        </div>
+    `;
+}
+
+/**
+ * Render a simple 2D positioning grid.
+ * Each entity is placed at an x/y coordinate with a dot and label.
+ * Axes are labelled from the data.
+ */
+function _renderPositioningMap(data) {
+    // data = { x_axis: {label, attr_slug}, y_axis: {label, attr_slug}, entities: [{id, name, x, y}] }
+    const entities = data.entities || [];
+    const xLabel = (data.x_axis || {}).label || 'X Axis';
+    const yLabel = (data.y_axis || {}).label || 'Y Axis';
+
+    if (!entities.length) {
+        return _lensEmptyState('No Positioning Data', 'Entities need numeric attributes on two dimensions to plot.');
+    }
+
+    // Normalise coordinates to 0–100 range
+    const xs = entities.map(e => e.x || 0);
+    const ys = entities.map(e => e.y || 0);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const rangeX = maxX - minX || 1;
+    const rangeY = maxY - minY || 1;
+
+    const dots = entities.map(e => {
+        const px = ((e.x - minX) / rangeX) * 90 + 5;  // 5–95% margin
+        const py = 95 - ((e.y - minY) / rangeY) * 90;  // invert Y (top=high)
+        return `
+            <div class="pos-dot-wrap" style="left: ${px.toFixed(1)}%; top: ${py.toFixed(1)}%" title="${escAttr(e.name)}">
+                <div class="pos-dot"></div>
+                <span class="pos-dot-label">${esc(_truncateLabel(e.name, 14))}</span>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="pos-wrap">
+            <div class="pos-y-label">${esc(yLabel)}</div>
+            <div class="pos-grid-wrap">
+                <div class="pos-grid">
+                    ${dots}
+                    <div class="pos-grid-lines">
+                        <div class="pos-grid-h"></div>
+                        <div class="pos-grid-v"></div>
+                    </div>
+                </div>
+                <div class="pos-x-label">${esc(xLabel)}</div>
+            </div>
+        </div>
+        <div class="pos-entity-count">${entities.length} entities plotted</div>
+    `;
+}
+
+// ── Design Lens ──────────────────────────────────────────────
+
+/**
+ * Load the Design lens — entity selector + screenshot gallery grouped by
+ * evidence type, with optional journey map view if screenshots are classified.
+ */
+async function _loadDesignLens() {
+    const content = document.getElementById('lensContent');
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="lens-entity-selector-row">
+            <label class="lens-entity-label">Entity</label>
+            <select class="lens-entity-select" id="designEntitySelect" onchange="_onDesignEntityChange()">
+                <option value="">All entities</option>
+            </select>
+        </div>
+        <div class="lens-subview-bar" id="designSubBar">
+            <button class="lens-subview-btn lens-subview-btn-active"
+                    onclick="_switchDesignSubView('gallery')">Gallery</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchDesignSubView('journey')">Journey Map</button>
+        </div>
+        <div id="designSubContent" class="lens-sub-content">
+            <div class="lens-loading">Loading evidence&hellip;</div>
+        </div>
+    `;
+
+    _lensSubView = 'gallery';
+    await _populateDesignEntitySelector();
+    await _loadDesignGalleryData();
+}
+
+async function _populateDesignEntitySelector() {
+    try {
+        const resp = await fetch(`/api/entities?project_id=${currentProjectId}&limit=200`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const entities = Array.isArray(data) ? data : (data.entities || data.items || []);
+
+        const sel = document.getElementById('designEntitySelect');
+        if (!sel) return;
+        entities.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.textContent = e.name || e.company_name || `Entity ${e.id}`;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.warn('Could not load entity list:', e);
+    }
+}
+
+function _onDesignEntityChange() {
+    const sel = document.getElementById('designEntitySelect');
+    _lensEntityFilter = sel ? (sel.value || null) : null;
+    if (_lensSubView === 'journey') {
+        _loadDesignJourneyData();
+    } else {
+        _loadDesignGalleryData();
+    }
+}
+
+function _switchDesignSubView(view) {
+    _lensSubView = view;
+    const bar = document.getElementById('designSubBar');
+    if (bar) {
+        bar.querySelectorAll('.lens-subview-btn').forEach((btn, i) => {
+            btn.classList.toggle('lens-subview-btn-active', (view === 'gallery' && i === 0) || (view === 'journey' && i === 1));
+        });
+    }
+    if (view === 'gallery') _loadDesignGalleryData();
+    else _loadDesignJourneyData();
+}
+
+async function _loadDesignGalleryData() {
+    const sub = document.getElementById('designSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading evidence gallery&hellip;</div>';
+
+    let url = `/api/lenses/design/gallery?project_id=${currentProjectId}`;
+    if (_lensEntityFilter) url += `&entity_id=${_lensEntityFilter}`;
+
+    try {
+        const resp = await fetch(url, { headers: { 'X-CSRFToken': CSRF_TOKEN } });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Evidence', 'No screenshots or documents captured yet.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderEvidenceGallery(data);
+    } catch (e) {
+        console.warn('Gallery load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load evidence gallery.');
+    }
+}
+
+async function _loadDesignJourneyData() {
+    const sub = document.getElementById('designSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading journey map&hellip;</div>';
+
+    let url = `/api/lenses/design/journey?project_id=${currentProjectId}`;
+    if (_lensEntityFilter) url += `&entity_id=${_lensEntityFilter}`;
+
+    try {
+        const resp = await fetch(url, { headers: { 'X-CSRFToken': CSRF_TOKEN } });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Journey Data', 'No classified screenshots available.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderJourneyMap(data);
+    } catch (e) {
+        console.warn('Journey load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load journey map.');
+    }
+}
+
+/**
+ * Render a grid of screenshot thumbnails grouped by evidence type.
+ * Clicking a thumbnail expands it; metadata shown on hover.
+ */
+function _renderEvidenceGallery(data) {
+    // data = { groups: [{type, label, items: [{id, filename, url, entity_name, captured_at, metadata}]}] }
+    const groups = data.groups || [];
+
+    if (!groups.length || groups.every(g => !g.items || !g.items.length)) {
+        return _lensEmptyState('No Evidence', 'No screenshots or documents captured yet.');
+    }
+
+    const totalItems = groups.reduce((s, g) => s + (g.items || []).length, 0);
+
+    const groupHtml = groups
+        .filter(g => g.items && g.items.length)
+        .map(group => {
+            const items = group.items.map(item => {
+                const src = item.serve_url || item.url || '';
+                const isImg = /\.(png|jpe?g|gif|webp|avif)$/i.test(item.filename || src);
+                const capturedAt = item.captured_at ? new Date(item.captured_at).toLocaleDateString() : '';
+
+                return `
+                    <div class="gallery-thumb" onclick="_expandGalleryItem('${escAttr(src)}', '${escAttr(item.entity_name || '')}', '${escAttr(item.filename || '')}')"
+                         title="${escAttr(item.filename || '')} — ${escAttr(item.entity_name || '')}">
+                        ${isImg
+                            ? `<img class="gallery-thumb-img" src="${escAttr(src)}" alt="${escAttr(item.filename || '')}" loading="lazy">`
+                            : `<div class="gallery-thumb-doc"><span class="gallery-doc-ext">${esc(_fileExt(item.filename || src))}</span></div>`
+                        }
+                        <div class="gallery-thumb-overlay">
+                            <div class="gallery-thumb-name">${esc(_truncateLabel(item.entity_name || item.filename || '', 20))}</div>
+                            ${capturedAt ? `<div class="gallery-thumb-date">${esc(capturedAt)}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="gallery-group">
+                    <div class="gallery-group-header">
+                        <span class="gallery-group-label">${esc(group.label || group.type)}</span>
+                        <span class="gallery-group-count">${group.items.length}</span>
+                    </div>
+                    <div class="gallery-grid">
+                        ${items}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    return `
+        <div class="gallery-meta">${totalItems} items</div>
+        ${groupHtml}
+        <div id="galleryLightbox" class="gallery-lightbox hidden" onclick="_closeLightbox()">
+            <div class="gallery-lightbox-inner" onclick="event.stopPropagation()">
+                <button class="gallery-lightbox-close" onclick="_closeLightbox()">&times;</button>
+                <img id="galleryLightboxImg" class="gallery-lightbox-img" src="" alt="">
+                <div id="galleryLightboxCaption" class="gallery-lightbox-caption"></div>
+            </div>
+        </div>
+    `;
+}
+
+function _renderJourneyMap(data) {
+    // data = { sequences: [{stage, label, items: [{entity_name, filename, serve_url, ui_pattern}]}] }
+    const sequences = data.sequences || [];
+
+    if (!sequences.length) {
+        return _lensEmptyState('No Journey Stages', 'Screenshots need to be classified to build a journey map.');
+    }
+
+    const stages = sequences.map(stage => {
+        const thumbs = (stage.items || []).map(item => `
+            <div class="journey-thumb" title="${escAttr(item.entity_name || '')} — ${escAttr(item.ui_pattern || '')}">
+                <img class="journey-thumb-img" src="${escAttr(item.serve_url || '')}" alt="${escAttr(item.filename || '')}" loading="lazy">
+                <div class="journey-thumb-meta">
+                    <div class="journey-thumb-entity">${esc(_truncateLabel(item.entity_name || '', 14))}</div>
+                    ${item.ui_pattern ? `<div class="journey-thumb-pattern">${esc(item.ui_pattern)}</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        return `
+            <div class="journey-stage">
+                <div class="journey-stage-label">${esc(stage.label || stage.stage)}</div>
+                <div class="journey-stage-thumbs">
+                    ${thumbs || '<span class="journey-no-thumbs">No screenshots</span>'}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="journey-map">
+            ${stages}
+        </div>
+    `;
+}
+
+function _expandGalleryItem(src, entityName, filename) {
+    _lensExpandedImage = src;
+    const lb = document.getElementById('galleryLightbox');
+    const img = document.getElementById('galleryLightboxImg');
+    const cap = document.getElementById('galleryLightboxCaption');
+    if (!lb || !img) return;
+    img.src = src;
+    img.alt = filename;
+    if (cap) cap.textContent = [entityName, filename].filter(Boolean).join(' — ');
+    lb.classList.remove('hidden');
+}
+
+function _closeLightbox() {
+    _lensExpandedImage = null;
+    const lb = document.getElementById('galleryLightbox');
+    if (lb) lb.classList.add('hidden');
+}
+
+// ── Temporal Lens ────────────────────────────────────────────
+
+/**
+ * Load the Temporal lens — entity selector + snapshot timeline with
+ * a side-by-side comparison picker.
+ */
+async function _loadTemporalLens() {
+    const content = document.getElementById('lensContent');
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="lens-entity-selector-row">
+            <label class="lens-entity-label">Entity</label>
+            <select class="lens-entity-select" id="temporalEntitySelect" onchange="_onTemporalEntityChange()">
+                <option value="">Select an entity&hellip;</option>
+            </select>
+        </div>
+        <div class="lens-subview-bar" id="temporalSubBar">
+            <button class="lens-subview-btn lens-subview-btn-active"
+                    onclick="_switchTemporalSubView('timeline')">Timeline</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchTemporalSubView('compare')">Compare</button>
+        </div>
+        <div id="temporalSubContent" class="lens-sub-content">
+            <div class="lens-empty-state">
+                <div class="lens-empty-title">Select an entity</div>
+                <div class="lens-empty-desc">Choose an entity above to view its snapshot history.</div>
+            </div>
+        </div>
+    `;
+
+    _lensSubView = 'timeline';
+    await _populateTemporalEntitySelector();
+}
+
+async function _populateTemporalEntitySelector() {
+    try {
+        const resp = await fetch(`/api/entities?project_id=${currentProjectId}&limit=200`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const entities = Array.isArray(data) ? data : (data.entities || data.items || []);
+
+        const sel = document.getElementById('temporalEntitySelect');
+        if (!sel) return;
+        entities.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.textContent = e.name || e.company_name || `Entity ${e.id}`;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.warn('Could not load entity list for temporal lens:', e);
+    }
+}
+
+function _onTemporalEntityChange() {
+    const sel = document.getElementById('temporalEntitySelect');
+    _lensEntityFilter = sel ? (sel.value || null) : null;
+    if (!_lensEntityFilter) return;
+    if (_lensSubView === 'compare') {
+        _loadTemporalCompareData();
+    } else {
+        _loadTemporalTimelineData();
+    }
+}
+
+function _switchTemporalSubView(view) {
+    _lensSubView = view;
+    const bar = document.getElementById('temporalSubBar');
+    if (bar) {
+        bar.querySelectorAll('.lens-subview-btn').forEach((btn, i) => {
+            btn.classList.toggle('lens-subview-btn-active', (view === 'timeline' && i === 0) || (view === 'compare' && i === 1));
+        });
+    }
+    if (!_lensEntityFilter) return;
+    if (view === 'compare') _loadTemporalCompareData();
+    else _loadTemporalTimelineData();
+}
+
+async function _loadTemporalTimelineData() {
+    const sub = document.getElementById('temporalSubContent');
+    if (!sub || !_lensEntityFilter) return;
+    sub.innerHTML = '<div class="lens-loading">Loading timeline&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/temporal/timeline?project_id=${currentProjectId}&entity_id=${_lensEntityFilter}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Snapshots', 'No snapshot history for this entity.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderTimeline(data);
+    } catch (e) {
+        console.warn('Timeline load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load timeline.');
+    }
+}
+
+async function _loadTemporalCompareData() {
+    const sub = document.getElementById('temporalSubContent');
+    if (!sub || !_lensEntityFilter) return;
+    sub.innerHTML = '<div class="lens-loading">Loading snapshots for comparison&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/temporal/snapshots?project_id=${currentProjectId}&entity_id=${_lensEntityFilter}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Snapshots', 'No snapshot history available.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderComparisonPicker(data);
+    } catch (e) {
+        console.warn('Comparison load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load snapshots.');
+    }
+}
+
+function _renderTimeline(data) {
+    // data = { entity_name, snapshots: [{id, captured_at, attributes: {slug: value}}] }
+    const snapshots = (data.snapshots || []).slice().sort((a, b) =>
+        new Date(b.captured_at) - new Date(a.captured_at)
+    );
+
+    if (!snapshots.length) {
+        return _lensEmptyState('No History', 'No attribute snapshots recorded for this entity.');
+    }
+
+    const cards = snapshots.map(snap => {
+        const date = snap.captured_at ? new Date(snap.captured_at).toLocaleString() : 'Unknown date';
+        const attrs = snap.attributes || {};
+        const attrHtml = Object.entries(attrs).map(([slug, val]) =>
+            `<div class="timeline-attr-row">
+                <span class="timeline-attr-slug">${esc(slug)}</span>
+                <span class="timeline-attr-val">${esc(String(val ?? ''))}</span>
+            </div>`
+        ).join('') || '<div class="timeline-attr-empty">No attributes captured</div>';
+
+        return `
+            <div class="timeline-card">
+                <div class="timeline-dot"></div>
+                <div class="timeline-card-inner">
+                    <div class="timeline-card-date">${esc(date)}</div>
+                    <div class="timeline-attrs">
+                        ${attrHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="timeline-entity-name">${esc(data.entity_name || '')}</div>
+        <div class="timeline-wrap">
+            ${cards}
+        </div>
+    `;
+}
+
+function _renderComparisonPicker(data) {
+    // data = { entity_name, snapshots: [{id, captured_at, label}] }
+    const snapshots = data.snapshots || [];
+
+    if (snapshots.length < 2) {
+        return _lensEmptyState('Not Enough Snapshots', 'At least two snapshots are needed for comparison.');
+    }
+
+    const options = snapshots.map(s =>
+        `<option value="${esc(s.id)}">${esc(s.captured_at ? new Date(s.captured_at).toLocaleString() : `Snapshot ${s.id}`)}</option>`
+    ).join('');
+
+    return `
+        <div class="compare-picker">
+            <div class="compare-picker-row">
+                <div class="compare-picker-col">
+                    <label class="compare-picker-label">Before</label>
+                    <select class="compare-picker-select" id="compareSnapshotA">
+                        ${options}
+                    </select>
+                </div>
+                <div class="compare-picker-vs">vs</div>
+                <div class="compare-picker-col">
+                    <label class="compare-picker-label">After</label>
+                    <select class="compare-picker-select" id="compareSnapshotB">
+                        ${options}
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-sm" onclick="_runComparison()">Compare</button>
+        </div>
+        <div id="compareResult" class="compare-result"></div>
+    `;
+}
+
+async function _runComparison() {
+    const selA = document.getElementById('compareSnapshotA');
+    const selB = document.getElementById('compareSnapshotB');
+    const result = document.getElementById('compareResult');
+    if (!selA || !selB || !result) return;
+
+    const idA = selA.value;
+    const idB = selB.value;
+    if (!idA || !idB || idA === idB) {
+        result.innerHTML = '<div class="compare-warn">Select two different snapshots.</div>';
+        return;
+    }
+
+    result.innerHTML = '<div class="lens-loading">Comparing&hellip;</div>';
+
+    try {
+        const resp = await fetch(
+            `/api/lenses/temporal/compare?project_id=${currentProjectId}&snapshot_a=${idA}&snapshot_b=${idB}`,
+            { headers: { 'X-CSRFToken': CSRF_TOKEN } }
+        );
+        if (!resp.ok) { result.innerHTML = _lensEmptyState('Compare Failed', 'Could not compare snapshots.'); return; }
+        const data = await resp.json();
+        result.innerHTML = _renderComparisonView(data);
+    } catch (e) {
+        console.warn('Comparison failed:', e);
+        result.innerHTML = _lensEmptyState('Compare Failed', 'An error occurred during comparison.');
+    }
+}
+
+function _renderComparisonView(data) {
+    // data = { label_a, label_b, diffs: [{slug, value_a, value_b, changed}] }
+    const diffs = data.diffs || [];
+
+    if (!diffs.length) {
+        return '<div class="compare-no-diff">No attributes to compare.</div>';
+    }
+
+    const rows = diffs.map(diff => {
+        const changedClass = diff.changed ? 'compare-row-changed' : '';
+        return `
+            <div class="compare-row ${changedClass}">
+                <div class="compare-row-slug">${esc(diff.slug)}</div>
+                <div class="compare-row-a">${esc(String(diff.value_a ?? '—'))}</div>
+                <div class="compare-row-b">${esc(String(diff.value_b ?? '—'))}</div>
+                ${diff.changed ? '<div class="compare-row-changed-marker">Changed</div>' : '<div></div>'}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="compare-view">
+            <div class="compare-view-header">
+                <div class="compare-view-attr-head">Attribute</div>
+                <div class="compare-view-col-head">${esc(data.label_a || 'Before')}</div>
+                <div class="compare-view-col-head">${esc(data.label_b || 'After')}</div>
+                <div class="compare-view-diff-head">Diff</div>
+            </div>
+            ${rows}
+        </div>
+    `;
+}
+
+// ── Product Lens ─────────────────────────────────────────────
+
+/**
+ * Load the Product lens — pricing landscape table + plan comparison grid.
+ */
+async function _loadProductLens() {
+    const content = document.getElementById('lensContent');
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="lens-subview-bar" id="productSubBar">
+            <button class="lens-subview-btn lens-subview-btn-active"
+                    onclick="_switchProductSubView('pricing')">Pricing Landscape</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchProductSubView('plans')">Plan Comparison</button>
+        </div>
+        <div id="productSubContent" class="lens-sub-content">
+            <div class="lens-loading">Loading pricing data&hellip;</div>
+        </div>
+    `;
+
+    _lensSubView = 'pricing';
+    await _loadPricingLandscapeData();
+}
+
+function _switchProductSubView(view) {
+    _lensSubView = view;
+    const bar = document.getElementById('productSubBar');
+    if (bar) {
+        bar.querySelectorAll('.lens-subview-btn').forEach((btn, i) => {
+            btn.classList.toggle('lens-subview-btn-active', (view === 'pricing' && i === 0) || (view === 'plans' && i === 1));
+        });
+    }
+    if (view === 'plans') _loadPlanComparisonData();
+    else _loadPricingLandscapeData();
+}
+
+async function _loadPricingLandscapeData() {
+    const sub = document.getElementById('productSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading pricing landscape&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/product/pricing?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Pricing Data', 'No pricing attributes found for entities.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderPricingLandscape(data);
+    } catch (e) {
+        console.warn('Pricing load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load pricing data.');
+    }
+}
+
+async function _loadPlanComparisonData() {
+    const sub = document.getElementById('productSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading plan comparison&hellip;</div>';
+
+    try {
+        const resp = await fetch(`/api/lenses/product/plans?project_id=${currentProjectId}`, {
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        if (!resp.ok) { sub.innerHTML = _lensEmptyState('No Plan Data', 'No plan or tier data found for entities.'); return; }
+        const data = await resp.json();
+        sub.innerHTML = _renderPlanComparison(data);
+    } catch (e) {
+        console.warn('Plan comparison load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load plan comparison.');
+    }
+}
+
+function _renderPricingLandscape(data) {
+    // data = { entities: [{id, name, pricing_model, price_min, price_max, currency, free_tier}] }
+    const entities = (data.entities || []).slice().sort((a, b) => (a.price_min || 0) - (b.price_min || 0));
+
+    if (!entities.length) {
+        return _lensEmptyState('No Pricing Data', 'No pricing attributes found for entities.');
+    }
+
+    const rows = entities.map((e, i) => {
+        const curr = e.currency || '$';
+        const priceStr = e.price_min != null
+            ? (e.price_max != null && e.price_max !== e.price_min
+                ? `${curr}${e.price_min} – ${curr}${e.price_max}`
+                : `${curr}${e.price_min}`)
+            : '—';
+
+        return `
+            <tr class="${i % 2 === 0 ? 'pricing-row-even' : 'pricing-row-odd'}">
+                <td class="pricing-cell pricing-entity">${esc(e.name)}</td>
+                <td class="pricing-cell pricing-model">${esc(e.pricing_model || '—')}</td>
+                <td class="pricing-cell pricing-price">${esc(priceStr)}</td>
+                <td class="pricing-cell pricing-free">
+                    ${e.free_tier ? '<span class="pricing-badge-free">Free tier</span>' : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="pricing-scroll-wrap">
+            <table class="pricing-table">
+                <thead>
+                    <tr>
+                        <th class="pricing-head">Entity</th>
+                        <th class="pricing-head">Model</th>
+                        <th class="pricing-head">Price</th>
+                        <th class="pricing-head">Free Tier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </div>
+        <div class="pricing-meta">${entities.length} entities</div>
+    `;
+}
+
+function _renderPlanComparison(data) {
+    // data = { features: [{label}], plans: [{entity_name, plan_name, values: [value_per_feature]}] }
+    const features = data.features || [];
+    const plans = data.plans || [];
+
+    if (!plans.length || !features.length) {
+        return _lensEmptyState('No Plan Data', 'No plan or tier attributes found for entities.');
+    }
+
+    const headerCells = plans.map(p =>
+        `<th class="plans-col-head" title="${escAttr(p.entity_name)}">${esc(_truncateLabel(p.plan_name || p.entity_name, 14))}</th>`
+    ).join('');
+
+    const rows = features.map((feat, rowIdx) => {
+        const cells = plans.map(p => {
+            const val = p.values ? p.values[rowIdx] : undefined;
+            const display = _matrixCellDisplay(val);
+            return `<td class="plans-cell">${display}</td>`;
+        }).join('');
+        return `
+            <tr class="${rowIdx % 2 === 0 ? 'plans-row-even' : 'plans-row-odd'}">
+                <th class="plans-row-head">${esc(feat.label)}</th>
+                ${cells}
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="plans-scroll-wrap">
+            <table class="plans-table">
+                <thead>
+                    <tr>
+                        <th class="plans-origin-cell"></th>
+                        ${headerCells}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </div>
+        <div class="plans-meta">${plans.length} plans across ${features.length} features</div>
+    `;
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+
+function _lensEmptyState(title, desc) {
+    return `
+        <div class="lens-empty-state">
+            <div class="lens-empty-title">${esc(title)}</div>
+            <div class="lens-empty-desc">${esc(desc)}</div>
+        </div>
+    `;
+}
+
+function _renderLensError(msg) {
+    const content = document.getElementById('lensContent');
+    if (content) content.innerHTML = _lensEmptyState('Error', msg);
+    const bar = document.getElementById('lensSelector');
+    if (bar) bar.innerHTML = '';
+}
+
+function _truncateLabel(str, maxLen) {
+    if (!str) return '';
+    return str.length <= maxLen ? str : str.substring(0, maxLen - 1) + '\u2026';
+}
+
+function _fileExt(filename) {
+    const m = filename.match(/\.([a-zA-Z0-9]+)$/);
+    return m ? m[1].toUpperCase() : 'FILE';
+}
+
+// ── Global Exposure ───────────────────────────────────────────
+
+window.initLenses                = initLenses;
+window._selectLens               = _selectLens;
+window._switchCompetitiveSubView = _switchCompetitiveSubView;
+window._switchDesignSubView      = _switchDesignSubView;
+window._switchTemporalSubView    = _switchTemporalSubView;
+window._switchProductSubView     = _switchProductSubView;
+window._onDesignEntityChange     = _onDesignEntityChange;
+window._onTemporalEntityChange   = _onTemporalEntityChange;
+window._expandGalleryItem        = _expandGalleryItem;
+window._closeLightbox            = _closeLightbox;
+window._runComparison            = _runComparison;

@@ -1,6 +1,6 @@
 # Research Workbench — Implementation Plan
 
-> **Status:** Phase 3 Complete + Phase 2.6/2.7 done — bulk capture + capture UI
+> **Status:** Phase 2 + Phase 3 Complete — all capture, extraction, review, features done
 > **Created:** 2026-02-20 (Session 10)
 > **Last Updated:** 2026-02-20 (Session 16)
 > **Vision Doc:** `docs/RESEARCH_WORKBENCH_VISION.md`
@@ -46,7 +46,7 @@ Evolving the Research Taxonomy Library from a flat company taxonomy tool into a 
 | Design System (The Instrument) | ✅ Working | `base.css` + 12 CSS files |
 | Tippy.js Tooltips | ✅ Working | `core.js` |
 | Custom Prompt/Select Dialogs | ✅ Working | `core.js` |
-| 862 pytest tests | ✅ Passing | 29 test files |
+| 894 pytest tests | ✅ Passing | 30 test files |
 | 132 Playwright specs | ✅ Written | 24 spec files |
 | Entity schema system | ✅ Working | `core/schema.py` |
 | Entity CRUD + temporal attrs | ✅ Working | `storage/repos/entities.py` |
@@ -202,13 +202,19 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] **Tests:** 6 website capture API tests (mocked Playwright) in `test_api_capture.py`
 
 #### 2.2 UI Gallery Scrapers
-- [ ] Mobbin scraper: find app by name, download all available screenshots
-- [ ] Screenlane scraper: same pattern
-- [ ] Refero scraper: same pattern
-- [ ] Appshots / Scrnshts / Dribbble: as needed
-- [ ] Rate limiting and polite scraping (delays, user-agent, robots.txt respect)
-- [ ] Results land in evidence library, linked to product entity
-- [ ] **Files affected:** New `core/scrapers/` directory with per-source modules
+- [x] Dribbble scraper (`core/scrapers/dribbble.py`) — search shots, download images from cdn.dribbble.com
+- [x] Scrnshts Club scraper (`core/scrapers/scrnshts.py`) — App Store screenshot gallery, WordPress search/browse/download
+- [x] Collect UI scraper (`core/scrapers/collectui.py`) — 14,400+ UI pattern shots, challenge-based browse
+- [x] Godly scraper (`core/scrapers/godly.py`) — curated web design gallery, JSON-hydrated Next.js
+- [x] Siteinspire scraper (`core/scrapers/siteinspire.py`) — web design showcase, Cloudflare R2 images
+- [x] One Page Love scraper (`core/scrapers/onepagelove.py`) — 8,900+ one-page sites, imgix CDN
+- [x] SaaS Pages scraper (`core/scrapers/saaspages.py`) — SaaS landing page sections, Versoly CDN
+- [x] Httpster scraper (`core/scrapers/httpster.py`) — 3,100+ curated web designs, WebP
+- [x] Generic gallery API: `GET /api/scrape/gallery/sources`, `GET /api/scrape/gallery/<source>/search`, `POST /api/scrape/gallery/<source>/download`
+- [x] All scrapers: polite 0.5s delay, User-Agent header, error handling, CaptureResult pattern
+- [x] 32 tests in `tests/test_gallery_scrapers.py` (8 dataclass + 11 search/parse + 13 API endpoint)
+- [x] Mobbin/Screenlane/Refero skipped — ToS prohibits scraping, paywalled, or signed URLs
+- [x] **Files:** 8 scraper modules in `core/scrapers/`, `web/blueprints/capture.py` (gallery endpoints), `tests/test_gallery_scrapers.py`
 
 #### 2.3 App Store Scraper
 - [x] Apple App Store: search, details, screenshots, icon, metadata via iTunes Search API
@@ -543,8 +549,8 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 13 | 2026-02-20 | Phase 2.1/2.4/2.5/2.5a/2.3: Capture engine + scrapers — file storage, website capture, document download, manual upload, App Store + Play Store scrapers (137 new tests, 584 total) | ✅ Complete |
 | 14 | 2026-02-20 | Phase 3.1/3.2/3.3: Extraction pipeline + document extractors + screenshot classification — extraction jobs/results DB, review workflow, product/pricing/generic extractors with auto-routing classifier, URL/filename/context/LLM screenshot classification, journey sequence grouping (165 new tests, 749 total) | ✅ Complete |
 | 15 | 2026-02-20 | Phase 3.4/3.5: Human review interface + feature standardisation — grouped review queue, accept/reject/edit per attribute, confidence filtering, needs-evidence flagging, bulk review, canonical vocabulary CRUD, merge, resolve, unmapped detection, AI suggest, frontend for both (103 new tests, 852 total) | ✅ Complete |
-| 16 | 2026-02-20 | Phase 2.6/2.7: Bulk capture backend (async job, poll, progress) + capture UI frontend (stats, single/bulk capture, upload, job list) — 10 new tests, 862 total | ✅ Complete |
-| 17 | TBD | Phase 2.2: UI gallery scrapers (Mobbin, Screenlane, Refero) | ⬜ Not started |
+| 16 | 2026-02-20 | Phase 2.6/2.7/2.2: Bulk capture + capture UI + 8 UI gallery scrapers (Dribbble, Scrnshts, CollectUI, Godly, Siteinspire, OnePageLove, SaaSPages, Httpster) — generic gallery API, 42 new tests, 894 total | ✅ Complete |
+| 17 | TBD | Phase 4: Analysis Lenses (comparison, timeline, gap) | ⬜ Not started |
 
 ---
 

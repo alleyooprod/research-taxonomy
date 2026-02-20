@@ -71,6 +71,7 @@
     <link rel="stylesheet" href="/static/css/review.css">
     <link rel="stylesheet" href="/static/css/features.css">
     <link rel="stylesheet" href="/static/css/capture.css">
+    <link rel="stylesheet" href="/static/css/lenses.css">
 
     <!-- Print styles -->
     <link rel="stylesheet" href="/static/css/print.css" media="print">
@@ -411,6 +412,7 @@
                 <button class="tab hidden" role="tab" aria-selected="false" aria-controls="tab-discovery" onclick="showTab('discovery')" id="discoveryTabBtn">Discovery</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" onclick="showTab('process')">Process</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" onclick="showTab('review')">Review</button>
+                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-analysis" onclick="showTab('analysis')">Analysis</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" onclick="showTab('export')">Export</button>
                 <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" onclick="showTab('settings')">Settings</button>
             </nav>
@@ -1224,6 +1226,16 @@
                 </div>
             </section>
 
+            <!-- Analysis Tab -->
+            <section id="tab-analysis" class="tab-content" role="tabpanel" aria-label="Analysis">
+                <div class="analysis-header">
+                    <h2>Analysis Lenses</h2>
+                    <p class="hint-text">Switch between analytical views of your research data. Lenses activate as data becomes available.</p>
+                </div>
+                <div id="lensSelector" class="lens-selector"></div>
+                <div id="lensContent" class="lens-content"></div>
+            </section>
+
             <!-- Export Tab -->
             <section id="tab-export" class="tab-content" role="tabpanel" aria-label="Export">
                 <div class="export-options">
@@ -1808,6 +1820,7 @@
     <script src="{{ url_for('static', filename='js/review.js') }}"></script>
     <script src="{{ url_for('static', filename='js/features.js') }}"></script>
     <script src="{{ url_for('static', filename='js/capture.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/lenses.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
 
     <script>
