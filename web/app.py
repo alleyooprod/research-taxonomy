@@ -146,7 +146,13 @@ def create_app():
     @app.before_request
     def _validate_host():
         if request.path.startswith("/api/"):
-            allowed_hosts = {"127.0.0.1:5001", "localhost:5001", "127.0.0.1", "localhost"}
+            # Accept the actual port the server is running on (may differ from
+            # WEB_PORT when _find_free_port falls back to another port).
+            actual_port = request.server[1] if request.server else WEB_PORT
+            allowed_hosts = {
+                f"127.0.0.1:{actual_port}", f"localhost:{actual_port}",
+                "127.0.0.1", "localhost",
+            }
             if request.host not in allowed_hosts:
                 return jsonify({"error": "Invalid host"}), 403
 
