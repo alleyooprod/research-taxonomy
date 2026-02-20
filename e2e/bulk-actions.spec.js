@@ -82,11 +82,10 @@ test.describe('Bulk Actions', () => {
         const beforeCount = await page.locator('.bulk-checkbox').count();
         expect(beforeCount).toBeGreaterThanOrEqual(3);
 
-        // Handle confirmation dialog
-        page.on('dialog', dialog => dialog.accept());
-
-        // Click delete button
+        // Click delete button — triggers custom confirm dialog
         await page.locator('#bulkActionBar button:has-text("Delete")').click();
+        await expect(page.locator('#confirmSheet')).toBeVisible();
+        await page.locator('#confirmSheetConfirm').click();
         await page.waitForTimeout(500);
 
         // Table should be updated

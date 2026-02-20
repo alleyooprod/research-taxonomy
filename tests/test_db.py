@@ -1,5 +1,8 @@
 """Tests for the database layer (projects, categories, companies, jobs)."""
 import json
+import pytest
+
+pytestmark = [pytest.mark.db]
 
 
 class TestProjects:

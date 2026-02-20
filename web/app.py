@@ -170,6 +170,8 @@ def create_app():
     # --- Rate limiting ---
     @app.before_request
     def _rate_limit():
+        if app.config.get("TESTING"):
+            return  # Skip rate limiting in test mode
         client_key = request.remote_addr or "local"
         if request.method == "GET":
             category = "read"

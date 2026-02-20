@@ -1,8 +1,11 @@
 """Tests for security hardening: CSRF, soft-delete filtering, upsert atomicity, rate limiting."""
 import json
 import time
+import pytest
 
 from config import generate_csrf_token, verify_csrf_token, SESSION_SECRET
+
+pytestmark = [pytest.mark.security]
 
 
 class TestCSRFTokens:

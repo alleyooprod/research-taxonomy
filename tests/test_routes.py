@@ -1,5 +1,17 @@
-"""Tests for Flask API routes."""
+"""Legacy route tests — kept for backward compatibility.
+
+These tests are now covered by the new test_api_*.py modules:
+- test_api_projects.py: TestCreateProject, TestListProjects
+- test_api_static.py: TestStaticFiles, TestIndexPage, TestHealthEndpoint
+- test_api_data.py: TestExportJSON, TestExportCSV
+- test_api_processing.py: TestListJobs
+
+Run: pytest tests/test_routes.py -v
+"""
 import json
+import pytest
+
+pytestmark = [pytest.mark.api]
 
 
 class TestIndexRoute:
@@ -11,10 +23,6 @@ class TestIndexRoute:
 
 class TestProjectsAPI:
     def test_create_and_list_projects(self, client):
-        # Get CSRF token
-        r = client.get("/")
-        csrf = client.get("/api/projects").headers.get("X-CSRF-Token", "")
-
         r = client.post("/api/projects", json={
             "name": "Test Project",
             "purpose": "Testing routes",
@@ -32,7 +40,6 @@ class TestProjectsAPI:
 
 class TestTaxonomyAPI:
     def test_get_taxonomy(self, client):
-        # Create a project first
         client.post("/api/projects", json={
             "name": "Tax Test",
             "seed_categories": "A\nB",

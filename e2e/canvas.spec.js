@@ -30,10 +30,12 @@ test.describe('Canvas Tab', () => {
     });
 
     test('creating a canvas adds it to the select and enables buttons', async ({ page }) => {
-        // Handle prompt dialog
-        page.on('dialog', dialog => dialog.accept('My Test Canvas'));
-
         await page.locator('button:has-text("New Canvas")').click();
+
+        // Wait for custom prompt dialog to appear
+        await expect(page.locator('#promptSheet')).toBeVisible();
+        await page.locator('#promptSheetInput').fill('My Test Canvas');
+        await page.locator('#promptSheetConfirm').click();
         await page.waitForTimeout(500);
 
         // Canvas should be in the select
@@ -100,17 +102,17 @@ test.describe('Canvas Tab', () => {
     });
 
     test('deleting a canvas clears the view', async ({ page }) => {
-        // Create a canvas
-        page.on('dialog', async dialog => {
-            if (dialog.type() === 'prompt') await dialog.accept('Temp Canvas');
-            if (dialog.type() === 'confirm') await dialog.accept();
-        });
-
+        // Create a canvas via custom prompt dialog
         await page.locator('button:has-text("New Canvas")').click();
+        await expect(page.locator('#promptSheet')).toBeVisible();
+        await page.locator('#promptSheetInput').fill('Temp Canvas');
+        await page.locator('#promptSheetConfirm').click();
         await page.waitForTimeout(500);
 
-        // Delete it
+        // Delete it — triggers custom confirm dialog
         await page.locator('#deleteCanvasBtn').click();
+        await expect(page.locator('#confirmSheet')).toBeVisible();
+        await page.locator('#confirmSheetConfirm').click();
         await page.waitForTimeout(500);
 
         // Empty state should be back

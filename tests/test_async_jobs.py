@@ -1,11 +1,14 @@
 """Tests for the async job helper module."""
 import json
 import time
+import pytest
 
 from web.async_jobs import (
     make_job_id, start_async_job, write_result, poll_result, run_in_thread,
 )
 from config import DATA_DIR
+
+pytestmark = [pytest.mark.async_jobs]
 
 
 class TestMakeJobId:

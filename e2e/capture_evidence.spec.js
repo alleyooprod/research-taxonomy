@@ -170,39 +170,41 @@ test.describe('Bug Fix Evidence Capture', () => {
 
         // Go to Canvas tab
         await page.evaluate(() => { if (typeof showTab === 'function') showTab('canvas'); });
-        await page.waitForTimeout(3000); // Wait for Fabric.js to load
+        await page.waitForTimeout(3000); // Wait for Excalidraw to load
 
         // Take screenshot of canvas tab
         await page.screenshot({ path: EVIDENCE_DIR + '/bug4_canvas_tab.png', fullPage: false });
 
-        // Check if canvas functions are defined
+        // Check if canvas functions are defined (Excalidraw-based)
         const canvasFuncsAvailable = await page.evaluate(() => {
             return {
                 loadCanvasList: typeof loadCanvasList === 'function',
                 createNewCanvas: typeof createNewCanvas === 'function',
-                initFabricCanvas: typeof initFabricCanvas === 'function',
-                fabricLoaded: typeof fabric !== 'undefined',
+                excalidrawRootExists: !!document.getElementById('excalidrawRoot'),
             };
         });
         console.log('Canvas functions available: ' + JSON.stringify(canvasFuncsAvailable));
 
-        // Try creating a canvas
-        page.on('dialog', async dialog => {
-            if (dialog.type() === 'prompt') await dialog.accept('Evidence Test Canvas');
-            else await dialog.dismiss();
-        });
-
+        // Try creating a canvas via custom prompt dialog
         const newCanvasBtn = page.locator('button:has-text("New Canvas")');
         if (await newCanvasBtn.count() > 0) {
             await newCanvasBtn.click();
+            await page.waitForTimeout(500);
+
+            // Fill in the custom prompt dialog
+            const promptSheet = page.locator('#promptSheet');
+            if (await promptSheet.isVisible().catch(() => false)) {
+                await page.locator('#promptSheetInput').fill('Evidence Test Canvas');
+                await page.locator('#promptSheetConfirm').click();
+            }
             await page.waitForTimeout(3000);
 
             await page.screenshot({ path: EVIDENCE_DIR + '/bug4_canvas_created.png', fullPage: false });
 
-            // Check if Fabric canvas was created
-            const fabricCanvas = page.locator('#fabricCanvas');
-            const visible = await fabricCanvas.isVisible().catch(() => false);
-            console.log('Fabric canvas visible: ' + visible);
+            // Check if Excalidraw container is rendered
+            const excalidrawRoot = page.locator('#excalidrawRoot');
+            const visible = await excalidrawRoot.isVisible().catch(() => false);
+            console.log('Excalidraw root visible: ' + visible);
         }
     });
 
