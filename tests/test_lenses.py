@@ -15,7 +15,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-pytestmark = [pytest.mark.db, pytest.mark.api]
+pytestmark = [pytest.mark.db, pytest.mark.api, pytest.mark.lenses]
 
 
 # ═══════════════════════════════════════════════════════════════

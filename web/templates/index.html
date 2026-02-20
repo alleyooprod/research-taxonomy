@@ -72,6 +72,7 @@
     <link rel="stylesheet" href="/static/css/features.css">
     <link rel="stylesheet" href="/static/css/capture.css">
     <link rel="stylesheet" href="/static/css/lenses.css">
+    <link rel="stylesheet" href="/static/css/reports.css">
 
     <!-- Print styles -->
     <link rel="stylesheet" href="/static/css/print.css" media="print">
@@ -1238,6 +1239,15 @@
 
             <!-- Export Tab -->
             <section id="tab-export" class="tab-content" role="tabpanel" aria-label="Export">
+                <!-- Reports Section -->
+                <h2 class="section-heading">Research Reports</h2>
+                <p class="hint-text">Generate structured reports from your research data. AI-enhanced reports use Claude to write narratives from your data.</p>
+                <div id="reportTemplates" class="report-template-row"></div>
+                <div id="reportGenForm" class="report-gen-form hidden"></div>
+                <div id="reportViewer" class="report-viewer hidden"></div>
+                <div id="reportList"></div>
+
+                <h2 class="section-heading">Quick Export</h2>
                 <div class="export-options">
                     <div class="export-card">
                         <h3>JSON</h3>
@@ -1821,6 +1831,7 @@
     <script src="{{ url_for('static', filename='js/features.js') }}"></script>
     <script src="{{ url_for('static', filename='js/capture.js') }}"></script>
     <script src="{{ url_for('static', filename='js/lenses.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
 
     <script>
