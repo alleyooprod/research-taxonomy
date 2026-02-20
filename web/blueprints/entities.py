@@ -593,3 +593,127 @@ def entity_stats():
         return jsonify({"error": "project_id is required"}), 400
 
     return jsonify(current_app.db.get_entity_stats(project_id))
+
+
+# ═══════════════════════════════════════════════════════════════
+# View Compatibility: Graph Data
+# ═══════════════════════════════════════════════════════════════
+
+@entities_bp.route("/api/entity-graph")
+def entity_graph():
+    """Get entities and relationships as graph nodes + edges for KG views.
+
+    Returns: {nodes: [{id, name, type, attributes, ...}], edges: [{from, to, type, ...}]}
+    """
+    project_id = request.args.get("project_id", type=int)
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    type_slug = request.args.get("type")
+    limit = request.args.get("limit", 200, type=int)
+
+    entities = current_app.db.get_entities(
+        project_id,
+        type_slug=type_slug,
+        limit=limit,
+        include_attributes=True,
+    )
+
+    nodes = []
+    all_entity_ids = {e["id"] for e in entities}
+
+    for e in entities:
+        node = {
+            "id": f"entity-{e['id']}",
+            "entity_id": e["id"],
+            "name": e["name"],
+            "type": e["type_slug"],
+            "parent_entity_id": e.get("parent_entity_id"),
+            "child_count": e.get("child_count", 0),
+            "evidence_count": e.get("evidence_count", 0),
+            "is_starred": e.get("is_starred", False),
+            "category_id": e.get("category_id"),
+        }
+        # Flatten top-level attributes for display
+        attrs = e.get("attributes", {})
+        for attr_slug, attr_data in attrs.items():
+            val = attr_data["value"] if isinstance(attr_data, dict) else attr_data
+            node[f"attr_{attr_slug}"] = val
+        nodes.append(node)
+
+    # Collect edges: parent-child (hierarchy) + explicit relationships
+    edges = []
+
+    # Hierarchy edges
+    for e in entities:
+        if e.get("parent_entity_id") and e["parent_entity_id"] in all_entity_ids:
+            edges.append({
+                "source": f"entity-{e['parent_entity_id']}",
+                "target": f"entity-{e['id']}",
+                "type": "has_child",
+                "label": "has",
+            })
+
+    # Explicit entity relationships
+    for e in entities:
+        try:
+            rels = current_app.db.get_entity_relationships(e["id"], direction="outgoing")
+            for rel in rels:
+                if rel["to_entity_id"] in all_entity_ids:
+                    edges.append({
+                        "source": f"entity-{rel['from_entity_id']}",
+                        "target": f"entity-{rel['to_entity_id']}",
+                        "type": rel["relationship_type"],
+                        "label": rel["relationship_type"],
+                    })
+        except Exception:
+            pass
+
+    return jsonify({"nodes": nodes, "edges": edges})
+
+
+@entities_bp.route("/api/entity-locations")
+def entity_locations():
+    """Get entities with location data for map views.
+
+    Returns entities that have any location-related attributes populated.
+    """
+    project_id = request.args.get("project_id", type=int)
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    type_slug = request.args.get("type")
+    limit = request.args.get("limit", 500, type=int)
+
+    entities = current_app.db.get_entities(
+        project_id,
+        type_slug=type_slug,
+        limit=limit,
+        include_attributes=True,
+    )
+
+    location_attrs = {"hq_city", "hq_country", "geography", "location", "city", "country", "address"}
+    results = []
+
+    for e in entities:
+        attrs = e.get("attributes", {})
+        # Check if entity has any location-related attribute
+        has_location = False
+        flat_attrs = {}
+        for attr_slug, attr_data in attrs.items():
+            val = attr_data["value"] if isinstance(attr_data, dict) else attr_data
+            flat_attrs[attr_slug] = val
+            if attr_slug in location_attrs and val:
+                has_location = True
+
+        if has_location:
+            results.append({
+                "id": e["id"],
+                "name": e["name"],
+                "type": e["type_slug"],
+                "attributes": flat_attrs,
+                "category_id": e.get("category_id"),
+                "is_starred": e.get("is_starred", False),
+            })
+
+    return jsonify(results)

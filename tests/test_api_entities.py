@@ -1639,3 +1639,224 @@ class TestEntityBrowserQueries:
         entities = r.get_json()
         names = [e["name"] for e in entities]
         assert names == sorted(names)
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.8: View Compatibility — Graph & Location Endpoints
+# ---------------------------------------------------------------------------
+
+class TestEntityGraphView:
+    """ENT-GRAPH: Entity graph data for KG views."""
+
+    def test_entity_graph_basic(self, entity_hierarchy):
+        """Graph endpoint returns nodes and edges for entities."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+
+        r = c.get(f"/api/entity-graph?project_id={pid}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert "nodes" in data
+        assert "edges" in data
+
+        nodes = data["nodes"]
+        assert len(nodes) >= 2  # company + product
+        node_types = {n["type"] for n in nodes}
+        assert "company" in node_types
+        assert "product" in node_types
+
+    def test_entity_graph_hierarchy_edges(self, entity_hierarchy):
+        """Graph includes parent-child edges."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+
+        r = c.get(f"/api/entity-graph?project_id={pid}")
+        data = r.get_json()
+        edges = data["edges"]
+        hierarchy_edges = [e for e in edges if e["type"] == "has_child"]
+        assert len(hierarchy_edges) >= 1  # Company -> Product
+
+    def test_entity_graph_relationship_edges(self, client):
+        """Graph includes explicit relationship edges."""
+        from core.schema import SCHEMA_TEMPLATES
+        schema = SCHEMA_TEMPLATES["design_research"]["schema"]
+
+        pid = client.db.create_project(
+            name="Graph Rel Test",
+            entity_schema=schema,
+        )
+
+        # Create entities
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "product",
+            "name": "App A",
+        })
+        app_id = r.get_json()["id"]
+
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "design-principle",
+            "name": "Dark Patterns",
+        })
+        dp_id = r.get_json()["id"]
+
+        # Create relationship
+        client.post("/api/entity-relationships", json={
+            "from_id": app_id,
+            "to_id": dp_id,
+            "type": "demonstrates",
+        })
+
+        r = client.get(f"/api/entity-graph?project_id={pid}")
+        data = r.get_json()
+
+        # Should have demonstrates edge
+        rel_edges = [e for e in data["edges"] if e["type"] == "demonstrates"]
+        assert len(rel_edges) == 1
+
+    def test_entity_graph_node_attributes(self, entity_with_company):
+        """Graph nodes include flattened attributes."""
+        c = entity_with_company["client"]
+        pid = entity_with_company["id"]
+
+        r = c.get(f"/api/entity-graph?project_id={pid}")
+        nodes = r.get_json()["nodes"]
+        company_node = next(n for n in nodes if n["type"] == "company")
+
+        assert company_node["name"] == "Acme Corp"
+        assert company_node.get("attr_url") == "https://acme.com"
+
+    def test_entity_graph_filter_by_type(self, entity_hierarchy):
+        """Graph can filter by entity type."""
+        c = entity_hierarchy["client"]
+        pid = entity_hierarchy["id"]
+
+        r = c.get(f"/api/entity-graph?project_id={pid}&type=company")
+        nodes = r.get_json()["nodes"]
+        assert all(n["type"] == "company" for n in nodes)
+
+    def test_entity_graph_requires_project_id(self, client):
+        r = client.get("/api/entity-graph")
+        assert r.status_code == 400
+
+
+class TestEntityLocations:
+    """ENT-LOC: Entity locations for map views."""
+
+    def test_entity_locations_with_location_data(self, entity_project):
+        """Locations endpoint returns entities with location attributes."""
+        c = entity_project["client"]
+        pid = entity_project["id"]
+
+        # Create entity with location
+        r = c.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "London Corp",
+            "attributes": {
+                "url": "https://london.com",
+                "hq_city": "London",
+                "hq_country": "UK",
+            },
+        })
+        assert r.status_code == 201
+
+        # Create entity without location
+        c.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "No Location Corp",
+            "attributes": {"url": "https://noloc.com"},
+        })
+
+        r = c.get(f"/api/entity-locations?project_id={pid}")
+        assert r.status_code == 200
+        locations = r.get_json()
+        # Only the one with location should appear
+        assert len(locations) == 1
+        assert locations[0]["name"] == "London Corp"
+        assert locations[0]["attributes"]["hq_city"] == "London"
+
+    def test_entity_locations_empty(self, entity_project):
+        """No entities with locations returns empty list."""
+        c = entity_project["client"]
+        pid = entity_project["id"]
+
+        r = c.get(f"/api/entity-locations?project_id={pid}")
+        assert r.status_code == 200
+        assert r.get_json() == []
+
+    def test_entity_locations_multiple_types(self, client):
+        """Locations work across entity types."""
+        from core.schema import SCHEMA_TEMPLATES
+        schema = SCHEMA_TEMPLATES["product_analysis"]["schema"]
+
+        pid = client.db.create_project(
+            name="Loc Multi Test",
+            entity_schema=schema,
+        )
+
+        # Company with location
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "Berlin Corp",
+            "attributes": {"url": "https://berlin.com", "hq_city": "Berlin", "hq_country": "DE"},
+        })
+        assert r.status_code == 201
+
+        r = client.get(f"/api/entity-locations?project_id={pid}")
+        locations = r.get_json()
+        assert len(locations) >= 1
+        assert locations[0]["type"] == "company"
+
+    def test_entity_locations_requires_project_id(self, client):
+        r = client.get("/api/entity-locations")
+        assert r.status_code == 400
+
+    def test_entity_locations_filter_by_type(self, entity_project):
+        """Locations can filter by entity type."""
+        c = entity_project["client"]
+        pid = entity_project["id"]
+
+        c.post("/api/entities", json={
+            "project_id": pid, "type": "company",
+            "name": "Paris Co",
+            "attributes": {"url": "https://paris.com", "hq_city": "Paris"},
+        })
+
+        r = c.get(f"/api/entity-locations?project_id={pid}&type=company")
+        assert r.status_code == 200
+        locations = r.get_json()
+        assert len(locations) == 1
+        assert locations[0]["type"] == "company"
+
+
+class TestProjectSchemaRetrieval:
+    """PROJ-SCHEMA: Project schema retrieval for view compatibility."""
+
+    def test_project_returns_entity_schema(self, client):
+        """GET /api/projects/<id> returns entity_schema."""
+        r = client.post("/api/projects", json={
+            "name": "Schema Retrieval Test",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+            "template": "product_analysis",
+        })
+        pid = r.get_json()["id"]
+
+        r = client.get(f"/api/projects/{pid}")
+        project = r.get_json()
+        assert "entity_schema" in project
+        schema = json.loads(project["entity_schema"])
+        assert len(schema["entity_types"]) == 5
+
+    def test_blank_project_has_company_schema(self, client):
+        """Default project gets blank company schema."""
+        r = client.post("/api/projects", json={
+            "name": "Default Schema Test",
+            "purpose": "Test",
+            "seed_categories": "Cat A",
+        })
+        pid = r.get_json()["id"]
+
+        r = client.get(f"/api/projects/{pid}")
+        project = r.get_json()
+        schema = json.loads(project["entity_schema"])
+        assert schema["entity_types"][0]["slug"] == "company"

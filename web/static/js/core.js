@@ -309,6 +309,22 @@ async function loadStats() {
     document.getElementById('statUpdated').textContent = stats.last_updated
         ? `Updated ${new Date(stats.last_updated).toLocaleDateString()}`
         : 'Never updated';
+
+    // Also load entity stats if project has rich schema
+    _loadEntityStatsForHeader();
+}
+
+async function _loadEntityStatsForHeader() {
+    if (!currentProjectId) return;
+    try {
+        const res = await safeFetch(`/api/entity-stats?project_id=${currentProjectId}`);
+        const entityStats = await res.json();
+        const total = Object.values(entityStats).reduce((s, n) => s + n, 0);
+        if (total > 0) {
+            const parts = Object.entries(entityStats).map(([type, count]) => `${count} ${type}`);
+            document.getElementById('statCompanies').textContent = parts.join(', ');
+        }
+    } catch (e) { /* entity stats are supplementary */ }
 }
 
 // --- Dark Mode ---
