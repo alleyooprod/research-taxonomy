@@ -305,11 +305,20 @@ function _renderEntityDetail(entity) {
     const panel = document.getElementById('entityDetailPanel');
     if (!panel) return;
 
+    // Store entity ID for drag-drop and clipboard paste
+    panel.dataset.entityId = String(entity.id);
+
     const typeDef = _entitySchema?.entity_types?.find(t => t.slug === entity.type_slug);
     const attrs = typeDef?.attributes || [];
     const eAttrs = entity.attributes || {};
 
     let html = `
+        <div class="entity-drop-zone" id="entityDetailDropZone">
+            <div class="cap-drop-zone-inner">
+                <div class="cap-drop-zone-icon">&#8681;</div>
+                <div class="cap-drop-zone-text">Drop to add evidence for ${esc(entity.name)}</div>
+            </div>
+        </div>
         <div class="detail-header">
             <div>
                 <span class="entity-type-badge">${esc(typeDef?.name || entity.type_slug)}</span>
@@ -348,12 +357,11 @@ function _renderEntityDetail(entity) {
     }
 
     // Evidence section
-    if (entity.evidence_count > 0) {
-        html += `<div class="entity-detail-section">
-            <h3 class="section-label">EVIDENCE</h3>
-            <p>${entity.evidence_count} item(s)</p>
-        </div>`;
-    }
+    html += `<div class="entity-detail-section">
+        <h3 class="section-label">EVIDENCE</h3>
+        <p>${entity.evidence_count || 0} item(s)</p>
+        <p class="hint-text" style="margin-top:4px;">Drop files here or paste screenshots to add evidence</p>
+    </div>`;
 
     // Actions
     html += `<div class="entity-detail-actions">
@@ -365,6 +373,9 @@ function _renderEntityDetail(entity) {
 
     panel.innerHTML = html;
     panel.classList.remove('hidden');
+
+    // Set up drag-and-drop on this panel
+    _initEntityDetailDragDrop(panel);
 }
 
 function closeEntityDetail() {
@@ -713,4 +724,92 @@ let _entitySearchTimer = null;
 function debounceEntitySearch() {
     clearTimeout(_entitySearchTimer);
     _entitySearchTimer = setTimeout(loadEntities, 300);
+}
+
+// ── Entity Detail Panel Drag & Drop ─────────────────────────
+
+let _entityDetailDragCounter = 0;
+
+/**
+ * Set up drag-and-drop handlers on the entity detail panel.
+ * Called each time _renderEntityDetail renders new content.
+ */
+function _initEntityDetailDragDrop(panel) {
+    if (!panel) return;
+    _entityDetailDragCounter = 0;
+
+    // Remove old listeners (in case of re-render)
+    panel.removeEventListener('dragenter', _onEntityDetailDragEnter);
+    panel.removeEventListener('dragover', _onEntityDetailDragOver);
+    panel.removeEventListener('dragleave', _onEntityDetailDragLeave);
+    panel.removeEventListener('drop', _onEntityDetailDrop);
+
+    panel.addEventListener('dragenter', _onEntityDetailDragEnter);
+    panel.addEventListener('dragover', _onEntityDetailDragOver);
+    panel.addEventListener('dragleave', _onEntityDetailDragLeave);
+    panel.addEventListener('drop', _onEntityDetailDrop);
+}
+
+function _onEntityDetailDragEnter(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    _entityDetailDragCounter++;
+    if (_entityDetailDragCounter === 1) {
+        _showEntityDetailDropZone(true);
+    }
+}
+
+function _onEntityDetailDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+}
+
+function _onEntityDetailDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    _entityDetailDragCounter--;
+    if (_entityDetailDragCounter <= 0) {
+        _entityDetailDragCounter = 0;
+        _showEntityDetailDropZone(false);
+    }
+}
+
+function _onEntityDetailDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    _entityDetailDragCounter = 0;
+    _showEntityDetailDropZone(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    const panel = document.getElementById('entityDetailPanel');
+    const entityId = panel?.dataset?.entityId;
+    if (!entityId) return;
+
+    // Upload directly to this entity (no need to ask)
+    if (typeof window._uploadFilesToEntity === 'function') {
+        window._uploadFilesToEntity(Array.from(files), entityId);
+    }
+}
+
+function _showEntityDetailDropZone(show) {
+    const zone = document.getElementById('entityDetailDropZone');
+    const panel = document.getElementById('entityDetailPanel');
+    if (!zone) return;
+    if (show) {
+        zone.style.display = 'flex';
+        zone.offsetHeight; // eslint-disable-line no-unused-expressions
+        zone.classList.add('active');
+        if (panel) panel.classList.add('cap-drag-over');
+    } else {
+        zone.classList.remove('active');
+        if (panel) panel.classList.remove('cap-drag-over');
+        setTimeout(() => {
+            if (!zone.classList.contains('active')) {
+                zone.style.display = 'none';
+            }
+        }, 200);
+    }
 }

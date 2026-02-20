@@ -358,6 +358,7 @@ function _renderReportView(report) {
                 <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'html')">HTML</button>
                 <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'markdown')">Markdown</button>
                 <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'json')">JSON</button>
+                <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'pdf')">PDF</button>
             </div>
             <div class="report-footer">
                 ${createdAt ? '<span class="report-footer-item">Created: ' + esc(createdAt) + '</span>' : ''}
@@ -558,7 +559,10 @@ async function _exportReport(reportId, format) {
             return;
         }
 
-        if (format === 'html') {
+        if (format === 'pdf') {
+            const blob = await resp.blob();
+            _downloadBlob(blob, 'report-' + reportId + '.pdf');
+        } else if (format === 'html') {
             const html = await resp.text();
             const win = window.open('', '_blank');
             if (win) {

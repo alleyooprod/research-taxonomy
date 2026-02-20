@@ -12,6 +12,7 @@ Run: pytest tests/test_reports.py -v
 Markers: db, api
 """
 import json
+import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -458,6 +459,157 @@ class TestReportExport:
         # No format param — should default to something reasonable
         r = c.get(f"/api/synthesis/{rid}/export")
         assert r.status_code in (200, 400)
+
+    def test_export_invalid_format(self, report_project):
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+        r = c.get(f"/api/synthesis/{rid}/export?format=xml")
+        assert r.status_code == 400
+        data = r.get_json()
+        assert "pdf" in data["error"]  # error message should mention pdf as valid format
+
+
+# ═══════════════════════════════════════════════════════════════
+# PDF Export Tests
+# ═══════════════════════════════════════════════════════════════
+
+class TestReportPdfExport:
+    """Tests for GET /api/synthesis/<id>/export?format=pdf."""
+
+    def _create_report(self, client, pid, template="market_overview"):
+        r = client.post("/api/synthesis/generate", json={
+            "project_id": pid, "template": template,
+        })
+        return r.get_json()
+
+    @patch("web.blueprints.reports.weasyprint", create=True)
+    def test_pdf_export_returns_pdf_content_type(self, mock_wp, report_project):
+        """PDF export should return application/pdf when weasyprint is available."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        # Mock weasyprint.HTML(...).write_pdf() to return fake PDF bytes
+        mock_html_instance = MagicMock()
+        mock_html_instance.write_pdf.return_value = b"%PDF-1.4 fake pdf content"
+        mock_wp.HTML.return_value = mock_html_instance
+
+        # Patch the import inside the endpoint
+        with patch.dict("sys.modules", {"weasyprint": mock_wp}):
+            r = c.get(f"/api/synthesis/{rid}/export?format=pdf")
+
+        assert r.status_code == 200
+        assert "application/pdf" in r.content_type
+        assert r.data == b"%PDF-1.4 fake pdf content"
+
+    @patch("web.blueprints.reports.weasyprint", create=True)
+    def test_pdf_export_content_disposition(self, mock_wp, report_project):
+        """PDF export should set Content-Disposition with .pdf filename."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        mock_html_instance = MagicMock()
+        mock_html_instance.write_pdf.return_value = b"%PDF-1.4 content"
+        mock_wp.HTML.return_value = mock_html_instance
+
+        with patch.dict("sys.modules", {"weasyprint": mock_wp}):
+            r = c.get(f"/api/synthesis/{rid}/export?format=pdf")
+
+        assert r.status_code == 200
+        content_disp = r.headers.get("Content-Disposition", "")
+        assert ".pdf" in content_disp
+        assert "attachment" in content_disp
+
+    def test_pdf_export_fallback_without_weasyprint(self, report_project):
+        """PDF export should return 501 with install hint when weasyprint is missing."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        # Ensure weasyprint is not importable
+        import sys
+        original = sys.modules.get("weasyprint")
+        sys.modules["weasyprint"] = None  # Force ImportError
+
+        try:
+            r = c.get(f"/api/synthesis/{rid}/export?format=pdf")
+            assert r.status_code == 501
+            data = r.get_json()
+            assert "weasyprint" in data["error"]
+            assert "pip install" in data["error"]
+        finally:
+            if original is not None:
+                sys.modules["weasyprint"] = original
+            else:
+                sys.modules.pop("weasyprint", None)
+
+    @patch("web.blueprints.reports.weasyprint", create=True)
+    def test_pdf_export_empty_report(self, mock_wp, report_project):
+        """PDF export should work for a report with no sections."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+
+        # Create a report then strip its sections
+        created = self._create_report(c, pid)
+        rid = created["id"]
+        c.put(f"/api/synthesis/{rid}", json={"sections": []})
+
+        mock_html_instance = MagicMock()
+        mock_html_instance.write_pdf.return_value = b"%PDF-1.4 empty"
+        mock_wp.HTML.return_value = mock_html_instance
+
+        with patch.dict("sys.modules", {"weasyprint": mock_wp}):
+            r = c.get(f"/api/synthesis/{rid}/export?format=pdf")
+
+        assert r.status_code == 200
+        assert "application/pdf" in r.content_type
+        # Verify weasyprint.HTML was called with HTML string containing the title
+        call_args = mock_wp.HTML.call_args
+        html_string = call_args[1].get("string") or call_args[0][0] if call_args[0] else call_args[1].get("string", "")
+        assert "Market Overview" in html_string
+
+    @patch("web.blueprints.reports.weasyprint", create=True)
+    def test_pdf_export_multiple_sections(self, mock_wp, report_project):
+        """PDF export should include all sections in the generated HTML."""
+        c = report_project["client"]
+        pid = report_project["project_id"]
+        created = self._create_report(c, pid)
+        rid = created["id"]
+
+        captured_html = {}
+
+        def capture_html(string=None, **kwargs):
+            captured_html["html"] = string
+            mock_instance = MagicMock()
+            mock_instance.write_pdf.return_value = b"%PDF-1.4 multi-section"
+            return mock_instance
+
+        mock_wp.HTML.side_effect = capture_html
+
+        with patch.dict("sys.modules", {"weasyprint": mock_wp}):
+            r = c.get(f"/api/synthesis/{rid}/export?format=pdf")
+
+        assert r.status_code == 200
+        html = captured_html.get("html", "")
+        # Market overview report should have multiple sections (Summary, Entity Types, etc.)
+        assert "<h2>" in html
+        # Check that the report title appears as h1
+        assert "<h1>" in html
+        # Check the PDF-specific styles are present
+        assert "@page" in html
+        assert "Helvetica Neue" in html
+
+    def test_pdf_export_nonexistent_report(self, report_project):
+        """PDF export of nonexistent report should return 404."""
+        c = report_project["client"]
+        r = c.get("/api/synthesis/99999/export?format=pdf")
+        assert r.status_code == 404
 
 
 # ═══════════════════════════════════════════════════════════════

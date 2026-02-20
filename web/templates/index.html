@@ -1041,11 +1041,19 @@
                 <div id="batchDetailView" class="hidden"></div>
 
                 <!-- ═══ Evidence Capture Sub-Section ═══ -->
-                <div class="cap-section">
+                <div class="cap-section" id="captureDropTarget">
+                    <!-- Drop Zone Overlay -->
+                    <div id="captureDropZone" class="cap-drop-zone hidden">
+                        <div class="cap-drop-zone-inner">
+                            <div class="cap-drop-zone-icon">&#8681;</div>
+                            <div class="cap-drop-zone-text">Drop files here to upload as evidence</div>
+                        </div>
+                    </div>
+
                     <div class="cap-section-header">
                         <h3>Evidence Capture</h3>
                     </div>
-                    <p class="hint-text">Capture website screenshots, download documents, or upload files as evidence for entities.</p>
+                    <p class="hint-text">Capture website screenshots, download documents, or upload files as evidence for entities. You can also drag &amp; drop files here, or paste screenshots with Ctrl/Cmd+V.</p>
 
                     <!-- Stats -->
                     <div id="captureStats"></div>

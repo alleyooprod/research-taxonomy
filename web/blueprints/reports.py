@@ -5,7 +5,7 @@ Provides endpoints for:
 - Structured report generation from project data
 - AI-enhanced narrative report generation via LLM
 - Report CRUD (list, get, update, delete)
-- Report export (HTML, JSON, Markdown)
+- Report export (HTML, JSON, Markdown, PDF)
 """
 import json
 from datetime import datetime, timezone
@@ -1631,17 +1631,18 @@ def delete_report(report_id):
 def export_report(report_id):
     """Export a report in the specified format.
 
-    Query: ?format=html|json|markdown  (default: json)
+    Query: ?format=html|json|markdown|pdf  (default: json)
 
     Returns:
         html: standalone HTML document
         json: raw JSON of the report data
         markdown: formatted markdown
+        pdf: PDF document (requires weasyprint)
     """
     export_format = request.args.get("format", "json").lower()
 
-    if export_format not in ("html", "json", "markdown"):
-        return jsonify({"error": f"Invalid format: {export_format}. Use html, json, or markdown."}), 400
+    if export_format not in ("html", "json", "markdown", "pdf"):
+        return jsonify({"error": f"Invalid format: {export_format}. Use html, json, markdown, or pdf."}), 400
 
     db = current_app.db
 
@@ -1679,6 +1680,22 @@ def export_report(report_id):
             html,
             mimetype="text/html",
             headers={"Content-Disposition": f'attachment; filename="{_safe_filename(report["title"])}.html"'},
+        )
+
+    elif export_format == "pdf":
+        try:
+            import weasyprint
+        except ImportError:
+            return jsonify({
+                "error": "PDF export requires weasyprint. Install with: pip install weasyprint"
+            }), 501
+
+        html = _report_to_pdf_html(report)
+        pdf_bytes = weasyprint.HTML(string=html).write_pdf()
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{_safe_filename(report["title"])}.pdf"'},
         )
 
 
@@ -1867,3 +1884,131 @@ def _text_to_html(text):
     if in_list:
         html_lines.append("</ul>")
     return "\n".join(html_lines)
+
+
+def _report_to_pdf_html(report):
+    """Convert a report to an HTML document styled for PDF rendering via weasyprint."""
+    ai_label = " (AI-generated)" if report.get("is_ai_generated") else ""
+
+    sections_html = []
+    for section in report.get("sections", []):
+        content = section.get("content", "")
+        content_html = _text_to_html(content)
+        evidence_refs = section.get("evidence_refs", [])
+        evidence_html = ""
+        if evidence_refs:
+            evidence_html = (
+                f'<p class="evidence-refs">Evidence references: '
+                f'{", ".join(str(r) for r in evidence_refs)}</p>'
+            )
+        sections_html.append(
+            f'<section>\n'
+            f'  <h2>{_escape_html(section["heading"])}</h2>\n'
+            f'  <div class="content">{content_html}</div>\n'
+            f'  {evidence_html}\n'
+            f'</section>'
+        )
+
+    body = "\n".join(sections_html)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{_escape_html(report['title'])}</title>
+    <style>
+        @page {{ size: A4; margin: 2cm; }}
+        body {{
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #111;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            line-height: 1.6;
+        }}
+        h1 {{
+            font-size: 28px;
+            font-weight: 700;
+            border-bottom: 2px solid #111;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }}
+        .meta {{
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 32px;
+        }}
+        h2 {{
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 32px;
+            margin-bottom: 12px;
+        }}
+        p, li {{
+            font-size: 14px;
+            line-height: 1.6;
+        }}
+        p {{
+            margin-bottom: 6px;
+        }}
+        ul {{
+            margin: 8px 0 8px 24px;
+        }}
+        li {{
+            margin-bottom: 4px;
+        }}
+        code {{
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 2px 4px;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }}
+        th, td {{
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+            font-size: 13px;
+        }}
+        th {{
+            background: #f5f5f5;
+            font-weight: 600;
+        }}
+        section {{
+            margin-bottom: 24px;
+        }}
+        .content {{
+            white-space: pre-wrap;
+        }}
+        .evidence-refs {{
+            color: #888;
+            font-size: 12px;
+            font-style: italic;
+            margin-top: 8px;
+        }}
+        .footer {{
+            margin-top: 48px;
+            padding-top: 16px;
+            border-top: 1px solid #ccc;
+            color: #999;
+            font-size: 12px;
+        }}
+    </style>
+</head>
+<body>
+    <h1>{_escape_html(report['title'])}</h1>
+    <div class="meta">
+        Generated: {report['generated_at']}{ai_label}<br>
+        Template: {report['template']}
+    </div>
+
+    {body}
+
+    <div class="footer">
+        Report ID: {report['id']}
+    </div>
+</body>
+</html>"""
