@@ -51,92 +51,100 @@ const _INST = {
 };
 
 // === Perfect-freehand Brush ===
+// NOTE: fabric.js is loaded via CDN with `defer` and may not be available
+// when this file first executes. We define the class lazily.
 
-class PerfectFreehandBrush extends fabric.BaseBrush {
-    constructor(canvas) {
-        super(canvas);
-        this.points = [];
-        this.color = _INST.stroke;
-        this.width = 3;
-    }
+let _PerfectFreehandBrushClass = null;
 
-    onMouseDown(pointer) {
-        this.points = [[pointer.x, pointer.y, 0.5]];
-        this._tempPath = null;
-    }
+function _getPerfectFreehandBrush() {
+    if (_PerfectFreehandBrushClass) return _PerfectFreehandBrushClass;
+    if (!window.fabric || !fabric.BaseBrush) return null;
 
-    onMouseMove(pointer) {
-        this.points.push([pointer.x, pointer.y, 0.5]);
-        this._renderStroke();
-    }
-
-    onMouseUp() {
-        if (this.points.length < 2) return;
-
-        // Generate stroke outline using perfect-freehand
-        const stroke = window.getStroke(this.points, {
-            size: this.width * 3,
-            thinning: 0.5,
-            smoothing: 0.5,
-            streamline: 0.5,
-            simulatePressure: true,
-        });
-
-        // Convert to SVG path
-        const pathData = this._getSvgPathFromStroke(stroke);
-        const path = new fabric.Path(pathData, {
-            fill: this.color,
-            stroke: 'none',
-            strokeWidth: 0,
-            selectable: true,
-            objectType: 'freehand',
-        });
-
-        this.canvas.add(path);
-        this.canvas.renderAll();
-        this._clearTempPath();
-    }
-
-    _getSvgPathFromStroke(stroke) {
-        if (!stroke.length) return '';
-        const d = stroke.reduce((acc, [x0, y0], i, arr) => {
-            const [x1, y1] = arr[(i + 1) % arr.length];
-            acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-            return acc;
-        }, ['M', ...stroke[0], 'Q']);
-        d.push('Z');
-        return d.join(' ');
-    }
-
-    _renderStroke() {
-        // Live preview during drawing
-        const ctx = this.canvas.contextTop;
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        if (this.points.length < 2) return;
-
-        const stroke = window.getStroke(this.points, {
-            size: this.width * 3,
-            thinning: 0.5,
-            smoothing: 0.5,
-            streamline: 0.5,
-            simulatePressure: true,
-        });
-
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        for (let i = 0; i < stroke.length; i++) {
-            const [x, y] = stroke[i];
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+    _PerfectFreehandBrushClass = class PerfectFreehandBrush extends fabric.BaseBrush {
+        constructor(canvas) {
+            super(canvas);
+            this.points = [];
+            this.color = _INST.stroke;
+            this.width = 3;
         }
-        ctx.closePath();
-        ctx.fill();
-    }
 
-    _clearTempPath() {
-        const ctx = this.canvas.contextTop;
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
+        onMouseDown(pointer) {
+            this.points = [[pointer.x, pointer.y, 0.5]];
+            this._tempPath = null;
+        }
+
+        onMouseMove(pointer) {
+            this.points.push([pointer.x, pointer.y, 0.5]);
+            this._renderStroke();
+        }
+
+        onMouseUp() {
+            if (this.points.length < 2) return;
+
+            const stroke = window.getStroke(this.points, {
+                size: this.width * 3,
+                thinning: 0.5,
+                smoothing: 0.5,
+                streamline: 0.5,
+                simulatePressure: true,
+            });
+
+            const pathData = this._getSvgPathFromStroke(stroke);
+            const path = new fabric.Path(pathData, {
+                fill: this.color,
+                stroke: 'none',
+                strokeWidth: 0,
+                selectable: true,
+                objectType: 'freehand',
+            });
+
+            this.canvas.add(path);
+            this.canvas.renderAll();
+            this._clearTempPath();
+        }
+
+        _getSvgPathFromStroke(stroke) {
+            if (!stroke.length) return '';
+            const d = stroke.reduce((acc, [x0, y0], i, arr) => {
+                const [x1, y1] = arr[(i + 1) % arr.length];
+                acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+                return acc;
+            }, ['M', ...stroke[0], 'Q']);
+            d.push('Z');
+            return d.join(' ');
+        }
+
+        _renderStroke() {
+            const ctx = this.canvas.contextTop;
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (this.points.length < 2) return;
+
+            const stroke = window.getStroke(this.points, {
+                size: this.width * 3,
+                thinning: 0.5,
+                smoothing: 0.5,
+                streamline: 0.5,
+                simulatePressure: true,
+            });
+
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            for (let i = 0; i < stroke.length; i++) {
+                const [x, y] = stroke[i];
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        _clearTempPath() {
+            const ctx = this.canvas.contextTop;
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    };
+
+    return _PerfectFreehandBrushClass;
 }
 
 /**
@@ -144,8 +152,9 @@ class PerfectFreehandBrush extends fabric.BaseBrush {
  * to Fabric.js PencilBrush.
  */
 function _setDrawingBrush(canvas) {
-    if (window.getStroke) {
-        canvas.freeDrawingBrush = new PerfectFreehandBrush(canvas);
+    const BrushClass = _getPerfectFreehandBrush();
+    if (window.getStroke && BrushClass) {
+        canvas.freeDrawingBrush = new BrushClass(canvas);
     } else {
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
     }
@@ -264,6 +273,17 @@ function toggleHandDrawnMode() {
 
 // --- Canvas list ---
 async function loadCanvasList() {
+    // Ensure Fabric.js is available before any canvas operations
+    if (!window.fabric) {
+        const wrapper = document.getElementById('canvasWrapper');
+        if (typeof _waitForLib === 'function' && wrapper) {
+            _waitForLib('Fabric.js', () => window.fabric, () => loadCanvasList(), wrapper);
+        } else {
+            // Poll for fabric availability
+            setTimeout(loadCanvasList, 200);
+        }
+        return;
+    }
     const res = await safeFetch(`/api/canvases?project_id=${currentProjectId}`);
     const items = await res.json();
     const sel = document.getElementById('canvasSelect');
@@ -276,13 +296,14 @@ async function loadCanvasList() {
 
 async function loadCanvasSidebarCompanies() {
     const res = await safeFetch(`/api/companies?project_id=${currentProjectId}&limit=500`);
-    _canvasCompanies = await res.json();
+    const data = await res.json();
+    _canvasCompanies = Array.isArray(data) ? data : [];
     renderCanvasSidebar(_canvasCompanies);
 }
 
 function renderCanvasSidebar(companies) {
     const container = document.getElementById('canvasCompanyList');
-    if (!container) return;
+    if (!container || !Array.isArray(companies)) return;
     container.innerHTML = companies.map(c => {
         const color = typeof getCategoryColor === 'function' ? getCategoryColor(c.category_id) : '#999';
         return `<div class="canvas-sidebar-item" draggable="true"
@@ -401,6 +422,16 @@ async function deleteCurrentCanvas() {
 function initFabricCanvas(data) {
     const wrapper = document.getElementById('canvasWrapper');
     const canvasEl = document.getElementById('fabricCanvas');
+
+    // Ensure Fabric.js is loaded (CDN uses defer)
+    if (!window.fabric) {
+        if (typeof _waitForLib === 'function') {
+            _waitForLib('Fabric.js', () => window.fabric, () => initFabricCanvas(data), wrapper);
+        } else {
+            setTimeout(() => initFabricCanvas(data), 200);
+        }
+        return;
+    }
 
     // Dispose previous instance
     if (_fabricCanvas) { _fabricCanvas.dispose(); _fabricCanvas = null; }

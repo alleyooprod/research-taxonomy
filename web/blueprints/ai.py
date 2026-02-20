@@ -251,19 +251,33 @@ Only return the JSON array, nothing else. Focus on real, existing companies."""
     try:
         response = run_cli(prompt, model, timeout=120, tools="WebSearch,WebFetch")
         text = response.get("result", "")
-        match = re.search(r'\[.*\]', text, re.DOTALL)
-        if match:
-            companies = json.loads(match.group())
-            result = {"status": "complete", "companies": companies}
+        if not text or not text.strip():
+            result = {"status": "error",
+                      "error": "AI returned an empty response. Check your API key and model settings."}
         else:
-            result = {"status": "complete", "companies": [], "raw": text}
+            match = re.search(r'\[.*\]', text, re.DOTALL)
+            if match:
+                companies = json.loads(match.group())
+                result = {"status": "complete", "companies": companies}
+            else:
+                # Return error with the raw text so the user knows what happened
+                logger.warning("Discovery JSON extraction failed for query %r. Raw: %s",
+                               query, text[:500])
+                result = {"status": "error",
+                          "error": "AI response did not contain valid JSON. "
+                                   "The model may need a different prompt or the query was too vague.",
+                          "raw": text[:1000]}
     except subprocess.TimeoutExpired:
         result = {"status": "error", "error": "Discovery timed out. Try a simpler query."}
-    except json.JSONDecodeError:
-        result = {"status": "error", "error": "Failed to parse AI response."}
+    except json.JSONDecodeError as e:
+        logger.error("Discovery JSON parse error for query %r: %s", query, e)
+        result = {"status": "error", "error": "Failed to parse AI response as JSON."}
+    except FileNotFoundError:
+        result = {"status": "error",
+                  "error": "Claude CLI not found. Install it or configure an API key in Settings."}
     except Exception as e:
         logger.error("Discovery failed for query %r: %s", query, e)
-        result = {"status": "error", "error": "An internal error occurred. Check logs for details."}
+        result = {"status": "error", "error": f"Discovery failed: {str(e)[:200]}"}
 
     write_result("discover", job_id, result)
 
@@ -426,19 +440,31 @@ Only return the JSON array, nothing else."""
     try:
         response = run_cli(prompt, model, timeout=120)
         text = response.get("result", "")
-        match = re.search(r'\[.*\]', text, re.DOTALL)
-        if match:
-            companies = json.loads(match.group())
-            result = {"status": "complete", "companies": companies}
+        if not text or not text.strip():
+            result = {"status": "error",
+                      "error": "AI returned an empty response. Check your API key and model settings."}
         else:
-            result = {"status": "complete", "companies": [], "raw": text}
+            match = re.search(r'\[.*\]', text, re.DOTALL)
+            if match:
+                companies = json.loads(match.group())
+                result = {"status": "complete", "companies": companies}
+            else:
+                logger.warning("Find-similar JSON extraction failed for %s. Raw: %s",
+                               company.get('name', '?'), text[:500])
+                result = {"status": "error",
+                          "error": "AI response did not contain valid JSON.",
+                          "raw": text[:1000]}
     except subprocess.TimeoutExpired:
         result = {"status": "error", "error": "Search timed out. Please try again."}
-    except json.JSONDecodeError:
-        result = {"status": "error", "error": "Failed to parse AI response."}
+    except json.JSONDecodeError as e:
+        logger.error("Find-similar JSON parse error for %s: %s", company.get('name', '?'), e)
+        result = {"status": "error", "error": "Failed to parse AI response as JSON."}
+    except FileNotFoundError:
+        result = {"status": "error",
+                  "error": "Claude CLI not found. Install it or configure an API key in Settings."}
     except Exception as e:
         logger.error("Find-similar failed for %s: %s", company.get('name', '?'), e)
-        result = {"status": "error", "error": "An internal error occurred. Check logs for details."}
+        result = {"status": "error", "error": f"Find-similar failed: {str(e)[:200]}"}
 
     write_result("similar", job_id, result)
 

@@ -3,9 +3,9 @@
  * Graph style: "The Instrument" — monochromatic black/white/gray, rectangular nodes.
  */
 
-// Register optional Cytoscape layout plugins (loaded via CDN)
-if (window.cytoscape && window.cytoscapeDagre) cytoscape.use(cytoscapeDagre);
-if (window.cytoscape && window.cytoscapeFcose) cytoscape.use(cytoscapeFcose);
+// Register optional Cytoscape layout plugins.
+// NOTE: CDN scripts use `defer` and execute AFTER local scripts,
+// so we register plugins lazily inside render functions instead.
 
 let reviewChanges = [];
 let cyInstance = null;
@@ -443,6 +443,20 @@ function _waitForLib(libName, checkFn, callback, containerEl, maxWait = 10000) {
 }
 
 // --- Cytoscape Graph ---
+function _ensureCytoscapePlugins() {
+    try {
+        if (window.cytoscape && window.cytoscapeDagre) {
+            // Only register if not already registered
+            try { cytoscape.use(cytoscapeDagre); } catch (_) { /* already registered */ }
+        }
+        if (window.cytoscape && window.cytoscapeFcose) {
+            try { cytoscape.use(cytoscapeFcose); } catch (_) { /* already registered */ }
+        }
+    } catch (e) {
+        console.warn('Cytoscape plugin registration error:', e);
+    }
+}
+
 function renderTaxonomyGraph(categories, companies) {
     const container = document.getElementById('taxonomyGraph');
     if (!container) return;
@@ -450,6 +464,9 @@ function renderTaxonomyGraph(categories, companies) {
         _waitForLib('graph library', () => window.cytoscape, () => renderTaxonomyGraph(categories, companies), container);
         return;
     }
+
+    // Register plugins now that cytoscape is loaded
+    _ensureCytoscapePlugins();
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
@@ -507,83 +524,104 @@ function renderTaxonomyGraph(categories, companies) {
             container.style.minHeight = '500px';
         }
 
-        cyInstance = cytoscape({
-            container,
-            elements,
-            style: [
-                {
-                    selector: 'node[type="root"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 2,
-                        'border-color': '#000000',
-                        label: 'data(label)',
-                        'text-valign': 'center',
-                        'font-size': '14px',
-                        'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#CCCCCC' : '#000000',
-                        width: 60, height: 60,
-                        shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node[type="category"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 1,
-                        'border-color': '#000000',
-                        label: 'data(label)',
-                        'text-valign': 'center',
-                        'text-wrap': 'wrap',
-                        'text-max-width': '100px',
-                        'font-size': '12px',
-                        'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#CCCCCC' : '#000000',
-                        width: 'mapData(count, 0, 30, 30, 70)',
-                        height: 'mapData(count, 0, 30, 30, 70)',
-                        shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node[type="subcategory"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 1,
-                        'border-color': '#000000',
-                        label: 'data(label)',
-                        'text-valign': 'center',
-                        'text-wrap': 'wrap',
-                        'text-max-width': '80px',
-                        'font-size': '12px',
-                        'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#CCCCCC' : '#000000',
-                        width: 25, height: 25,
-                        shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node:selected',
-                    style: {
-                        'background-color': '#000000',
-                        color: '#FFFFFF',
-                        'border-color': '#000000',
-                    },
-                },
-                {
-                    selector: 'edge',
-                    style: {
-                        width: 1,
-                        'line-color': isDark ? '#666666' : '#999999',
-                        'target-arrow-color': isDark ? '#666666' : '#999999',
-                        'target-arrow-shape': 'triangle',
-                        'curve-style': 'bezier',
-                    },
-                },
-            ],
-            layout: window.cytoscapeDagre
+        // Determine layout: prefer dagre if registered, fallback to breadthfirst
+        let layoutConfig;
+        try {
+            // Test if dagre layout is actually registered by checking Cytoscape's layout registry
+            const hasDagre = window.cytoscapeDagre && typeof cytoscape('layout', 'dagre') !== 'undefined';
+            layoutConfig = hasDagre
                 ? { name: 'dagre', rankDir: 'TB', nodeSep: 60, rankSep: 80, padding: 30, animate: false }
-                : { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false },
-        });
+                : { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false };
+        } catch (_) {
+            layoutConfig = { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false };
+        }
+
+        const cyStyle = [
+                    {
+                        selector: 'node[type="root"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 2,
+                            'border-color': '#000000',
+                            label: 'data(label)',
+                            'text-valign': 'center',
+                            'font-size': '14px',
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#CCCCCC' : '#000000',
+                            width: 60, height: 60,
+                            shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node[type="category"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 1,
+                            'border-color': '#000000',
+                            label: 'data(label)',
+                            'text-valign': 'center',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '100px',
+                            'font-size': '12px',
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#CCCCCC' : '#000000',
+                            width: 'mapData(count, 0, 30, 30, 70)',
+                            height: 'mapData(count, 0, 30, 30, 70)',
+                            shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node[type="subcategory"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 1,
+                            'border-color': '#000000',
+                            label: 'data(label)',
+                            'text-valign': 'center',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '80px',
+                            'font-size': '12px',
+                            'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#CCCCCC' : '#000000',
+                            width: 25, height: 25,
+                            shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node:selected',
+                        style: {
+                            'background-color': '#000000',
+                            color: '#FFFFFF',
+                            'border-color': '#000000',
+                        },
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            width: 1,
+                            'line-color': isDark ? '#666666' : '#999999',
+                            'target-arrow-color': isDark ? '#666666' : '#999999',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                        },
+                    },
+                ];
+
+        // Try preferred layout first, fallback to breadthfirst if it fails at runtime
+        // (dagre can fail if graphlib dependency is missing from CDN bundle)
+        try {
+            cyInstance = cytoscape({ container, elements, style: cyStyle, layout: layoutConfig });
+        } catch (e) {
+            console.warn('Primary layout failed, falling back to breadthfirst:', e.message);
+            try {
+                const fallbackLayout = { name: 'breadthfirst', directed: true, padding: 30, spacingFactor: 1.2, animate: false };
+                cyInstance = cytoscape({ container, elements, style: cyStyle, layout: fallbackLayout });
+            } catch (e2) {
+                console.error('Cytoscape graph init error:', e2);
+                container.innerHTML = `<div class="graph-loading"><p style="color:var(--accent-danger)">Graph rendering failed: ${e2.message}. <a href="#" onclick="location.reload();return false">Reload page</a></p></div>`;
+                return;
+            }
+        }
 
         // Fit after layout completes + fallback timeout
         cyInstance.one('layoutstop', () => {
@@ -651,6 +689,9 @@ async function renderKnowledgeGraph() {
         _waitForLib('graph library', () => window.cytoscape, () => renderKnowledgeGraph(), container);
         return;
     }
+
+    // Register plugins now that cytoscape is loaded
+    _ensureCytoscapePlugins();
 
     const [catsRes, companiesRes] = await Promise.all([
         safeFetch(`/api/taxonomy?project_id=${currentProjectId}`),
@@ -733,87 +774,102 @@ async function renderKnowledgeGraph() {
             container.style.minHeight = '500px';
         }
 
-        kgInstance = cytoscape({
-            container,
-            elements,
-            style: [
-                {
-                    selector: 'node[type="category"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 1,
-                        'border-color': '#000000',
-                        label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
-                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#CCCCCC' : '#000000',
-                        width: 30, height: 30, shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node[type="company"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 1,
-                        'border-color': '#333333',
-                        label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
-                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#CCCCCC' : '#000000',
-                        width: 18, height: 18, shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node[type="tag"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 1,
-                        'border-color': '#666666',
-                        label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
-                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#999999' : '#333333',
-                        width: 12, height: 12, shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node[type="geography"]',
-                    style: {
-                        'background-color': '#FFFFFF',
-                        'border-width': 1,
-                        'border-color': '#999999',
-                        label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
-                        'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
-                        color: isDark ? '#999999' : '#333333',
-                        width: 14, height: 14, shape: 'rectangle',
-                    },
-                },
-                {
-                    selector: 'node:selected',
-                    style: {
-                        'background-color': '#000000',
-                        color: '#FFFFFF',
-                        'border-color': '#000000',
-                    },
-                },
-                {
-                    selector: 'edge',
-                    style: {
-                        width: 1, 'line-color': isDark ? '#666666' : '#999999',
-                        'curve-style': 'bezier', opacity: 0.6,
-                    },
-                },
-                {
-                    selector: '.kg-dimmed',
-                    style: { opacity: 0.15 },
-                },
-                {
-                    selector: '.kg-highlighted',
-                    style: { opacity: 1, 'border-width': 2, 'border-color': '#000000' },
-                },
-            ],
-            layout: window.cytoscapeFcose
+        // Determine layout: prefer fcose if registered, fallback to cose
+        let kgLayoutConfig;
+        try {
+            const hasFcose = window.cytoscapeFcose && typeof cytoscape('layout', 'fcose') !== 'undefined';
+            kgLayoutConfig = hasFcose
                 ? { name: 'fcose', animate: false, nodeDimensionsIncludeLabels: true, idealEdgeLength: 100 }
-                : { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 },
-            wheelSensitivity: 0.3,
-        });
+                : { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 };
+        } catch (_) {
+            kgLayoutConfig = { name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 8000 };
+        }
+
+        try {
+            kgInstance = cytoscape({
+                container,
+                elements,
+                style: [
+                    {
+                        selector: 'node[type="category"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 1,
+                            'border-color': '#000000',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
+                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#CCCCCC' : '#000000',
+                            width: 30, height: 30, shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node[type="company"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 1,
+                            'border-color': '#333333',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 4,
+                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#CCCCCC' : '#000000',
+                            width: 18, height: 18, shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node[type="tag"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 1,
+                            'border-color': '#666666',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
+                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#999999' : '#333333',
+                            width: 12, height: 12, shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node[type="geography"]',
+                        style: {
+                            'background-color': '#FFFFFF',
+                            'border-width': 1,
+                            'border-color': '#999999',
+                            label: 'data(label)', 'text-valign': 'bottom', 'text-margin-y': 3,
+                            'font-size': '12px', 'font-family': 'Plus Jakarta Sans, sans-serif',
+                            color: isDark ? '#999999' : '#333333',
+                            width: 14, height: 14, shape: 'rectangle',
+                        },
+                    },
+                    {
+                        selector: 'node:selected',
+                        style: {
+                            'background-color': '#000000',
+                            color: '#FFFFFF',
+                            'border-color': '#000000',
+                        },
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            width: 1, 'line-color': isDark ? '#666666' : '#999999',
+                            'curve-style': 'bezier', opacity: 0.6,
+                        },
+                    },
+                    {
+                        selector: '.kg-dimmed',
+                        style: { opacity: 0.15 },
+                    },
+                    {
+                        selector: '.kg-highlighted',
+                        style: { opacity: 1, 'border-width': 2, 'border-color': '#000000' },
+                    },
+                ],
+                layout: kgLayoutConfig,
+                wheelSensitivity: 0.3,
+            });
+        } catch (e) {
+            console.error('Knowledge graph init error:', e);
+            container.innerHTML = `<div class="graph-loading"><p style="color:var(--accent-danger)">Knowledge graph failed: ${e.message}. <a href="#" onclick="location.reload();return false">Reload page</a></p></div>`;
+            return;
+        }
 
         // Fit after layout completes + fallback timeout
         kgInstance.one('layoutstop', () => {

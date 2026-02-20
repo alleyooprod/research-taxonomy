@@ -1,0 +1,39 @@
+/* Print stylesheet — Research Taxonomy Library */
+@media print {
+    /* Hide non-essential UI */
+    .sidebar,
+    .tab-bar,
+    .toolbar,
+    .driver-overlay,
+    .driver-popover,
+    ninja-keys,
+    .notyf,
+    #nprogress,
+    button,
+    .btn {
+        display: none !important;
+    }
+
+    /* Reset background and text for readability */
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 12pt;
+    }
+
+    /* Avoid page breaks inside content blocks */
+    table, figure, .card, .panel {
+        page-break-inside: avoid;
+    }
+
+    /* Ensure links show their URL */
+    a[href]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.85em;
+        color: #555;
+    }
+    a[href^="#"]::after,
+    a[href^="javascript"]::after {
+        content: "";
+    }
+}

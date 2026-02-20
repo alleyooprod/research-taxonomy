@@ -79,10 +79,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js" defer integrity="sha384-U1KEY0DDCF4Dq6Yx1J+EZ5Hnj8X5bMn52OAcJB8C4OiAWeU4iJhJ/Tv5KhTqu8zZ" crossorigin="anonymous"></script>
 
-    <!-- Graphs: Cytoscape + layout extensions (dagre, fcose) -->
+    <!-- Graphs: Cytoscape + dagre layout extension -->
     <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js" defer integrity="sha384-H3uzGzTfGHUAumB8+s4GEdfFwzAceN9wCCndN8AXubWKFIPuBSWKKtWDx7RhSf/z" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js" defer integrity="sha384-u69h9ebXeSjlg6q/rb1zKTRAGu/h8deCl0409xpS/QJctMKnc4M9Fzkm01VOQdeF" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.js" defer integrity="sha384-uk5Wbjq1+KqUdHO30w7N7GrEGdzBhaJeW9o/ANF6v9+yx3M/cBmoX51C000JNCUf" crossorigin="anonymous"></script>
+    <!-- fcose removed: requires cose-base dependency not available via CDN; code falls back to built-in cose layout -->
 
     <!-- Canvas: Fabric.js drawing engine + layout + sketch -->
     <script src="https://cdn.jsdelivr.net/npm/fabric@6.5.1/dist/index.min.js" defer integrity="sha384-uwizC/PmbWPkJCrTMrSBSXyEkEk8eLhbxzeLOSfquA3NAvTqOSzUr9PTojpzXK+w" crossorigin="anonymous"></script>
@@ -115,8 +115,8 @@
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer integrity="sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz" crossorigin="anonymous"></script>
     <!-- Export: JSZip -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
-    <!-- Export: docx (Word documents) -->
-    <script src="https://cdn.jsdelivr.net/npm/docx@9.1.1/dist/index.umd.cjs" defer integrity="sha384-v/YnrYkmz3+eI8DIH2w1QXTVZv+RXFqGJ44/sGx/+K6RvQJ0h9vHWfDBSlYq2DAC" crossorigin="anonymous"></script>
+    <!-- Export: docx (Word documents) — IIFE bundle (.js extension for correct MIME) -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.1.1/dist/index.iife.js" defer crossorigin="anonymous"></script>
     <!-- Export: marked (Markdown to HTML) -->
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.4/marked.min.js" defer integrity="sha384-2NndlFAl0twi2nmu3w9mixodZFiN2fbxlakcYJF86bn1JeS1VB87/XqA7cqymzS+" crossorigin="anonymous"></script>
     <!-- Export: FileSaver.js -->
@@ -153,8 +153,10 @@
     <!-- UX: Lucide icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" defer integrity="sha384-hJnF5AwidE18GSWTAGHv3ByzzvfNZ1Tcx5y1UUV3WkauuMCEzBJBMSwSt/PUPXnM" crossorigin="anonymous"></script>
 
-    <!-- UX: ninja-keys (command palette web component) -->
-    <script src="https://cdn.jsdelivr.net/npm/ninja-keys@1.2.2/dist/ninja-keys.min.js" defer integrity="sha384-MOBmjJ9wSXr3Nbc9Zrites84GyyrDYleMho08qwyP3mco6Se8nkDiuAdz7W8t0Q1" crossorigin="anonymous"></script>
+    <!-- UX: ninja-keys (command palette web component — ESM-only, loaded as module) -->
+    <script type="module">
+        import 'https://cdn.jsdelivr.net/npm/ninja-keys@1.2.2/+esm';
+    </script>
 
     <!-- UX: SortableJS (drag and drop) -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer integrity="sha384-HZZ/fukV+9G8gwTNjN7zQDG0Sp7MsZy5DDN6VfY3Be7V9dvQpEpR2jF2HlyFUUjU" crossorigin="anonymous"></script>
