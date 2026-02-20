@@ -390,7 +390,14 @@ def _run_claude_cli(prompt, model, timeout, tools=None, json_schema=None):
     if tools:
         cmd += ["--tools", tools]
     if json_schema:
-        cmd += ["--json-schema", json_schema]
+        # The CLI expects a raw JSON schema, not the SDK wrapper format.
+        # If the schema has a "name"+"schema" wrapper, unwrap it.
+        schema_obj = json.loads(json_schema) if isinstance(json_schema, str) else json_schema
+        if "schema" in schema_obj and "name" in schema_obj:
+            raw_schema = json.dumps(schema_obj["schema"])
+        else:
+            raw_schema = json_schema if isinstance(json_schema, str) else json.dumps(schema_obj)
+        cmd += ["--json-schema", raw_schema]
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 

@@ -148,15 +148,18 @@
 | #1 | Graph View | **FIXED** — breadthfirst fallback |
 | #2 | Knowledge Graph | **FIXED** — cose fallback |
 | #3 | Geographic Map | **FIXED** — 250+ coords + CSP |
-| #4 | Canvas | **FIXED** — lazy Fabric init |
+| #4 | Canvas | **SUPERSEDED** — Fabric.js replaced by Excalidraw (Session 6) |
 | #5 | AI Discovery | **FIXED** — error status handling |
 | #6 | CSP Images | **FIXED** — added CartoDB + Clearbit |
-| #7 | Canvas Sidebar | **FIXED** — Array.isArray guard |
+| #7 | Canvas Sidebar | **SUPERSEDED** — canvas.js rewritten (Session 6) |
 | #8 | CDN Scripts | **FIXED** — fcose removed, docx IIFE, ninja-keys ESM, print.css created |
 | #9 | Graph/KG orphan edges | **FIXED** — catIdSet guard for inactive parents (Session 4) |
 | #10 | Host validation port mismatch | **FIXED** — dynamic port from request.server (Session 4) |
-| #11 | Canvas Fabric.js 6 API | **FIXED** — restorePointerVpt, loadFromJSON, clone (Session 4) |
+| #11 | Canvas Fabric.js 6 API | **SUPERSEDED** — Fabric.js replaced by Excalidraw (Session 6) |
 | #12 | Canvas pointer-events blocked | **FIXED** — driver.js cleanup, window.driverObj (Session 5) |
+| #13 | Canvas empty company boxes | **FIXED** — Excalidraw bound-text pattern (Session 7) |
+| #14 | Canvas creation in pywebview | **FIXED** — _ensurePromptSheet() dynamic dialog (Session 7) |
+| #15 | AI Diagram timeout/invalid layout | **FIXED** — CLI schema unwrap + timeout increase (Session 7) |
 
 ---
 
@@ -279,6 +282,14 @@
 - `desktop.py:_find_free_port()` can choose a different port if 5001 is busy
 - Playwright tests should still work on port 5001
 
+### Canvas Rewrite: Fabric.js → Excalidraw (Session 6-7)
+- Fabric.js was replaced entirely with Excalidraw 0.18.0 (React 19, ESM import maps)
+- Bugs #4, #7, #11 are **superseded** — the code that caused them no longer exists
+- canvas.js rewritten from ~1400 lines to ~300 lines
+- Removed CDN deps: Fabric.js, Rough.js, perfect-freehand, dagre, ELK, leader-line
+- Excalidraw handles drawing tools, undo/redo, zoom/pan, context menu natively
+- AI Diagram generation rewritten to output Excalidraw elements instead of Fabric.js objects
+
 ### Driver.js Onboarding Tour (ROOT CAUSE of Bug #12)
 - driver.js applies `body.driver-active * { pointer-events: none !important; }` — blocks ALL mouse events on ALL elements
 - `driverObj` must be stored on `window` (not local variable) so it can be destroyed from any context
@@ -286,3 +297,76 @@
 - **`showTab()` calls `_cleanupDriverJs()`** as a safety net to prevent stale driver state
 - Playwright tests must dismiss it: `driverObj.destroy()` or remove `.driver-overlay, .driver-popover` elements
 - If `_cleanupDriverJs` is available, call it too for belt-and-suspenders cleanup
+
+---
+
+## Canvas Rewrite: Fabric.js → Excalidraw (Session 6, 2026-02-20)
+
+Complete replacement of the Canvas tab engine. Fabric.js 6.5.1 (source of Bugs #4, #7, #11, #12) replaced with Excalidraw 0.18.0. Backend (`web/blueprints/canvas.py`) and database schema unchanged — canvas data column stores Excalidraw JSON format instead of Fabric.js format.
+
+**Files changed**: `web/static/js/canvas.js` (complete rewrite), `web/static/js/diagram.js` (renderer rewrite), `web/templates/index.html` (import maps, simplified HTML), `web/static/canvas.css` (Excalidraw theme overrides), `web/app.py` (CSP for esm.sh)
+
+---
+
+## Bug #13: Canvas — Empty Company Boxes on Drag-Drop
+- **Status**: **FIXED** (Session 7, 2026-02-20) — screenshot verified
+- **First reported**: 2026-02-20 (Session 7)
+- **Symptom**: Dragging companies from sidebar onto Excalidraw canvas creates colored rectangles but with no visible text inside.
+- **Root cause**: Text elements created with `width: undefined, height: undefined` and `autoResize: true`. Excalidraw's `updateScene()` doesn't auto-measure text dimensions for programmatically added elements. Without explicit dimensions, text renders as invisible.
+- **Attempted fixes**:
+  | # | Date | Fix description | Result |
+  |---|------|-----------------|--------|
+  | 1 | 2026-02-20 | Rewrote `_createCompanyElements()` to use Excalidraw bound-text pattern: `containerId` on text element links to rectangle, `boundElements` on rectangle references text. Added `_measureText()` helper to compute dimensions from fontSize and character count. Text gets explicit width/height matching container. | **CONFIRMED FIXED.** WebKit test shows company names clearly visible: "AEVUM / Nutrition & Gut Health" text in cards. |
+- **Evidence**: `test-evidence/canvas-fix-companies.png`
+- **Code changes**: `web/static/js/canvas.js` — `_createCompanyElements()` rewrite, `_measureText()` helper, `_makeElement()` text dimension handling
+
+---
+
+## Bug #14: Canvas Creation Fails in pywebview
+- **Status**: **FIXED** (Session 7, 2026-02-20) — screenshot verified
+- **First reported**: 2026-02-20 (Session 7)
+- **Symptom**: Clicking "New Canvas" does nothing in the pywebview desktop app. Works fine in standalone Chromium browser.
+- **Root cause**: pywebview blocks native `prompt()` (returns null silently). `_showPrompt()` checked for `#promptSheet` element; when missing (pywebview cached old HTML without it), fell back to blocked `prompt()`. `createNewCanvas()` received null title and exited.
+- **Attempted fixes**:
+  | # | Date | Fix description | Result |
+  |---|------|-----------------|--------|
+  | 1 | 2026-02-20 | Added `_ensurePromptSheet()` that dynamically creates the prompt dialog HTML if `#promptSheet` doesn't exist in DOM. `_showPrompt()` now calls it first instead of falling back to `prompt()`. | **CONFIRMED FIXED.** WebKit test against running app: dialog appears, canvas creates, Excalidraw loads. |
+- **Evidence**: `test-evidence/webkit-diagram-before.png` (shows canvas created via dialog)
+- **Code changes**: `web/static/js/canvas.js` — `_ensurePromptSheet()`, updated `_showPrompt()`
+
+---
+
+## Bug #15: AI Diagram — "LLM did not return valid layout" / Timeout
+- **Status**: **FIXED** (Session 7, 2026-02-20) — screenshot verified
+- **First reported**: 2026-02-20 (Session 7)
+- **Symptom**: AI Diagram generation either times out or returns "LLM did not return a valid diagram layout. Try rephrasing your prompt or using a different model."
+- **Root cause (two issues)**:
+  1. **CLI schema format**: Claude CLI `--json-schema` expects raw JSON schema `{"type":"object",...}`. Code passed SDK wrapper format `{"name":"diagram_layout","schema":{...}}`. CLI silently ignored unrecognized schema, returned plain prose text. `response.get("structured_output")` was None, fallback `json.loads()` failed on prose.
+  2. **Timeout too short**: Backend CLI timeout was 120s (often insufficient for complex diagrams). Frontend gave up after 3 minutes (60 polls x 3s).
+- **Attempted fixes**:
+  | # | Date | Fix description | Result |
+  |---|------|-----------------|--------|
+  | 1 | 2026-02-20 | **Schema fix**: `_run_claude_cli` in `core/llm.py` now detects `{"name":..,"schema":..}` wrapper and unwraps to raw schema before passing to CLI. **Timeout fix**: Backend CLI timeout 120→180s. Frontend polling 60→120 iterations (6 min). | **CONFIRMED FIXED.** WebKit test against running app: diagram generated in 69s with 30 elements (25 text, 3 rectangles, 2 arrows). Enterprise Tech Stack template with 3 categories. |
+- **Evidence**: `test-evidence/webkit-diagram-after.png` — shows 3-layer stacked diagram with company names and descriptions
+- **Code changes**: `core/llm.py` — `_run_claude_cli` schema unwrap. `web/blueprints/canvas.py` — timeout 120→180. `web/static/js/diagram.js` — `_DIAGRAM_MAX_POLL` 60→120.
+
+---
+
+## Playwright E2E Evidence (Session 7, 2026-02-20)
+
+### WebKit Diagram Generation Test (against running desktop app)
+- **Test**: `e2e/test_diagram_webkit.cjs` — WebKit engine, port 5001
+- **Result**: DIAGRAM GENERATION SUCCEEDED
+- Canvas created via prompt dialog
+- Excalidraw loaded in 1s
+- Enterprise Tech Stack template applied
+- 3 categories selected (Clinical Ops, AI Medical Scribe, Consumer Health Apps)
+- Diagram generated in 69s — 30 elements (25 text, 3 rectangles, 2 arrows)
+- Company names with descriptions visible
+
+### Canvas Fixes Test (Chromium)
+- **Test**: `e2e/test_canvas_fixes.cjs`
+- **Result**: ALL CHECKS PASSED
+- Bound-text company cards with visible text
+- 5 diagram template buttons present
+- Template pre-fills prompt and layout correctly

@@ -1,6 +1,6 @@
 # Feature Roadmap — Research Taxonomy Library
 
-Updated 2026-02-19. Based on deep research of 50+ SaaS tools across 12 categories, plus 2026 competitive intelligence and AI landscape analysis.
+Updated 2026-02-20. Based on deep research of 50+ SaaS tools across 12 categories, plus 2026 competitive intelligence and AI landscape analysis.
 
 ---
 
@@ -12,7 +12,7 @@ Updated 2026-02-19. Based on deep research of 50+ SaaS tools across 12 categorie
 | Taxonomy | 9 | Tree view, graph view (Cytoscape), AI review, apply changes, quality dashboard, change history, category color coding, scope notes + inclusion/exclusion criteria, drag-to-reorder |
 | Market Map | 5 | Drag-drop kanban, geographic map (Leaflet), company comparison, auto-layout (Cytoscape compound nodes), PNG export |
 | Research | 7 | AI market reports, deep dive (scoped LLM research), templates library, saved results, markdown/PDF export, AI diagrams (Mermaid), research dimensions (EAV) |
-| Canvas | 6 | Fabric.js workspace, drag-drop companies, sticky notes, edge drawing, freehand brush (perfect-freehand), auto-save, SVG/PNG/PDF export |
+| Canvas | 8 | Excalidraw 0.18.0 workspace (replaced Fabric.js), drag-drop companies (bound-text cards), native drawing tools, AI diagram generation (5 templates: market landscape, tech stack, value chain, competitive, customer journey), auto-save, SVG/PNG/PDF export |
 | Discovery | 3 | Feature landscape analysis, gap analysis (vs uploaded context), per-project feature toggle |
 | Processing | 5 | AI discovery, URL triage, batch pipeline, recent batches, retry |
 | Analytics | 3 | Dashboard charts, project statistics, configurable category matrix (2-axis: category/funding/geography/business_model/employees) |
@@ -45,7 +45,7 @@ Updated 2026-02-19. Based on deep research of 50+ SaaS tools across 12 categorie
 | Notion | Partial | No | Yes (agents) | No | No | No | $96+/yr |
 | Miro | No | No | No (Sidekicks) | No | No | **Best** | $96+/yr |
 | Hebbia | No | No | Yes (FlashDocs) | No | No | No | Enterprise |
-| **This App** | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | **Local/Free** |
+| **This App** | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** (Excalidraw + AI Diagrams) | **Local/Free** |
 
 **Key insight**: No single tool combines all six columns. Enterprise tools charge $5K-$50K+/year for partial coverage. This app is the only local-first, privacy-preserving tool that integrates the full research-to-deliverable pipeline. The competitive moat is *integration density* — every feature feeds every other feature.
 
@@ -137,7 +137,7 @@ These aren't incremental improvements. Each one changes what the product fundame
 #### 4. Canvas AI Agent: Select Companies, Ask Questions
 **Impact**: Very High | **Effort**: Medium | **Timeline**: Phase 2
 
-**Why this matters**: Miro's Sidekicks (October 2025) proved that AI-on-canvas is the future of visual analysis. But Miro's canvas is visual-only — the AI doesn't understand the data behind the sticky notes. Your canvas is *data-backed*. When a user selects companies on your Fabric.js canvas, the AI knows their full research profiles, categories, dimensions, and relationships.
+**Why this matters**: Miro's Sidekicks (October 2025) proved that AI-on-canvas is the future of visual analysis. But Miro's canvas is visual-only — the AI doesn't understand the data behind the sticky notes. Your canvas is *data-backed*. When a user selects companies on your Excalidraw canvas, the AI knows their full research profiles, categories, dimensions, and relationships. The Excalidraw rewrite (Session 6-7) provides a solid foundation — native drawing tools, proper text rendering, and a React-based API for programmatic element creation.
 
 **What it does**:
 - Select 2+ companies on canvas → AI action menu appears
@@ -147,7 +147,7 @@ These aren't incremental improvements. Each one changes what the product fundame
 - "Find companies similar to these" → discovers and suggests additions
 - "Generate a report on this selection" → creates exportable market report
 
-**Architecture**: Extends canvas.js with a floating AI action bar. Selected company IDs feed into targeted prompts via `core/researcher.py`. Results render as new canvas cards.
+**Architecture**: Extends canvas.js with a floating AI action bar. Selected Excalidraw elements with `customData.companyId` feed into targeted prompts via `core/researcher.py`. Results render as new Excalidraw elements via `excalidrawAPI.updateScene()`.
 
 **Inspired by**: Miro Sidekicks (AI agents on canvas), Miro Flows (multi-step AI workflows), FigJam AI
 
@@ -330,7 +330,7 @@ Full codebase audit comparing roadmap items to actual implementation. Reference 
 | Bulk Select + Bulk Actions | `companies.js` (`bulkSelection` set, floating action bar) | Checkbox column, assign/tag/relationship/delete |
 | Linked Record Navigation | `core.js` (`navHistory` stack), breadcrumb bar | Category detail view, clickable entity links |
 | Deep Dive Research | `web/blueprints/research.py`, `research.js` | Scoped LLM research with web search |
-| Research Canvas | `canvas.js` (48KB), Fabric.js workspace | Drag-drop, notes, edges, freehand brush, auto-save |
+| Research Canvas | `canvas.js` (~300 lines), Excalidraw 0.18.0 workspace | Replaced Fabric.js. Native drawing tools, drag-drop companies (bound-text cards), auto-save, SVG/PNG/PDF export |
 | Auto-Build Market Map | `taxonomy.js` (`renderTaxonomyGraph()`) | Cytoscape compound node layout |
 | E2E Test Suite | `e2e/` (132 Playwright tests across 22+ spec files) | Auto-starts Flask on port 5099 |
 | Taxonomy Scope Notes (N1) | `taxonomy.js` lines 68-82, schema `scope_note`/`inclusion_criteria`/`exclusion_criteria` | Toggle-able metadata panel |
@@ -347,7 +347,7 @@ Full codebase audit comparing roadmap items to actual implementation. Reference 
 |---------|--------------|-------|
 | Discovery Engine | `web/blueprints/discovery.py`, `discovery.js` (15KB) | Feature landscape + gap analysis vs uploaded context |
 | Research Dimensions | `dimensions.py`, `research_dimensions` + `company_dimensions` tables | EAV pattern, AI explore/propose/accept/populate flow |
-| AI Diagram Generation | Mermaid rendering in reports | Via `mcp__claude_ai_Mermaid_Chart` |
+| AI Diagram Generation | `diagram.js` + `canvas.py` | LLM-generated Excalidraw diagrams with 5 templates (market landscape, tech stack, value chain, competitive, customer journey). Claude/Gemini structured output → Excalidraw elements. Replaced earlier Mermaid approach. |
 | Pricing Capture | 9 columns on `companies` table (schema lines 77-86) | AI research auto-extracts; bulk fill missing in ai.py |
 | Company Events | `company_events` table | event_type: funding_round, acquired, shut_down, launch, pivot, partnership |
 | Settings Tab | `settings.js`, `app-settings.js` (11KB) | AI backend config, model selector, fix sections |
