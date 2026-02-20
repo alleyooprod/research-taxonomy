@@ -229,7 +229,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 #### 2.4 Document Capture
 - [x] Download and store PDFs (IPIDs, regulatory docs, whitepapers)
 - [x] Download and store HTML help documentation pages
-- [ ] Changelog page capture with diff detection for future visits
+- [x] Changelog page capture with diff detection — monitoring system (content hashing + diff) + changelog extractor (classify + parse) + re-capture trigger on major changes
 - [x] **Files:** `core/capture.py` (capture_document function), `web/blueprints/capture.py` (document endpoint)
 - [x] **Tests:** 6 document capture tests (mocked HTTP) in `test_capture.py`, 5 API tests in `test_api_capture.py`
 
@@ -313,7 +313,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] `extract_with_classification()` — classifies then extracts, supports forced extractor override
 - [x] API endpoints: `POST /api/extract/classify` (classify + extract), `GET /api/extract/extractors` (list available)
 - [ ] IPID parser (standardised EU/UK insurance document format) — deferred
-- [ ] Changelog parser (new features, changes, dates) — deferred
+- [x] Changelog parser (`core/extractors/changelog.py` — classify + extract version/frequency/features/maturity, registered in classifier)
 - [x] **Files:** `core/extractors/__init__.py`, `core/extractors/product_page.py`, `core/extractors/pricing_page.py`, `core/extractors/generic.py`, `core/extractors/classifier.py`
 - [x] **Tests:** 27 tests in `tests/test_extractors.py` (classification, prompts, extraction with mocked LLM, API endpoints)
 
@@ -472,7 +472,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [x] Significance scoring (info/minor/major/critical)
 - [x] Auto-setup monitors from entity URL attributes
 - [x] Intelligence tab with stats bar, feed, monitor table
-- [ ] Trigger re-capture and re-extraction on major changes — deferred
+- [x] Trigger re-capture and re-extraction on major changes — `_trigger_recapture()` auto-queues capture on major/critical severity, adds feed entry
 
 ---
 

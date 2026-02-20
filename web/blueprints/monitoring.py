@@ -254,6 +254,59 @@ def _score_severity(change_type, change_summary=None, details=None):
     return severity
 
 
+def _trigger_recapture(conn, monitor, severity, feed_id):
+    """Schedule a re-capture when a major/critical change is detected.
+
+    Creates a 'recapture_queued' entry in the change feed so the user can see
+    the action was triggered, and stores a capture_queue row (if the table
+    exists) for the capture engine to pick up.
+    """
+    entity_id = monitor["entity_id"]
+    target_url = monitor["target_url"]
+    project_id = monitor["project_id"]
+
+    # Check if capture_queue table exists (optional — only if capture engine installed)
+    has_queue = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='capture_queue'"
+    ).fetchone()
+
+    if has_queue:
+        # Avoid duplicate queue entries for the same URL + entity
+        existing = conn.execute(
+            """SELECT id FROM capture_queue
+               WHERE entity_id = ? AND target_url = ? AND status = 'pending'""",
+            (entity_id, target_url),
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                """INSERT INTO capture_queue
+                   (project_id, entity_id, target_url, trigger_type, trigger_id, status, created_at)
+                   VALUES (?, ?, ?, 'monitor_change', ?, 'pending', datetime('now'))""",
+                (project_id, entity_id, target_url, feed_id),
+            )
+
+    # Log a feed entry noting the recapture was triggered
+    conn.execute(
+        """INSERT INTO change_feed
+           (project_id, entity_id, monitor_id, change_type, severity,
+            title, description, source_url, created_at)
+           VALUES (?, ?, ?, 'recapture_queued', 'info', ?, ?, ?, datetime('now'))""",
+        (
+            project_id,
+            entity_id,
+            monitor["id"],
+            f"Re-capture queued after {severity} change",
+            f"Automatically triggered by {severity} change detection on {target_url}",
+            target_url,
+        ),
+    )
+
+    logger.info(
+        "Re-capture triggered for entity %d, URL %s (severity=%s, feed=%d)",
+        entity_id, target_url, severity, feed_id,
+    )
+
+
 # ── Check Logic ──────────────────────────────────────────────
 
 def _check_error(msg):
@@ -728,6 +781,10 @@ def _execute_check(monitor, conn):
         )
         feed_id = cursor.lastrowid
 
+        # Auto-trigger re-capture for major/critical changes
+        if severity in ("major", "critical"):
+            _trigger_recapture(conn, monitor, severity, feed_id)
+
     # Build response
     check_result = {
         "check_id": check_id,
@@ -741,6 +798,7 @@ def _execute_check(monitor, conn):
     }
     if feed_id:
         check_result["feed_id"] = feed_id
+        check_result["recapture_triggered"] = severity in ("major", "critical")
 
     return check_result
 

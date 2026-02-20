@@ -3,6 +3,7 @@
 Available extractors:
 - product_page: Extract company/product info from marketing pages
 - pricing_page: Extract pricing tiers, plans, and features
+- changelog: Extract version history, release frequency, and maturity from changelogs
 - generic: Generic HTML/text content extractor (fallback)
 
 Each extractor provides:

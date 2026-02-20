@@ -5,7 +5,7 @@ dispatches to the appropriate specialized extractor.
 """
 import logging
 
-from core.extractors import product_page, pricing_page, generic
+from core.extractors import product_page, pricing_page, changelog, generic
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ CLASSIFICATION_THRESHOLD = 0.4
 # Extractor registry: (module, name) ordered by priority
 EXTRACTORS = [
     (pricing_page, "pricing_page"),
+    (changelog, "changelog"),
     (product_page, "product_page"),
 ]
 
@@ -68,6 +69,7 @@ def extract_with_classification(content, entity_name=None, model=None,
         extractor_map = {
             "product_page": product_page,
             "pricing_page": pricing_page,
+            "changelog": changelog,
             "generic": generic,
         }
         extractor = extractor_map.get(force_extractor, generic)
@@ -89,4 +91,4 @@ def extract_with_classification(content, entity_name=None, model=None,
 
 def get_available_extractors():
     """Return list of available extractor names."""
-    return ["product_page", "pricing_page", "generic"]
+    return ["product_page", "pricing_page", "changelog", "generic"]
