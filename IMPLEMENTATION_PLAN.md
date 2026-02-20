@@ -192,11 +192,14 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 **Depends on:** Phase 1 (evidence library, entity model)
 
 #### 2.1 Headless Website Capture
-- [ ] Playwright-based backend service for full-page screenshots + HTML archival
-- [ ] Input: URL + entity to link to
-- [ ] Output: screenshot (PNG) + HTML snapshot stored in evidence library
-- [ ] Support for: marketing pages, pricing pages, help docs, changelogs
-- [ ] **Files affected:** New `core/capture.py`, new `web/blueprints/capture.py`
+- [x] Playwright-based backend service for full-page screenshots + HTML archival
+- [x] Input: URL + entity to link to
+- [x] Output: screenshot (PNG) + HTML snapshot stored in evidence library
+- [x] Support for: marketing pages, pricing pages, help docs, changelogs
+- [x] Configurable viewport, full-page vs viewport-only, optional HTML archival
+- [x] Async capture support (background jobs with polling)
+- [x] **Files:** `core/capture.py` (400+ lines), `web/blueprints/capture.py` (300+ lines)
+- [x] **Tests:** 6 website capture API tests (mocked Playwright) in `test_api_capture.py`
 
 #### 2.2 UI Gallery Scrapers
 - [ ] Mobbin scraper: find app by name, download all available screenshots
@@ -214,16 +217,36 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [ ] **Files affected:** `core/scrapers/appstore.py`, `core/scrapers/playstore.py`
 
 #### 2.4 Document Capture
-- [ ] Download and store PDFs (IPIDs, regulatory docs, whitepapers)
-- [ ] Download and store HTML help documentation pages
+- [x] Download and store PDFs (IPIDs, regulatory docs, whitepapers)
+- [x] Download and store HTML help documentation pages
 - [ ] Changelog page capture with diff detection for future visits
-- [ ] **Files affected:** `core/capture.py` (extended)
+- [x] **Files:** `core/capture.py` (capture_document function), `web/blueprints/capture.py` (document endpoint)
+- [x] **Tests:** 6 document capture tests (mocked HTTP) in `test_capture.py`, 5 API tests in `test_api_capture.py`
 
 #### 2.5 Manual Evidence Upload
-- [ ] UI for uploading screenshots, documents, files directly
-- [ ] Drag-and-drop onto entity cards
-- [ ] Paste from clipboard (screenshot capture while using a product)
-- [ ] **Files affected:** `web/blueprints/evidence.py`, frontend JS
+- [x] API for uploading screenshots, documents, files directly (`POST /api/evidence/upload`)
+- [x] File validation (extension whitelist, size limit 50MB, empty file check)
+- [x] Evidence type auto-detection from file extension
+- [x] Evidence file serving (`GET /api/evidence/<id>/file`)
+- [x] Evidence file + record deletion (`DELETE /api/evidence/<id>/file`)
+- [x] Evidence storage stats per project (`GET /api/evidence/stats`)
+- [ ] Drag-and-drop onto entity cards (frontend) — deferred to 2.7
+- [ ] Paste from clipboard (screenshot capture while using a product) — deferred to 2.7
+- [x] **Files:** `core/capture.py` (store_upload, validate_upload), `web/blueprints/capture.py` (upload/serve/delete/stats)
+- [x] **Tests:** 7 upload tests + 7 serve/delete tests + 3 stats tests + 1 integration test in `test_api_capture.py`; 7 store_upload tests in `test_capture.py`
+
+#### 2.5a File Storage Engine
+- [x] Evidence directory structure: `{DATA_DIR}/evidence/{project_id}/{entity_id}/{evidence_type}/{filename}`
+- [x] Unique filename generation (timestamp + hash suffix)
+- [x] File store, delete, exists, size utilities
+- [x] Upload validation (extension whitelist, size limit, empty check)
+- [x] Evidence type guessing from file extension
+- [x] MIME type detection for serving
+- [x] Empty directory cleanup on file deletion
+- [x] `get_evidence_by_id` DB method added to `storage/repos/entities.py`
+- [x] Upload limit increased to 50MB in Flask config
+- [x] **Files:** `core/capture.py`, `storage/repos/entities.py` (new method), `web/app.py` (upload limit + blueprint)
+- [x] **Tests:** 11 file storage tests + 6 validation tests + 7 type/MIME tests + 4 utility tests in `test_capture.py`
 
 #### 2.6 Bulk Capture / Market Scan
 - [ ] "Scan market" action: combine AI Discovery + scraping for all found companies
@@ -236,7 +259,16 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 - [ ] Shows active/completed scraping jobs
 - [ ] Configure capture sources per project
 - [ ] Manual capture trigger per entity
+- [ ] Drag-and-drop upload onto entity cards
+- [ ] Clipboard paste for screenshots
 - [ ] **Files affected:** `ai.js` or new `capture.js`, `index.html`
+
+#### 2.8 Tests — Capture Engine
+- [x] DB-layer tests: 64 tests in `tests/test_capture.py` (file storage, validation, upload, document capture, evidence by ID)
+- [x] API-layer tests: 31 tests in `tests/test_api_capture.py` (upload, serve, delete, document capture, website capture, stats, jobs, integration)
+- [x] `capture` marker added to `pytest.ini` for selective running (`pytest -m capture`)
+- [x] All 447 original tests still pass after capture engine addition
+- [x] **Total: 542 tests passing** (447 original + 64 capture DB + 31 capture API)
 
 ---
 
@@ -460,7 +492,7 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 1. All 266 original tests continue to pass unchanged
 2. Company API remains fully functional — entity system runs alongside, not replacing
 3. New test suites added with every implementation step — test count grows in lockstep
-4. **Current total: 447 tests** (266 original + 62 entity DB + 119 entity API)
+4. **Current total: 542 tests** (266 original + 62 entity DB + 119 entity API + 64 capture DB + 31 capture API)
 
 ---
 
@@ -476,7 +508,9 @@ No product hierarchy. No temporal versioning. No evidence storage. No schema fle
 | 10 | 2026-02-20 | Research Workbench brainstorm + planning | ✅ Complete |
 | 11 | 2026-02-20 | Phase 1.1-1.5 + 1.9: Schema, entities, temporal, evidence, API, tests | ✅ Complete |
 | 12 | 2026-02-20 | Phase 1.6-1.8: Project setup + entity browser + view compat (46 new tests, 447 total) | ✅ Complete |
-| 13 | TBD | Phase 2: Capture Engine (headless capture, scrapers, manual upload) | ⬜ Not started |
+| 13 | 2026-02-20 | Phase 2.1/2.4/2.5/2.5a: Capture engine core — file storage, website capture, document download, manual upload, evidence serve/delete/stats (95 new tests, 542 total) | ✅ Complete |
+| 14 | TBD | Phase 2.2/2.3: Scrapers (UI galleries, app stores) | ⬜ Not started |
+| 15 | TBD | Phase 2.6/2.7: Bulk capture + Capture UI | ⬜ Not started |
 
 ---
 

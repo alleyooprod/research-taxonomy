@@ -397,3 +397,185 @@ def list_capture_jobs():
     for jid, jdata in sorted(jobs.items(), reverse=True):
         result.append({"id": jid, **jdata})
     return jsonify(result)
+
+
+# ── App Store Scrapers ────────────────────────────────────────
+
+@capture_bp.route("/api/scrape/appstore/search")
+def appstore_search():
+    """Search the Apple App Store.
+
+    Query params:
+        term (required): Search query
+        country (optional): Two-letter country code (default: "gb")
+        limit (optional): Max results (default: 10)
+
+    Returns:
+        List of AppStoreApp dicts
+    """
+    from core.scrapers.appstore import search_apps
+
+    term = request.args.get("term", "").strip()
+    if not term:
+        return jsonify({"error": "term is required"}), 400
+
+    country = request.args.get("country", "gb")
+    limit = request.args.get("limit", 10, type=int)
+
+    results = search_apps(term, country=country, limit=limit)
+    return jsonify([r.to_dict() for r in results])
+
+
+@capture_bp.route("/api/scrape/appstore/details/<int:app_id>")
+def appstore_details(app_id):
+    """Get detailed info for a specific App Store app.
+
+    Path param:
+        app_id: iTunes track ID
+
+    Returns:
+        AppStoreApp dict or 404
+    """
+    from core.scrapers.appstore import get_app_details
+
+    country = request.args.get("country", "gb")
+    app = get_app_details(app_id, country=country)
+    if not app:
+        return jsonify({"error": f"App {app_id} not found"}), 404
+    return jsonify(app.to_dict())
+
+
+@capture_bp.route("/api/scrape/appstore/screenshots", methods=["POST"])
+def appstore_screenshots():
+    """Download screenshots from App Store and store as evidence.
+
+    Request JSON:
+        app_id (required): iTunes track ID
+        entity_id (required): Entity to link evidence to
+        project_id (required): Project context
+        country (optional): Country code (default: "gb")
+        include_ipad (optional): Also download iPad screenshots (default: false)
+        include_icon (optional): Download app icon (default: true)
+
+    Returns:
+        CaptureResult dict
+    """
+    from core.scrapers.appstore import download_screenshots
+
+    data = request.json or {}
+    app_id = data.get("app_id")
+    entity_id = data.get("entity_id")
+    project_id = data.get("project_id")
+
+    if not app_id:
+        return jsonify({"error": "app_id is required"}), 400
+    if not entity_id:
+        return jsonify({"error": "entity_id is required"}), 400
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    entity = current_app.db.get_entity(entity_id)
+    if not entity:
+        return jsonify({"error": f"Entity {entity_id} not found"}), 404
+
+    result = download_screenshots(
+        app_id=int(app_id),
+        project_id=project_id,
+        entity_id=entity_id,
+        db=current_app.db,
+        country=data.get("country", "gb"),
+        include_ipad=data.get("include_ipad", False),
+        include_icon=data.get("include_icon", True),
+    )
+
+    status = 201 if result.success else 422
+    return jsonify(result.to_dict()), status
+
+
+@capture_bp.route("/api/scrape/playstore/search")
+def playstore_search():
+    """Search the Google Play Store.
+
+    Query params:
+        term (required): Search query
+        country (optional): Country code (default: "gb")
+        limit (optional): Max results (default: 10)
+
+    Returns:
+        List of PlayStoreApp dicts
+    """
+    from core.scrapers.playstore import search_apps
+
+    term = request.args.get("term", "").strip()
+    if not term:
+        return jsonify({"error": "term is required"}), 400
+
+    country = request.args.get("country", "gb")
+    limit = request.args.get("limit", 10, type=int)
+
+    results = search_apps(term, country=country, limit=limit)
+    return jsonify([r.to_dict() for r in results])
+
+
+@capture_bp.route("/api/scrape/playstore/details/<package_id>")
+def playstore_details(package_id):
+    """Get detailed info for a specific Play Store app.
+
+    Path param:
+        package_id: Android package ID (e.g. "com.vitality.mobile")
+
+    Returns:
+        PlayStoreApp dict or 404
+    """
+    from core.scrapers.playstore import get_app_details
+
+    country = request.args.get("country", "gb")
+    app = get_app_details(package_id, country=country)
+    if not app:
+        return jsonify({"error": f"App {package_id} not found"}), 404
+    return jsonify(app.to_dict())
+
+
+@capture_bp.route("/api/scrape/playstore/screenshots", methods=["POST"])
+def playstore_screenshots():
+    """Download screenshots from Play Store and store as evidence.
+
+    Request JSON:
+        package_id (required): Android package ID
+        entity_id (required): Entity to link evidence to
+        project_id (required): Project context
+        country (optional): Country code (default: "gb")
+        include_icon (optional): Download app icon (default: true)
+
+    Returns:
+        CaptureResult dict
+    """
+    from core.scrapers.playstore import download_screenshots
+
+    data = request.json or {}
+    package_id = data.get("package_id", "").strip()
+    entity_id = data.get("entity_id")
+    project_id = data.get("project_id")
+
+    if not package_id:
+        return jsonify({"error": "package_id is required"}), 400
+    if not entity_id:
+        return jsonify({"error": "entity_id is required"}), 400
+    if not project_id:
+        return jsonify({"error": "project_id is required"}), 400
+
+    entity = current_app.db.get_entity(entity_id)
+    if not entity:
+        return jsonify({"error": f"Entity {entity_id} not found"}), 404
+
+    result = download_screenshots(
+        package_id=package_id,
+        project_id=project_id,
+        entity_id=entity_id,
+        db=current_app.db,
+        country=data.get("country", "gb"),
+        include_icon=data.get("include_icon", True),
+    )
+
+    status = 201 if result.success else 422
+    return jsonify(result.to_dict()), status
