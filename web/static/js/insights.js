@@ -67,6 +67,10 @@ function _ensureIntelligenceSubNav() {
                 onclick="_switchIntelligenceView('insights')">Insights</button>
         <button class="intel-sub-btn" data-view="hypotheses"
                 onclick="_switchIntelligenceView('hypotheses')">Hypotheses</button>
+        <button class="intel-sub-btn" data-view="playbooks"
+                onclick="_switchIntelligenceView('playbooks')">Playbooks</button>
+        <button class="intel-sub-btn" data-view="crossproject"
+                onclick="_switchIntelligenceView('crossproject')">Cross-Project</button>
     `;
     tab.insertBefore(nav, tab.firstChild);
 
@@ -127,14 +131,26 @@ function _switchIntelligenceView(view) {
         btn.classList.toggle('intel-sub-btn--active', btn.dataset.view === view);
     });
 
+    // Ensure playbooks/cross-project dashboards exist before toggling
+    if (view === 'playbooks' && typeof _ensurePlaybooksDashboard === 'function') {
+        _ensurePlaybooksDashboard();
+    }
+    if (view === 'crossproject' && typeof _ensureCrossProjectDashboard === 'function') {
+        _ensureCrossProjectDashboard();
+    }
+
     // Toggle containers
     const monitoringEl = document.getElementById('monitoringDashboard');
     const insightsEl = document.getElementById('insightsDashboard');
     const hypothesesEl = document.getElementById('hypothesesDashboard');
+    const playbooksEl = document.getElementById('playbooksDashboard');
+    const crossprojectEl = document.getElementById('crossProjectDashboard');
 
     if (monitoringEl) monitoringEl.classList.toggle('hidden', view !== 'monitoring');
     if (insightsEl) insightsEl.classList.toggle('hidden', view !== 'insights');
     if (hypothesesEl) hypothesesEl.classList.toggle('hidden', view !== 'hypotheses');
+    if (playbooksEl) playbooksEl.classList.toggle('hidden', view !== 'playbooks');
+    if (crossprojectEl) crossprojectEl.classList.toggle('hidden', view !== 'crossproject');
 
     // Load data for the selected view
     if (view === 'monitoring') {
@@ -143,6 +159,10 @@ function _switchIntelligenceView(view) {
         _loadInsightsDashboard();
     } else if (view === 'hypotheses') {
         _loadHypothesesDashboard();
+    } else if (view === 'playbooks') {
+        if (typeof initPlaybooks === 'function') initPlaybooks();
+    } else if (view === 'crossproject') {
+        if (typeof initCrossProject === 'function') initCrossProject();
     }
 }
 
