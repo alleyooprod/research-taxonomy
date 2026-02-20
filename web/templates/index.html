@@ -69,6 +69,7 @@
 
     <!-- Review Queue -->
     <link rel="stylesheet" href="/static/css/review.css">
+    <link rel="stylesheet" href="/static/css/features.css">
 
     <!-- Print styles -->
     <link rel="stylesheet" href="/static/css/print.css" media="print">
@@ -1054,6 +1055,49 @@
                     <div class="review-empty-title">No pending extractions</div>
                     <div class="review-empty-desc">Run extraction on entity evidence from the Process tab to populate this queue.</div>
                 </div>
+
+                <!-- ═══ Feature Standardisation Sub-Section ═══ -->
+                <div class="feat-section">
+                    <div class="feat-section-header">
+                        <h3>Feature Vocabulary</h3>
+                        <div>
+                            <button class="btn btn-sm" onclick="mergeFeatures()">Merge</button>
+                            <button class="primary-btn btn-sm" onclick="createFeature()">+ New Feature</button>
+                        </div>
+                    </div>
+                    <p class="hint-text">Standardise extracted values into canonical feature names for cross-entity comparison.</p>
+
+                    <!-- Attribute Selector (shown if multiple tags attrs) -->
+                    <div id="featureAttrSelector" class="hidden"></div>
+
+                    <!-- Stats -->
+                    <div id="featureStats"></div>
+
+                    <!-- Category Filter -->
+                    <div id="featureCategoryFilter"></div>
+
+                    <!-- Search + Toolbar -->
+                    <div class="feat-toolbar">
+                        <input type="text" class="feat-search" placeholder="Search features..."
+                               aria-label="Search canonical features"
+                               oninput="featureSearchInput(this.value)">
+                    </div>
+
+                    <!-- Feature List -->
+                    <div id="featureList"></div>
+
+                    <!-- Empty State -->
+                    <div id="featureEmptyState" class="feat-empty-state hidden">
+                        <div class="feat-empty-title">No canonical features</div>
+                        <div class="feat-empty-desc">Create canonical features to standardise extracted vocabulary, or use AI Suggest on unmapped values.</div>
+                    </div>
+
+                    <!-- Unmapped Values -->
+                    <div id="featureUnmappedList"></div>
+
+                    <!-- AI Suggestions -->
+                    <div id="featureSuggestions"></div>
+                </div>
             </section>
 
             <!-- Discovery Tab -->
@@ -1737,6 +1781,7 @@
     <script src="{{ url_for('static', filename='js/dimensions.js') }}"></script>
     <script src="{{ url_for('static', filename='js/discovery.js') }}"></script>
     <script src="{{ url_for('static', filename='js/review.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/features.js') }}"></script>
     <script src="{{ url_for('static', filename='js/init.js') }}"></script>
 
     <script>

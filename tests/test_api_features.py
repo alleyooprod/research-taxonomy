@@ -18,7 +18,7 @@ Markers: api, extraction
 import pytest
 from unittest.mock import patch
 
-pytestmark = [pytest.mark.api, pytest.mark.extraction]
+pytestmark = [pytest.mark.api, pytest.mark.extraction, pytest.mark.features]
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -14,7 +14,7 @@ Markers: db, extraction
 """
 import pytest
 
-pytestmark = [pytest.mark.db, pytest.mark.extraction]
+pytestmark = [pytest.mark.db, pytest.mark.extraction, pytest.mark.features]
 
 
 # ═══════════════════════════════════════════════════════════════

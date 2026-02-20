@@ -239,7 +239,7 @@ function showTab(name) {
     if (name === 'canvas') { if (typeof loadCanvasList === 'function') loadCanvasList(); }
     if (name === 'discovery') { if (typeof loadDiscoveryTab === 'function') loadDiscoveryTab(); }
     if (name === 'process') { loadBatches(); }
-    if (name === 'review') { if (typeof initReviewQueue === 'function') initReviewQueue(); }
+    if (name === 'review') { if (typeof initReviewQueue === 'function') initReviewQueue(); if (typeof initFeatures === 'function') initFeatures(); }
     if (name === 'export') { loadShareTokens(); loadNotifPrefs(); }
     if (name === 'settings') { if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); if (typeof loadDefaultModel === 'function') loadDefaultModel(); }
 
