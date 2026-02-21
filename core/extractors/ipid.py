@@ -126,6 +126,9 @@ IPID_SCHEMA = {
     "required": ["confidence"],
 }
 
+# Pre-serialized schema to avoid re-serializing on every extract() call
+_IPID_SCHEMA_JSON = json.dumps(IPID_SCHEMA)
+
 # Mapping from schema property names to typical entity attribute slugs
 ATTRIBUTE_SLUG_MAP = {
     "insurer_name": "insurer_name",
@@ -258,7 +261,7 @@ def extract(content, entity_name=None, model=None, timeout=120):
             prompt=prompt,
             model=model,
             timeout=timeout,
-            json_schema=json.dumps(IPID_SCHEMA),
+            json_schema=_IPID_SCHEMA_JSON,
             operation="extraction_ipid",
         )
     except Exception as e:

@@ -298,7 +298,11 @@ async function _ensureTabLoaded(name) {
     } catch (err) {
         if (err.name !== 'AbortError') {
             console.warn('Failed to load tab ' + name, err);
-            panel.innerHTML = '<p class="hint-text" style="padding:24px">Failed to load tab content. <button class="btn btn-sm" data-action="retry-tab-load" data-id="' + name + '">Retry</button></p>';
+            panel.innerHTML = '<div style="padding:48px;text-align:center">'
+                + '<div style="font-size:13px;font-weight:600;margin-bottom:8px">Unable to load tab</div>'
+                + '<div class="hint-text" style="margin-bottom:16px">The "' + name + '" tab failed to load. This may be a temporary network issue.</div>'
+                + '<button class="btn btn-sm" data-action="retry-tab-load" data-id="' + name + '">Try Again</button>'
+                + '</div>';
         }
     } finally {
         hideTabLoading(name);
@@ -807,6 +811,22 @@ window.showNativeConfirm = function({ title, message, confirmText = 'Delete', ca
     // Focus the cancel button (safer default like macOS)
     cancelBtn.focus();
   });
+};
+
+/**
+ * Toggle a loading spinner on an async button.
+ * Usage: setButtonLoading(btn, true) before async work, setButtonLoading(btn, false) after.
+ */
+window.setButtonLoading = function(btn, loading) {
+    if (!btn) return;
+    if (loading) {
+        btn.classList.add('btn--loading');
+        btn.disabled = true;
+        btn._origText = btn.textContent;
+    } else {
+        btn.classList.remove('btn--loading');
+        btn.disabled = false;
+    }
 };
 
 /**

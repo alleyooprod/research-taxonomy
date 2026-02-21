@@ -582,6 +582,13 @@ button:focus-visible,
     outline-offset: 2px;
 }
 
+/* ========== Disabled States ========== */
+button:disabled, .btn:disabled, [disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* ========== Tab Loading Spinner ========== */
 .tab-loading {
     display: flex;
@@ -1072,8 +1079,28 @@ textarea:hover, select:hover {
 }
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
 textarea:focus, select:focus {
-    border-bottom-color: var(--text-primary);
+    border-color: var(--accent-primary);
     background-color: var(--primary-light);
+}
+
+/* ========== Button Loading State ========== */
+.btn--loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+.btn--loading::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border: 2px solid var(--border-default);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
 }
 
 /* ========== Placeholder & Disabled States ========== */
@@ -1506,4 +1533,16 @@ input:read-only, textarea:read-only {
 
 /* Confirm sheet actions spacing */
 .confirm-sheet-actions-mt { margin-top: 16px; }
+
+/* ========== Floating Label Pattern ========== */
+.form-field { position: relative; }
+.form-field label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
 

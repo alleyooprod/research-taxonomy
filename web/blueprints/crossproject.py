@@ -27,6 +27,7 @@ Endpoints:
         GET  /api/cross-project/stats                    — Summary stats
 """
 import json
+import time
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -48,6 +49,12 @@ _VALID_INSIGHT_TYPES = {"overlap", "divergence", "trend", "coverage_gap"}
 _VALID_SEVERITIES = {"info", "notable", "important", "critical"}
 
 _DICE_THRESHOLD = 0.8  # Name similarity threshold for auto-detection
+
+# ── Overlap Scan Cache ──────────────────────────────────────
+# The O(n^2) overlap scan is expensive. Cache results for 5 minutes
+# so repeated requests (e.g. page refresh) don't re-run the full scan.
+_OVERLAP_CACHE_TTL = 300  # seconds
+_overlap_cache = {"result": None, "timestamp": 0}
 
 
 # ── Lazy Table Creation ──────────────────────────────────────
@@ -612,8 +619,29 @@ def scan_overlaps():
     matching to detect entities that appear in multiple projects. Creates
     auto-sourced entity_links for each detected overlap.
 
-    Returns: {links: [...], found_count: N}
+    Results are cached for 5 minutes to avoid repeated O(n^2) scans.
+    Pass ``?force=1`` to bypass the cache.
+
+    Returns: {links: [...], found_count: N, cached: bool}
     """
+    force = request.args.get("force", "0") == "1"
+
+    # Return cached result if still fresh (avoid re-running the O(n^2) scan).
+    # Cache is disabled in test mode to avoid cross-test interference.
+    now = time.monotonic()
+    if (
+        not force
+        and not current_app.config.get("TESTING")
+        and _overlap_cache["result"] is not None
+        and (now - _overlap_cache["timestamp"]) < _OVERLAP_CACHE_TTL
+    ):
+        cached = _overlap_cache["result"]
+        return jsonify({
+            "links": cached,
+            "found_count": len(cached),
+            "cached": True,
+        }), 201
+
     db = current_app.db
 
     with db._get_conn() as conn:
@@ -621,11 +649,16 @@ def scan_overlaps():
 
         new_links = _scan_for_overlaps(conn)
 
+    # Update the cache
+    _overlap_cache["result"] = new_links
+    _overlap_cache["timestamp"] = time.monotonic()
+
     logger.info("Overlap scan complete: %d new links detected", len(new_links))
 
     return jsonify({
         "links": new_links,
         "found_count": len(new_links),
+        "cached": False,
     }), 201
 
 
@@ -648,7 +681,7 @@ def list_overlaps():
     link_type = request.args.get("link_type")
     source = request.args.get("source")
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     limit = max(1, min(limit, 200))
 
@@ -1205,7 +1238,7 @@ def list_insights():
     severity = request.args.get("severity")
     is_dismissed = request.args.get("is_dismissed", "0", type=str)
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     limit = max(1, min(limit, 200))
 

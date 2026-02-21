@@ -37,6 +37,11 @@ let _triagePollCount = 0;
 const _MAX_TRIAGE_RETRIES = 150; // 5 min at 2s intervals
 
 async function pollTriage(batchId, expectedCount) {
+    // Stop polling if the tab's AbortController has been aborted (user switched tab)
+    if (_tabAbortController && _tabAbortController.signal.aborted) {
+        _triagePollCount = 0;
+        return;
+    }
     _triagePollCount++;
     if (_triagePollCount > _MAX_TRIAGE_RETRIES) {
         document.getElementById('triageStatus').textContent = 'Timed Out';
@@ -203,6 +208,12 @@ const _MAX_BATCH_RETRIES = 360; // 30 min at 5s intervals
 let _activeBatchPollId = null;
 
 async function pollBatch(batchId) {
+    // Stop polling if the tab's AbortController has been aborted (user switched tab)
+    if (_tabAbortController && _tabAbortController.signal.aborted) {
+        _batchPollCount = 0;
+        _activeBatchPollId = null;
+        return;
+    }
     _activeBatchPollId = batchId;
     _batchPollCount++;
     if (_batchPollCount > _MAX_BATCH_RETRIES) {
@@ -382,7 +393,16 @@ function closeBatchDetail() {
 function startRetryPolling(batchId) {
     retryingBatch = batchId;
     if (retryPollInterval) clearInterval(retryPollInterval);
-    retryPollInterval = setInterval(() => showBatchDetail(batchId), 5000);
+    retryPollInterval = setInterval(() => {
+        // Stop retry polling if the tab's AbortController has been aborted
+        if (_tabAbortController && _tabAbortController.signal.aborted) {
+            clearInterval(retryPollInterval);
+            retryPollInterval = null;
+            retryingBatch = null;
+            return;
+        }
+        showBatchDetail(batchId);
+    }, 5000);
     setTimeout(() => showBatchDetail(batchId), 1000);
 }
 

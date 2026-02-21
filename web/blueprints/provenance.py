@@ -581,7 +581,7 @@ def search_provenance():
 
     attr_slug = request.args.get("attr_slug")
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     db = current_app.db
 

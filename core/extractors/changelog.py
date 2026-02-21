@@ -81,6 +81,9 @@ CHANGELOG_SCHEMA = {
     "required": ["confidence"],
 }
 
+# Pre-serialized schema to avoid re-serializing on every extract() call
+_CHANGELOG_SCHEMA_JSON = json.dumps(CHANGELOG_SCHEMA)
+
 # Mapping from schema property names to typical entity attribute slugs
 ATTRIBUTE_SLUG_MAP = {
     "latest_version": "latest_version",
@@ -197,7 +200,7 @@ def extract(content, entity_name=None, model=None, timeout=120):
             prompt=prompt,
             model=model,
             timeout=timeout,
-            json_schema=json.dumps(CHANGELOG_SCHEMA),
+            json_schema=_CHANGELOG_SCHEMA_JSON,
             operation="extraction_changelog",
         )
     except Exception as e:

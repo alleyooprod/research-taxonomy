@@ -109,12 +109,9 @@ def get_health():
     """Return health status for all servers."""
     from core.mcp_enrichment import get_all_server_health
     db = current_app.db
-    conn = db._get_conn()
-    try:
+    with db._get_conn() as conn:
         health = get_all_server_health(conn)
         return jsonify(health)
-    finally:
-        conn.close()
 
 
 @enrichment_bp.route("/api/entities/<int:entity_id>/enrichment/recommend")
@@ -135,11 +132,8 @@ def recommend_enrichment(entity_id):
     context = build_entity_context(entity, attrs)
     intent = request.args.get("intent")
 
-    conn = db._get_conn()
-    try:
+    with db._get_conn() as conn:
         recommended = recommend_servers(context, intent=intent, conn=conn)
-    finally:
-        conn.close()
 
     return jsonify({
         "entity_id": entity_id,

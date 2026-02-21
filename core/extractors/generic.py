@@ -50,6 +50,9 @@ GENERIC_SCHEMA = {
     "required": ["document_type", "summary", "key_facts"],
 }
 
+# Pre-serialized schema to avoid re-serializing on every extract() call
+_GENERIC_SCHEMA_JSON = json.dumps(GENERIC_SCHEMA)
+
 
 def build_prompt(content, entity_name=None):
     """Build extraction prompt for generic content."""
@@ -96,7 +99,7 @@ def extract(content, entity_name=None, model=None, timeout=120):
             prompt=prompt,
             model=model,
             timeout=timeout,
-            json_schema=json.dumps(GENERIC_SCHEMA),
+            json_schema=_GENERIC_SCHEMA_JSON,
             operation="extraction_generic",
         )
     except Exception as e:

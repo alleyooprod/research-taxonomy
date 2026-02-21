@@ -373,7 +373,7 @@ def list_insights():
     source = request.args.get("source")
     is_dismissed = request.args.get("is_dismissed", "0", type=str)
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     limit = max(1, min(limit, 200))
 

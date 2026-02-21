@@ -370,7 +370,7 @@ def list_monitor_checks(monitor_id):
         List of check result dicts, newest first.
     """
     limit = request.args.get("limit", 20, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
     limit = max(1, min(limit, 100))
 
     db = current_app.db

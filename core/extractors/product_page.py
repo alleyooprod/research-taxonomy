@@ -49,6 +49,9 @@ PRODUCT_PAGE_SCHEMA = {
     "required": ["description", "confidence"],
 }
 
+# Pre-serialized schema to avoid re-serializing on every extract() call
+_PRODUCT_PAGE_SCHEMA_JSON = json.dumps(PRODUCT_PAGE_SCHEMA)
+
 
 def build_prompt(content, entity_name=None):
     """Build extraction prompt for a product/marketing page."""
@@ -98,7 +101,7 @@ def extract(content, entity_name=None, model=None, timeout=120):
             prompt=prompt,
             model=model,
             timeout=timeout,
-            json_schema=json.dumps(PRODUCT_PAGE_SCHEMA),
+            json_schema=_PRODUCT_PAGE_SCHEMA_JSON,
             operation="extraction_product",
         )
     except Exception as e:

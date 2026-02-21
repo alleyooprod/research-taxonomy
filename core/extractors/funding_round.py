@@ -103,6 +103,9 @@ FUNDING_ROUND_SCHEMA = {
     "required": ["confidence"],
 }
 
+# Pre-serialized schema to avoid re-serializing on every extract() call
+_FUNDING_ROUND_SCHEMA_JSON = json.dumps(FUNDING_ROUND_SCHEMA)
+
 # Mapping from schema property names to typical entity attribute slugs
 ATTRIBUTE_SLUG_MAP = {
     "company_name": "company_name",
@@ -221,7 +224,7 @@ def extract(content, entity_name=None, model=None, timeout=120):
             prompt=prompt,
             model=model,
             timeout=timeout,
-            json_schema=json.dumps(FUNDING_ROUND_SCHEMA),
+            json_schema=_FUNDING_ROUND_SCHEMA_JSON,
             operation="extraction_funding",
         )
     except Exception as e:

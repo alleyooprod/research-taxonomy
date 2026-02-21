@@ -7,6 +7,7 @@ project CRUD while allowing each feature area to be edited independently.
 import json
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -30,14 +31,44 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
         self._init_db()
 
     def _get_conn(self):
+        """Return a raw sqlite3.Connection.
+
+        When used as ``with db._get_conn() as conn:``, SQLite's built-in
+        context manager commits on success and rolls back on exception,
+        but does **not** close the connection.  For automatic close
+        behaviour, prefer :meth:`_conn` instead.
+
+        Direct assignment (``conn = db._get_conn()``) is still valid for
+        callers that manage their own ``try/finally conn.close()`` block.
+        """
         conn = sqlite3.connect(str(self.db_path), timeout=10)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
-        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA busy_timeout=10000")
         if not self.__class__._wal_set:
             conn.execute("PRAGMA journal_mode=WAL")
             self.__class__._wal_set = True
         return conn
+
+    @contextmanager
+    def _conn(self):
+        """Context manager that commits on success, rolls back on error,
+        and **always** closes the connection.
+
+        Usage::
+
+            with db._conn() as conn:
+                conn.execute("INSERT ...")
+        """
+        conn = self._get_conn()
+        try:
+            yield conn
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def _init_db(self):
         """Initialize database, migrating existing data if needed."""

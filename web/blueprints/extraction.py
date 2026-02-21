@@ -257,7 +257,7 @@ def list_extraction_jobs():
     entity_id = request.args.get("entity_id", type=int)
     status = request.args.get("status")
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     if not project_id:
         return jsonify({"error": "project_id is required"}), 400
@@ -319,7 +319,7 @@ def list_extraction_results():
     status = request.args.get("status")
     attr_slug = request.args.get("attr_slug")
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     db = current_app.db
     results = db.get_extraction_results(
@@ -338,7 +338,7 @@ def get_review_queue():
         return jsonify({"error": "project_id is required"}), 400
 
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     db = current_app.db
     queue = db.get_extraction_queue(project_id, limit=limit, offset=offset)
@@ -359,7 +359,7 @@ def get_review_queue_grouped():
     max_confidence = request.args.get("max_confidence", type=float)
     entity_id = request.args.get("entity_id", type=int)
     limit = request.args.get("limit", 200, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     db = current_app.db
     groups = db.get_review_queue_grouped(

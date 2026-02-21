@@ -212,7 +212,7 @@ def design_patterns():
         return err
 
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
     limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
@@ -445,7 +445,7 @@ def design_scoring():
         return err
 
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
     limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db

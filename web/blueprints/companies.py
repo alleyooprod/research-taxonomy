@@ -39,7 +39,7 @@ def list_companies():
             starred_only=request.args.get("starred") == "1",
             sort_by=request.args.get("sort_by", "name"),
             sort_dir=request.args.get("sort_dir", "asc"),
-            offset=request.args.get("offset", 0, type=int),
+            offset=max(0, request.args.get("offset", 0, type=int)),
         )
         return jsonify(companies)
 
@@ -54,7 +54,7 @@ def list_companies():
     geography = request.args.get("geography")
     funding_stage = request.args.get("funding_stage")
     relationship_status = request.args.get("relationship_status")
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     companies = db.get_companies(
         project_id=project_id, category_id=category_id, search=search,

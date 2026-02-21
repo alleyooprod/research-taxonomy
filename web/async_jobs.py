@@ -18,7 +18,14 @@ from config import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
-# Shared thread pool with graceful shutdown support
+# Shared thread pool with graceful shutdown support.
+#
+# NOTE: core/pipeline.py and web/blueprints/processing.py create their own
+# short-lived ThreadPoolExecutors inside ``with`` blocks.  This is intentional:
+#   - pipeline.py lives in core/ and may run outside the web app.
+#   - processing._run_triage() already executes *inside* a thread from this
+#     pool; submitting sub-work back to the same pool risks deadlock.
+# Both scoped executors self-close after the ``with`` block completes.
 _executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="async_job")
 
 

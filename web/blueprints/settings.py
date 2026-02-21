@@ -121,7 +121,8 @@ def test_slack():
         urllib.request.urlopen(req, timeout=10)
         return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Slack webhook test failed for URL %s", webhook_url[:60])
+        return jsonify({"error": "Slack webhook test failed. Verify the webhook URL is correct and accessible."}), 500
 
 
 # --- App Settings ---
@@ -316,7 +317,8 @@ def get_log_content(filename):
         lines = log_path.read_text().splitlines()[-500:]
         return jsonify({"filename": filename, "content": "\n".join(lines)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Failed to read log file %s", filename)
+        return jsonify({"error": "Failed to read log file."}), 500
 
 
 # --- SSE Stream ---
@@ -324,8 +326,13 @@ def get_log_content(filename):
 @settings_bp.route("/api/events/stream")
 def sse_stream():
     project_id = request.args.get("project_id", type=int)
-    if not project_id:
+    if not project_id or project_id < 1:
         return "project_id required", 400
+
+    # Verify the project exists to prevent arbitrary subscription
+    project = current_app.db.get_project(project_id)
+    if not project:
+        return "project not found", 404
 
     q = queue.Queue()
     if project_id not in sse_clients:

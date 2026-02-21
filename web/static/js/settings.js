@@ -37,6 +37,13 @@ async function loadShareTokens() {
 }
 
 async function revokeShareToken(tokenId) {
+    const confirmed = await showNativeConfirm({
+        title: 'Revoke Share Token',
+        message: 'This will permanently revoke this share link. Anyone using it will lose access.',
+        confirmText: 'Revoke',
+        type: 'danger',
+    });
+    if (!confirmed) return;
     await safeFetch(`/api/share-tokens/${tokenId}`, { method: 'DELETE' });
     loadShareTokens();
 }

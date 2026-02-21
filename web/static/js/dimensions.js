@@ -196,7 +196,13 @@ async function viewDimensionValues(dimId) {
 }
 
 async function deleteDimension(dimId) {
-    if (!confirm('Delete this dimension and all its values?')) return;
+    const confirmed = await showNativeConfirm({
+        title: 'Delete Dimension',
+        message: 'This will permanently delete this dimension and all its values.',
+        confirmText: 'Delete',
+        type: 'danger',
+    });
+    if (!confirmed) return;
     const res = await safeFetch(`/api/dimensions/${dimId}`, { method: 'DELETE' });
     if (res.ok) { showToast('Dimension deleted'); loadDimensions(); }
 }

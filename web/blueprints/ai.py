@@ -266,8 +266,7 @@ Only return the JSON array, nothing else. Focus on real, existing companies."""
                                query, text[:500])
                 result = {"status": "error",
                           "error": "AI response did not contain valid JSON. "
-                                   "The model may need a different prompt or the query was too vague.",
-                          "raw": text[:1000]}
+                                   "The model may need a different prompt or the query was too vague."}
     except subprocess.TimeoutExpired:
         result = {"status": "error", "error": "Discovery timed out. Try a simpler query."}
     except json.JSONDecodeError as e:
@@ -277,8 +276,8 @@ Only return the JSON array, nothing else. Focus on real, existing companies."""
         result = {"status": "error",
                   "error": "Claude CLI not found. Install it or configure an API key in Settings."}
     except Exception as e:
-        logger.error("Discovery failed for query %r: %s", query, e)
-        result = {"status": "error", "error": f"Discovery failed: {str(e)[:200]}"}
+        logger.exception("Discovery failed for query %r: %s", query, e)
+        result = {"status": "error", "error": "Discovery failed due to an internal error. Check server logs for details."}
 
     write_result("discover", job_id, result)
 
@@ -466,8 +465,8 @@ Only return the JSON array, nothing else."""
         result = {"status": "error",
                   "error": "Claude CLI not found. Install it or configure an API key in Settings."}
     except Exception as e:
-        logger.error("Find-similar failed for %s: %s", company.get('name', '?'), e)
-        result = {"status": "error", "error": f"Find-similar failed: {str(e)[:200]}"}
+        logger.exception("Find-similar failed for %s: %s", company.get('name', '?'), e)
+        result = {"status": "error", "error": "Find-similar failed due to an internal error. Check server logs for details."}
 
     write_result("similar", job_id, result)
 

@@ -444,6 +444,13 @@ async function saveTemplate() {
 }
 
 async function deleteTemplate(id) {
+    const confirmed = await showNativeConfirm({
+        title: 'Delete Template',
+        message: 'This will permanently remove this research template.',
+        confirmText: 'Delete',
+        type: 'danger',
+    });
+    if (!confirmed) return;
     await safeFetch(`/api/research/templates/${id}`, { method: 'DELETE' });
     await loadResearchTemplates();
     renderTemplateManagerList();
@@ -704,6 +711,13 @@ async function viewSavedResearch(researchId) {
 }
 
 async function deleteResearch(researchId) {
+    const confirmed = await showNativeConfirm({
+        title: 'Delete Research',
+        message: 'This will permanently remove this saved research.',
+        confirmText: 'Delete',
+        type: 'danger',
+    });
+    if (!confirmed) return;
     await safeFetch(`/api/research/${researchId}`, { method: 'DELETE' });
     loadSavedResearch();
     showToast('Research deleted');

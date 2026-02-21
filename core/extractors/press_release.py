@@ -93,6 +93,9 @@ PRESS_RELEASE_SCHEMA = {
     "required": ["summary", "confidence"],
 }
 
+# Pre-serialized schema to avoid re-serializing on every extract() call
+_PRESS_RELEASE_SCHEMA_JSON = json.dumps(PRESS_RELEASE_SCHEMA)
+
 # Mapping from schema property names to typical entity attribute slugs
 ATTRIBUTE_SLUG_MAP = {
     "headline": "headline",
@@ -202,7 +205,7 @@ def extract(content, entity_name=None, model=None, timeout=120):
             prompt=prompt,
             model=model,
             timeout=timeout,
-            json_schema=json.dumps(PRESS_RELEASE_SCHEMA),
+            json_schema=_PRESS_RELEASE_SCHEMA_JSON,
             operation="extraction_press_release",
         )
     except Exception as e:

@@ -36,7 +36,7 @@ def get_feed():
     severity = request.args.get("severity")
     is_read = request.args.get("is_read", type=int)
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     # Clamp limit
     limit = max(1, min(limit, 200))

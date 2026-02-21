@@ -47,6 +47,9 @@ def classify_content(content):
             best_score = score
             best_extractor = extractor
             best_name = name
+            # Early exit: high-confidence match, no need to evaluate remaining
+            if best_score >= 0.95:
+                break
 
     if best_score >= CLASSIFICATION_THRESHOLD and best_extractor:
         return best_extractor, best_name, best_score

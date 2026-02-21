@@ -612,6 +612,8 @@ def list_entities():
     sort_by = request.args.get("sort", "name")
     limit = request.args.get("limit", type=int)
     offset = request.args.get("offset", type=int)
+    if offset is not None:
+        offset = max(0, offset)
 
     # Handle "root" as special parent_id value
     if parent_id and parent_id != "root":

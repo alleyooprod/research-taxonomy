@@ -30,7 +30,7 @@ def competitive_matrix():
     entity_type = request.args.get("entity_type")
     attr_slug = request.args.get("attr_slug", "features")
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
     limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
@@ -453,7 +453,7 @@ def competitive_enriched_matrix():
     entity_type = request.args.get("entity_type")
     attr_slug = request.args.get("attr_slug", "features")
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
     limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
@@ -650,7 +650,7 @@ def competitive_market_map():
     y_attr = request.args.get("y_attr", "hn_mention_count")
     size_attr = request.args.get("size_attr", "patent_count")
     limit = request.args.get("limit", 100, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
     limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db

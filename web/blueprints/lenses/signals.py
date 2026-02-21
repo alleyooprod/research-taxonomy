@@ -28,7 +28,7 @@ def signals_timeline():
 
     entity_id = request.args.get("entity_id", type=int)
     limit = request.args.get("limit", 50, type=int)
-    offset = request.args.get("offset", 0, type=int)
+    offset = max(0, request.args.get("offset", 0, type=int))
 
     # Clamp limit to a reasonable maximum
     limit = min(limit, 200)

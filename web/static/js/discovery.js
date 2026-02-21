@@ -124,7 +124,13 @@ async function previewContext(ctxId) {
 }
 
 async function deleteContext(ctxId) {
-    if (!confirm('Delete this context file?')) return;
+    const confirmed = await showNativeConfirm({
+        title: 'Delete Context',
+        message: 'This will permanently remove this context file.',
+        confirmText: 'Delete',
+        type: 'danger',
+    });
+    if (!confirmed) return;
     const res = await safeFetch(`/api/discovery/contexts/${ctxId}`, { method: 'DELETE' });
     if (res.ok) { showToast('Context deleted'); loadContexts(); }
 }
@@ -359,7 +365,13 @@ async function showAnalysisDetail(analysisId) {
 }
 
 async function deleteAnalysis(analysisId) {
-    if (!confirm('Delete this analysis?')) return;
+    const confirmed = await showNativeConfirm({
+        title: 'Delete Analysis',
+        message: 'This will permanently remove this analysis.',
+        confirmText: 'Delete',
+        type: 'danger',
+    });
+    if (!confirmed) return;
     const res = await safeFetch(`/api/discovery/analyses/${analysisId}`, { method: 'DELETE' });
     if (res.ok) { showToast('Analysis deleted'); loadAnalysisHistory(); }
 }

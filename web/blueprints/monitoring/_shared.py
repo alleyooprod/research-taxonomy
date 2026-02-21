@@ -376,7 +376,8 @@ def _check_website(monitor, conn):
         resp.raise_for_status()
         content = resp.text
     except Exception as e:
-        return _check_error(str(e))
+        logger.exception("Website check failed for %s", target_url)
+        return _check_error("Website check failed due to a network or server error.")
 
     content_hash = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()
     prev = _get_prev_check(conn, monitor["id"])
@@ -410,7 +411,8 @@ def _check_appstore(monitor, conn):
     try:
         app = get_app_details(app_id)
     except Exception as e:
-        return _check_error(f"App Store lookup failed: {e}")
+        logger.exception("App Store lookup failed for ID %s", app_id)
+        return _check_error("App Store lookup failed due to a network or API error.")
     if not app:
         return _check_error(f"App not found in App Store (ID: {app_id})")
 
@@ -437,7 +439,8 @@ def _check_playstore(monitor, conn):
     try:
         app = get_app_details(package_id)
     except Exception as e:
-        return _check_error(f"Play Store lookup failed: {e}")
+        logger.exception("Play Store lookup failed for package %s", package_id)
+        return _check_error("Play Store lookup failed due to a network or API error.")
     if not app:
         return _check_error(f"App not found in Play Store (package: {package_id})")
 
@@ -495,7 +498,8 @@ def _check_rss(monitor, conn):
         resp.raise_for_status()
         content = resp.text
     except Exception as e:
-        return _check_error(f"RSS fetch failed: {e}")
+        logger.exception("RSS fetch failed for %s", target_url)
+        return _check_error("RSS fetch failed due to a network or server error.")
 
     # Parse feed entries
     entries = []
@@ -531,7 +535,8 @@ def _check_rss(monitor, conn):
                     "guid": id_el.text if id_el is not None else "",
                 })
     except Exception as e:  # defusedxml raises various exceptions for malicious XML
-        return _check_error(f"RSS parse failed: {e}")
+        logger.exception("RSS parse failed for %s", target_url)
+        return _check_error("RSS feed could not be parsed. The feed may be malformed.")
 
     # Build a hash from the entry GUIDs/links to detect new entries
     entry_ids = []
@@ -599,7 +604,8 @@ def _check_hackernews(monitor, conn):
     try:
         stories = search_hackernews(entity_name, num_results=50, conn=conn)
     except Exception as e:
-        return _check_error(f"Hacker News search failed: {e}")
+        logger.exception("Hacker News search failed for %s", entity_name)
+        return _check_error("Hacker News search failed due to an API error.")
 
     if stories is None:
         return _check_error("Hacker News search unavailable (API returned None)")
@@ -685,7 +691,8 @@ def _check_news_search(monitor, conn):
     try:
         articles = search_news(entity_name, num_results=20, conn=conn)
     except Exception as e:
-        return _check_error(f"News search failed: {e}")
+        logger.exception("News search failed for %s", entity_name)
+        return _check_error("News search failed due to an API error.")
 
     if articles is None:
         return _check_error("News search unavailable (API returned None)")
@@ -763,7 +770,8 @@ def _check_traffic(monitor, conn):
     try:
         rank_data = get_domain_rank(domain, conn=conn)
     except Exception as e:
-        return _check_error(f"Traffic rank lookup failed: {e}")
+        logger.exception("Traffic rank lookup failed for %s", domain)
+        return _check_error("Traffic rank lookup failed due to an API error.")
 
     if rank_data is None:
         return _check_error("Traffic rank unavailable (API returned None)")
@@ -844,7 +852,8 @@ def _check_patent(monitor, conn):
     try:
         patents = search_patents(entity_name, num_results=20, conn=conn)
     except Exception as e:
-        return _check_error(f"Patent search failed: {e}")
+        logger.exception("Patent search failed for %s", entity_name)
+        return _check_error("Patent search failed due to an API error.")
 
     if patents is None:
         return _check_error("Patent search unavailable (API returned None)")
@@ -1021,7 +1030,7 @@ def _execute_check(monitor, conn):
                 "changes_detected": False,
                 "change_summary": None,
                 "change_details": None,
-                "error": f"Check handler exception: {str(e)[:300]}",
+                "error": "Monitor check failed due to an internal error.",
             }
 
     now = _now_iso()

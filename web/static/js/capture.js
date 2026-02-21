@@ -256,6 +256,12 @@ function _pollBulkCapture() {
     _bulkCapturePolling = true;
 
     const interval = setInterval(async () => {
+        // Stop polling if the tab's AbortController has been aborted
+        if (typeof _tabAbortController !== 'undefined' && _tabAbortController && _tabAbortController.signal.aborted) {
+            clearInterval(interval);
+            _bulkCapturePolling = false;
+            return;
+        }
         try {
             const resp = await fetch(`/api/capture/bulk/${_bulkCaptureJobId}`, {
                 headers: { 'X-CSRFToken': CSRF_TOKEN },

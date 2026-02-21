@@ -535,10 +535,12 @@ CREATE TABLE IF NOT EXISTS extraction_results (
 CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project ON extraction_jobs(project_id);
 CREATE INDEX IF NOT EXISTS idx_extraction_jobs_entity ON extraction_jobs(entity_id);
 CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status ON extraction_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_extraction_jobs_evidence ON extraction_jobs(evidence_id);
 CREATE INDEX IF NOT EXISTS idx_extraction_results_job ON extraction_results(job_id);
 CREATE INDEX IF NOT EXISTS idx_extraction_results_entity ON extraction_results(entity_id);
 CREATE INDEX IF NOT EXISTS idx_extraction_results_status ON extraction_results(entity_id, status);
 CREATE INDEX IF NOT EXISTS idx_extraction_results_attr ON extraction_results(entity_id, attr_slug);
+CREATE INDEX IF NOT EXISTS idx_extraction_results_evidence ON extraction_results(source_evidence_id);
 
 -- ═══════════════════════════════════════════════════════════
 -- Feature Standardisation: Canonical vocabulary per project

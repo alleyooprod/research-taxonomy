@@ -75,8 +75,14 @@ _db_cache_enabled = True  # Disabled during testing to avoid cross-test bleed
 
 
 def _content_cache_key(content: str, extractor_type: str) -> str:
-    """Generate a cache key from content + extractor type."""
-    h = hashlib.sha256(f"{extractor_type}:{content}".encode()).hexdigest()[:32]
+    """Generate a cache key from content + extractor type.
+
+    Normalizes whitespace before hashing so that semantically identical
+    content with slightly different formatting produces the same key.
+    """
+    # Normalize: strip leading/trailing whitespace, collapse internal runs
+    normalized = " ".join(content.split())
+    h = hashlib.sha256(f"{extractor_type}:{normalized}".encode()).hexdigest()[:32]
     return f"extraction:{h}"
 
 
