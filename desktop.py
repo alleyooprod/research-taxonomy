@@ -527,6 +527,7 @@ _SPLASH_HTML = """
     height: 100vh;
     flex-direction: column;
     gap: 24px;
+    -webkit-app-region: drag;
   }
   .title { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
   .subtitle {
@@ -812,6 +813,281 @@ class DesktopAPI:
         else:
             logger.debug("Window gained focus")
 
+    # --- Native File Dialogs ---
+
+    def open_file_dialog(self, file_types=None, multiple=False):
+        """Open a native macOS file picker. Returns list of file paths or None."""
+        if not _window_ref:
+            return None
+        try:
+            ft = tuple(file_types) if file_types else ("All files (*.*)",)
+            result = _window_ref.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=bool(multiple),
+                file_types=ft,
+            )
+            if result:
+                return [str(p) for p in result]
+        except Exception as e:
+            logger.debug("Native file dialog error: %s", e)
+        return None
+
+    def save_file_dialog(self, filename="export.json", file_types=None):
+        """Open a native macOS save dialog. Returns file path or None."""
+        if not _window_ref:
+            return None
+        try:
+            ft = tuple(file_types) if file_types else ("All files (*.*)",)
+            result = _window_ref.create_file_dialog(
+                webview.SAVE_DIALOG,
+                save_filename=str(filename),
+                file_types=ft,
+            )
+            if result:
+                return str(result) if isinstance(result, str) else str(result[0])
+        except Exception as e:
+            logger.debug("Native save dialog error: %s", e)
+        return None
+
+    def read_local_file(self, path):
+        """Read a local file chosen via native dialog. Returns {name, size, content} or None."""
+        import os
+        path = os.path.abspath(str(path))
+        home = str(Path.home())
+        # Security: only allow reading from user home, tmp, or data dir
+        allowed = [home, tempfile.gettempdir(), str(DATA_DIR)]
+        if not any(path.startswith(d) for d in allowed):
+            logger.warning("File read blocked (outside allowed paths): %s", path)
+            return None
+        try:
+            size = os.path.getsize(path)
+            if size > 50 * 1024 * 1024:  # 50 MB limit
+                return None
+            with open(path, "rb") as f:
+                content = f.read()
+            # Try text decode, fall back to base64
+            try:
+                text = content.decode("utf-8")
+                return {"name": os.path.basename(path), "size": size, "content": text, "encoding": "utf-8"}
+            except UnicodeDecodeError:
+                import base64
+                return {"name": os.path.basename(path), "size": size, "content": base64.b64encode(content).decode(), "encoding": "base64"}
+        except Exception as e:
+            logger.debug("File read error: %s", e)
+            return None
+
+    def show_context_menu(self, items_json, x, y):
+        """Show a native NSMenu at the given viewport position.
+
+        items_json: JSON string of [{label, action, id, separator?, disabled?}, ...]
+        x, y: viewport coordinates from the web event
+        Returns the action string of the selected item, or None.
+        """
+        if not _window_ref:
+            return None
+        try:
+            from AppKit import NSMenu, NSMenuItem, NSApplication, NSPoint, NSFont
+            import json as _json
+
+            items = _json.loads(items_json)
+            if not items:
+                return None
+
+            app = NSApplication.sharedApplication()
+            ns_window = app.mainWindow()
+            if not ns_window:
+                return None
+
+            menu = NSMenu.alloc().initWithTitle_("")
+            menu.setAutoenablesItems_(False)
+            # Match system menu font
+            menu.setFont_(NSFont.menuFontOfSize_(13))
+
+            action_map = {}
+            for i, item in enumerate(items):
+                if item.get("separator"):
+                    menu.addItem_(NSMenuItem.separatorItem())
+                    continue
+                label = str(item.get("label", ""))
+                mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    label, None, ""
+                )
+                if item.get("disabled"):
+                    mi.setEnabled_(False)
+                mi.setTag_(i)
+                action_map[i] = item
+                menu.addItem_(mi)
+
+            # Convert web viewport coords to NSWindow content view coords
+            # Web: origin top-left; macOS: origin bottom-left
+            view = ns_window.contentView()
+            view_height = view.frame().size.height
+            ns_point = NSPoint(float(x), view_height - float(y))
+
+            # Show menu synchronously (blocks until user picks or dismisses)
+            menu.popUpMenuPositioningItem_atLocation_inView_(None, ns_point, view)
+
+            # Find which item was highlighted/selected
+            highlighted = menu.highlightedItem()
+            if highlighted and highlighted.tag() in action_map:
+                selected = action_map[highlighted.tag()]
+                action = selected.get("action", "")
+                item_id = str(selected.get("id", ""))
+                # Fire callback in JS
+                try:
+                    safe_action = action.replace("'", "\\'")[:100]
+                    safe_id = item_id.replace("'", "\\'")[:100]
+                    _window_ref.evaluate_js(
+                        f"_handleContextMenuAction('{safe_action}', '{safe_id}')"
+                    )
+                except Exception:
+                    pass
+                return action
+            return None
+        except ImportError:
+            return None
+        except Exception as e:
+            logger.debug("Native context menu error: %s", e)
+            return None
+
+
+# --- Native Titlebar & Vibrancy (macOS) ---
+
+
+def _setup_hidden_titlebar():
+    """Make native titlebar transparent — content extends behind traffic lights (Safari/Notes style)."""
+    try:
+        from AppKit import NSApplication
+        import time
+        time.sleep(0.3)  # Wait for window to initialize
+        app = NSApplication.sharedApplication()
+        ns_window = app.mainWindow()
+        if not ns_window:
+            # Try getting window from windows array
+            windows = app.windows()
+            for w in windows:
+                if w.isVisible():
+                    ns_window = w
+                    break
+        if not ns_window:
+            logger.debug("Hidden titlebar: no window found")
+            return
+        # NSWindowTitleHidden = 1
+        ns_window.setTitlebarAppearsTransparent_(True)
+        ns_window.setTitleVisibility_(1)
+        # NSFullSizeContentViewWindowMask = 1 << 15 = 32768
+        mask = ns_window.styleMask() | (1 << 15)
+        ns_window.setStyleMask_(mask)
+        logger.debug("Hidden titlebar configured")
+    except ImportError:
+        logger.debug("AppKit not available — skipping hidden titlebar")
+    except Exception as e:
+        logger.debug("Hidden titlebar setup failed: %s", e)
+
+
+def _setup_vibrancy():
+    """Add NSVisualEffectView for frosted-glass toolbar effect."""
+    try:
+        from AppKit import (
+            NSApplication, NSVisualEffectView,
+        )
+        app = NSApplication.sharedApplication()
+        ns_window = app.mainWindow()
+        if not ns_window:
+            windows = app.windows()
+            for w in windows:
+                if w.isVisible():
+                    ns_window = w
+                    break
+        if not ns_window:
+            return
+
+        content_view = ns_window.contentView()
+        vibrancy = NSVisualEffectView.alloc().initWithFrame_(content_view.bounds())
+        # NSVisualEffectMaterialHeaderView = 10, NSVisualEffectMaterialSidebar = 7
+        vibrancy.setMaterial_(10)
+        # NSVisualEffectBlendingModeBehindWindow = 0
+        vibrancy.setBlendingMode_(0)
+        vibrancy.setState_(1)  # NSVisualEffectStateActive = 1 (always active)
+        # Autoresize with window: NSViewWidthSizable | NSViewHeightSizable = 18
+        vibrancy.setAutoresizingMask_(18)
+        # Insert BEHIND the webview (NSWindowBelow = 1)
+        content_view.addSubview_positioned_relativeTo_(vibrancy, 1, None)
+
+        logger.debug("Vibrancy effect configured")
+    except ImportError:
+        logger.debug("AppKit not available — skipping vibrancy")
+    except Exception as e:
+        logger.debug("Vibrancy setup failed: %s", e)
+
+
+# --- URL Scheme Handler (research://) ---
+
+_url_handler = None  # prevent GC
+
+def _setup_url_scheme_handler():
+    """Register handler for research:// URL scheme via Apple Events."""
+    global _url_handler
+    try:
+        from AppKit import NSAppleEventManager
+        from Foundation import NSObject
+        import struct
+
+        class URLSchemeHandler(NSObject):
+            def handleGetURLEvent_withReplyEvent_(self, event, reply):
+                try:
+                    # kAEKeyDirectObject = '----'
+                    keyword = struct.unpack('>I', b'----')[0]
+                    url_desc = event.paramDescriptorForKeyword_(keyword)
+                    if url_desc:
+                        url_str = url_desc.stringValue()
+                        if url_str:
+                            _handle_research_url(url_str)
+                except Exception as e:
+                    logger.warning("URL scheme event error: %s", e)
+
+        _url_handler = URLSchemeHandler.alloc().init()
+        em = NSAppleEventManager.sharedAppleEventManager()
+        # kInternetEventClass = 'GURL', kAEGetURL = 'GURL'
+        gurl = struct.unpack('>I', b'GURL')[0]
+        em.setEventHandler_andSelector_forEventClass_andEventID_(
+            _url_handler,
+            'handleGetURLEvent:withReplyEvent:',
+            gurl, gurl,
+        )
+        logger.debug("URL scheme handler registered for research://")
+    except ImportError:
+        logger.debug("AppKit not available — URL scheme handler skipped")
+    except Exception as e:
+        logger.debug("URL scheme handler setup failed: %s", e)
+
+
+def _handle_research_url(url):
+    """Parse and navigate to a research:// deep link."""
+    import re
+    if not url or not _window_ref:
+        return
+    match = re.match(r'research://(\w+)/?(\S*)', url)
+    if not match:
+        logger.debug("Unrecognized URL scheme: %s", url)
+        return
+    resource = match.group(1)
+    value = match.group(2).strip('/')
+
+    try:
+        if resource == 'project' and value.isdigit():
+            _window_ref.evaluate_js(f"selectProject({int(value)})")
+        elif resource == 'entity' and value.isdigit():
+            _window_ref.evaluate_js(f"showEntityDetail({int(value)})")
+        elif resource == 'tab':
+            safe = re.sub(r'[^a-z]', '', value.lower())
+            if safe:
+                _window_ref.evaluate_js(f"showTab('{safe}')")
+        else:
+            logger.debug("Unknown research:// resource: %s", resource)
+    except Exception as e:
+        logger.debug("URL navigation error: %s", e)
+
 
 # --- Server Helpers ---
 
@@ -1024,6 +1300,9 @@ def main():
     server.start()
     _log_timing("Flask server thread started")
 
+    # Register URL scheme handler early (catches launch-time URLs)
+    _setup_url_scheme_handler()
+
     # Load saved window geometry
     state = _load_window_state()
 
@@ -1084,6 +1363,16 @@ def main():
             _start_network_monitor()
             _setup_dock_menu()
             _log_timing("System event handlers registered")
+
+            # Setup native titlebar + vibrancy (macOS desktop look)
+            def _apply_native_chrome():
+                _setup_hidden_titlebar()
+                _setup_vibrancy()
+                try:
+                    window.evaluate_js("document.body.classList.add('desktop-native')")
+                except Exception:
+                    pass
+            threading.Thread(target=_apply_native_chrome, daemon=True).start()
 
             # Spotlight indexing in background thread
             threading.Thread(

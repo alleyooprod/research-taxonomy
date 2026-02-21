@@ -1081,3 +1081,72 @@ textarea {
 .undo-toast .toast-dismiss:hover {
     opacity: 1;
 }
+
+/* ========== Native macOS Desktop Chrome ========== */
+/* Applied only when desktop.py adds .desktop-native to body */
+
+.desktop-native .titlebar-region {
+    -webkit-app-region: drag;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding-top: 38px;  /* Space for native titlebar / traffic lights */
+}
+
+/* Traffic light inset: macOS close/minimize/zoom buttons need ~78px */
+.desktop-native .titlebar-region header {
+    padding-left: 78px;
+}
+
+.desktop-native .titlebar-region .tabs {
+    padding-left: 78px;
+}
+
+/* All interactive elements must NOT be draggable */
+.desktop-native .titlebar-region button,
+.desktop-native .titlebar-region a,
+.desktop-native .titlebar-region input,
+.desktop-native .titlebar-region select,
+.desktop-native .titlebar-region textarea,
+.desktop-native .titlebar-region .tools-dropdown,
+.desktop-native .titlebar-region .notification-bell,
+.desktop-native .titlebar-region .theme-toggle,
+.desktop-native .titlebar-region .back-btn {
+    -webkit-app-region: no-drag;
+}
+
+/* Vibrancy: frosted-glass effect on toolbar */
+.desktop-native .titlebar-region {
+    background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .desktop-native .titlebar-region {
+    background: rgba(10, 10, 10, 0.78);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Tab bar border is handled by titlebar-region */
+.desktop-native .titlebar-region .tabs {
+    border-bottom: none;
+}
+
+/* Header border is handled by titlebar-region */
+.desktop-native .titlebar-region header {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 8px;
+}
+
+/* Tools dropdown menu also gets vibrancy */
+.desktop-native .tools-menu {
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+}
+
+[data-theme="dark"] .desktop-native .tools-menu {
+    background: rgba(10, 10, 10, 0.88);
+}

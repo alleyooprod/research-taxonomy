@@ -336,18 +336,22 @@ async function uploadEvidence() {
     );
     if (!entityId) return;
 
-    // Create hidden file input and trigger click
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.png,.jpg,.jpeg,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.html,.htm,.mp4,.mov,.webm,.json,.csv,.txt,.md';
-    input.multiple = true;
+    // Native file dialog (macOS desktop) or HTML fallback
+    if (window.pywebview?.api?.open_file_dialog) {
+        const fileTypes = ['Evidence files (*.png *.jpg *.jpeg *.gif *.webp *.svg *.pdf *.doc *.docx *.xls *.xlsx *.html *.htm *.mp4 *.mov *.webm *.json *.csv *.txt *.md)'];
+        const paths = await window.pywebview.api.open_file_dialog(fileTypes, true);
+        if (!paths || !paths.length) return;
 
-    input.onchange = async () => {
-        if (!input.files.length) return;
+        for (const filePath of paths) {
+            const fileInfo = await window.pywebview.api.read_local_file(filePath);
+            if (!fileInfo) continue;
 
-        for (const file of input.files) {
+            // Build FormData with file content
+            const blob = fileInfo.encoding === 'base64'
+                ? new Blob([Uint8Array.from(atob(fileInfo.content), c => c.charCodeAt(0))])
+                : new Blob([fileInfo.content], { type: 'text/plain' });
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', blob, fileInfo.name);
             formData.append('entity_id', entityId);
             formData.append('project_id', String(currentProjectId));
 
@@ -358,20 +362,55 @@ async function uploadEvidence() {
                     body: formData,
                 });
                 if (resp.ok) {
-                    if (window.notyf) window.notyf.success(`Uploaded "${file.name}"`);
+                    if (window.notyf) window.notyf.success(`Uploaded "${fileInfo.name}"`);
                 } else {
                     const err = await resp.json();
-                    if (window.notyf) window.notyf.error(err.error || `Upload failed: ${file.name}`);
+                    if (window.notyf) window.notyf.error(err.error || `Upload failed: ${fileInfo.name}`);
                 }
             } catch (e) {
                 console.error('Upload failed:', e);
-                if (window.notyf) window.notyf.error(`Upload failed: ${file.name}`);
+                if (window.notyf) window.notyf.error(`Upload failed: ${fileInfo.name}`);
             }
         }
         _loadCaptureStats();
-    };
+    } else {
+        // HTML file input fallback (browser mode)
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.png,.jpg,.jpeg,.gif,.webp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.html,.htm,.mp4,.mov,.webm,.json,.csv,.txt,.md';
+        input.multiple = true;
 
-    input.click();
+        input.onchange = async () => {
+            if (!input.files.length) return;
+
+            for (const file of input.files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('entity_id', entityId);
+                formData.append('project_id', String(currentProjectId));
+
+                try {
+                    const resp = await fetch('/api/evidence/upload', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': CSRF_TOKEN },
+                        body: formData,
+                    });
+                    if (resp.ok) {
+                        if (window.notyf) window.notyf.success(`Uploaded "${file.name}"`);
+                    } else {
+                        const err = await resp.json();
+                        if (window.notyf) window.notyf.error(err.error || `Upload failed: ${file.name}`);
+                    }
+                } catch (e) {
+                    console.error('Upload failed:', e);
+                    if (window.notyf) window.notyf.error(`Upload failed: ${file.name}`);
+                }
+            }
+            _loadCaptureStats();
+        };
+
+        input.click();
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────

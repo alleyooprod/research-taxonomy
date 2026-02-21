@@ -888,6 +888,50 @@ if (window.matchMedia) {
   });
 }
 
+// ========== Native File Dialogs (desktop mode) ==========
+
+/**
+ * Open a native macOS file picker when in desktop mode, falling back to HTML input.
+ * @param {string[]} fileTypes - Filter descriptions, e.g. ["CSV files (*.csv)"]
+ * @param {boolean} multiple - Allow multiple file selection
+ * @returns {Promise<FileList|string[]|null>} File objects (web) or file paths (native)
+ */
+async function nativeFileDialog(fileTypes, multiple = false) {
+    if (window.pywebview?.api?.open_file_dialog) {
+        try {
+            const paths = await window.pywebview.api.open_file_dialog(fileTypes || null, multiple);
+            return paths;  // Returns array of file paths
+        } catch (e) {
+            console.debug('Native file dialog failed, falling back to HTML:', e);
+        }
+    }
+    // Fallback: HTML file input
+    return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        if (multiple) input.multiple = true;
+        input.onchange = () => resolve(input.files?.length ? input.files : null);
+        input.click();
+    });
+}
+
+/**
+ * Open a native macOS save dialog when in desktop mode.
+ * @param {string} filename - Default filename
+ * @param {string[]} fileTypes - Filter descriptions
+ * @returns {Promise<string|null>} File path or null
+ */
+async function nativeSaveDialog(filename, fileTypes) {
+    if (window.pywebview?.api?.save_file_dialog) {
+        try {
+            return await window.pywebview.api.save_file_dialog(filename, fileTypes || null);
+        } catch (e) {
+            console.debug('Native save dialog failed:', e);
+        }
+    }
+    return null;
+}
+
 // ========== Drag-Drop File Import ==========
 (function setupDragDrop() {
   let dragCounter = 0;

@@ -289,18 +289,20 @@
     <div class="container" role="main">
         <!-- ========== Project Selection Screen ========== -->
         <div id="projectSelection">
-            <header>
-                <div class="flex-between">
-                    <div>
-                        <h1>Research Taxonomy Library</h1>
-                        <p class="header-subtitle">Select a research project or create a new one.</p>
+            <div class="titlebar-region">
+                <header>
+                    <div class="flex-between">
+                        <div>
+                            <h1>Research Taxonomy Library</h1>
+                            <p class="header-subtitle">Select a research project or create a new one.</p>
+                        </div>
+                        <div class="flex-gap-sm">
+                            <button class="icon-btn" onclick="openAppSettings()" title="Settings" aria-label="App settings"><span class="material-symbols-outlined">settings</span></button>
+                            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
+                        </div>
                     </div>
-                    <div class="flex-gap-sm">
-                        <button class="icon-btn" onclick="openAppSettings()" title="Settings" aria-label="App settings"><span class="material-symbols-outlined">settings</span></button>
-                        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
-                    </div>
-                </div>
-            </header>
+                </header>
+            </div>
             <div id="projectGrid" class="project-grid" role="list" aria-label="Research projects"></div>
         </div>
 
@@ -379,28 +381,56 @@
 
         <!-- ========== Main App (shown after project selection) ========== -->
         <div id="mainApp" class="hidden">
-            <header>
-                <div class="flex-between">
-                    <div class="header-with-back">
-                        <button class="back-btn" onclick="switchProject()" aria-label="Switch project">&larr;</button>
-                        <div>
-                            <h1 id="projectTitle">Project</h1>
-                            <div class="stats-bar">
-                                <span id="statCompanies">0 companies</span>
-                                <span id="statCategories">0 categories</span>
-                                <span id="statUpdated">Never updated</span>
+            <div class="titlebar-region">
+                <header>
+                    <div class="flex-between">
+                        <div class="header-with-back">
+                            <button class="back-btn" onclick="switchProject()" aria-label="Switch project">&larr;</button>
+                            <div>
+                                <h1 id="projectTitle">Project</h1>
+                                <div class="stats-bar">
+                                    <span id="statCompanies">0 companies</span>
+                                    <span id="statCategories">0 categories</span>
+                                    <span id="statUpdated">Never updated</span>
+                                </div>
                             </div>
                         </div>
+                        <div class="flex-center-gap">
+                            <button class="notification-bell" onclick="toggleNotificationPanel()" title="Notifications" aria-label="Toggle notifications" aria-expanded="false" aria-controls="notificationPanel">
+                                <span class="bell-icon" aria-hidden="true"><span class="material-symbols-outlined">notifications</span></span>
+                                <span class="bell-badge hidden" id="bellBadge" aria-live="polite">0</span>
+                            </button>
+                            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
+                        </div>
                     </div>
-                    <div class="flex-center-gap">
-                        <button class="notification-bell" onclick="toggleNotificationPanel()" title="Notifications" aria-label="Toggle notifications" aria-expanded="false" aria-controls="notificationPanel">
-                            <span class="bell-icon" aria-hidden="true"><span class="material-symbols-outlined">notifications</span></span>
-                            <span class="bell-badge hidden" id="bellBadge" aria-live="polite">0</span>
-                        </button>
-                        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
+                </header>
+
+                <nav class="tabs" role="tablist" aria-label="Main navigation">
+                    <!-- Primary workbench tabs (guided workflow order) -->
+                    <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-reports" data-tab="reports" onclick="showTab('reports')">Research</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" data-tab="process" onclick="showTab('process')">Process</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" data-tab="review" onclick="showTab('review')">Review</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-analysis" data-tab="analysis" onclick="showTab('analysis')">Analysis</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-intelligence" data-tab="intelligence" onclick="showTab('intelligence')">Intelligence</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" data-tab="export" onclick="showTab('export')">Export</button>
+                    <!-- Hidden tabs -->
+                    <button class="tab hidden" role="tab" aria-selected="false" aria-controls="tab-discovery" data-tab="discovery" onclick="showTab('discovery')" id="discoveryTabBtn">Discovery</button>
+                    <!-- Spacer pushes Tools + Settings to right -->
+                    <div class="tab-spacer" aria-hidden="true"></div>
+                    <!-- Tools dropdown for legacy tabs -->
+                    <div class="tools-dropdown" role="none">
+                        <button class="tab tools-trigger" id="toolsTrigger" aria-haspopup="true" aria-expanded="false" onclick="toggleToolsDropdown(event)">Tools <span class="tools-caret" aria-hidden="true">&#9662;</span></button>
+                        <div class="tools-menu hidden" id="toolsMenu" role="menu" aria-label="Legacy tools">
+                            <button class="tools-menu-item" role="menuitem" data-tab="companies" onclick="showTab('companies'); closeToolsDropdown()">Companies</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="taxonomy" onclick="showTab('taxonomy'); closeToolsDropdown()">Taxonomy</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="map" onclick="showTab('map'); closeToolsDropdown()">Map</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="canvas" onclick="showTab('canvas'); closeToolsDropdown()">Canvas</button>
+                        </div>
                     </div>
-                </div>
-            </header>
+                    <!-- Settings gear icon -->
+                    <button class="tab tab-icon" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings" onclick="showTab('settings')" title="Settings" aria-label="Settings"><span class="material-symbols-outlined">settings</span></button>
+                </nav>
+            </div>
 
             <!-- Notification Panel -->
             <div id="notificationPanel" class="notification-panel hidden">
@@ -412,32 +442,6 @@
                     <p class="hint-text">No recent activity.</p>
                 </div>
             </div>
-
-            <nav class="tabs" role="tablist" aria-label="Main navigation">
-                <!-- Primary workbench tabs (guided workflow order) -->
-                <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-reports" data-tab="reports" onclick="showTab('reports')">Research</button>
-                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" data-tab="process" onclick="showTab('process')">Process</button>
-                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" data-tab="review" onclick="showTab('review')">Review</button>
-                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-analysis" data-tab="analysis" onclick="showTab('analysis')">Analysis</button>
-                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-intelligence" data-tab="intelligence" onclick="showTab('intelligence')">Intelligence</button>
-                <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" data-tab="export" onclick="showTab('export')">Export</button>
-                <!-- Hidden tabs -->
-                <button class="tab hidden" role="tab" aria-selected="false" aria-controls="tab-discovery" data-tab="discovery" onclick="showTab('discovery')" id="discoveryTabBtn">Discovery</button>
-                <!-- Spacer pushes Tools + Settings to right -->
-                <div class="tab-spacer" aria-hidden="true"></div>
-                <!-- Tools dropdown for legacy tabs -->
-                <div class="tools-dropdown" role="none">
-                    <button class="tab tools-trigger" id="toolsTrigger" aria-haspopup="true" aria-expanded="false" onclick="toggleToolsDropdown(event)">Tools <span class="tools-caret" aria-hidden="true">&#9662;</span></button>
-                    <div class="tools-menu hidden" id="toolsMenu" role="menu" aria-label="Legacy tools">
-                        <button class="tools-menu-item" role="menuitem" data-tab="companies" onclick="showTab('companies'); closeToolsDropdown()">Companies</button>
-                        <button class="tools-menu-item" role="menuitem" data-tab="taxonomy" onclick="showTab('taxonomy'); closeToolsDropdown()">Taxonomy</button>
-                        <button class="tools-menu-item" role="menuitem" data-tab="map" onclick="showTab('map'); closeToolsDropdown()">Map</button>
-                        <button class="tools-menu-item" role="menuitem" data-tab="canvas" onclick="showTab('canvas'); closeToolsDropdown()">Canvas</button>
-                    </div>
-                </div>
-                <!-- Settings gear icon -->
-                <button class="tab tab-icon" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings" onclick="showTab('settings')" title="Settings" aria-label="Settings"><span class="material-symbols-outlined">settings</span></button>
-            </nav>
 
             <!-- Breadcrumb Navigation -->
             <div id="breadcrumbBar" class="breadcrumb-bar hidden"></div>

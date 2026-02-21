@@ -281,6 +281,11 @@ body {
     letter-spacing: -0.01em;
 }
 
+/* Desktop native mode: transparent body so vibrancy shows through toolbar */
+.desktop-native {
+    background: transparent;
+}
+
 /* Re-enable text selection for content areas */
 input, textarea, select, [contenteditable="true"],
 .research-content, .company-notes, .detail-value,
