@@ -1,6 +1,6 @@
 ---
 document_type: healthtech_taxonomy
-last_updated: 2026-02-21T13:09:25
+last_updated: 2026-02-21T13:13:47
 total_companies: 0
 total_categories: 3
 format_version: 2.0
@@ -9,7 +9,7 @@ purpose: Market taxonomy for healthtech, wellness, fitness, and health insurance
 
 # Healthtech Market Taxonomy
 
-> **0 companies** across **3 categories** | Last updated: 2026-02-21 13:09
+> **0 companies** across **3 categories** | Last updated: 2026-02-21 13:13
 
 ## Taxonomy Tree
 
