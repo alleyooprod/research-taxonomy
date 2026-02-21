@@ -650,7 +650,7 @@ async function toggleEntityStar(entityId) {
     try {
         await safeFetch(`/api/entities/${entityId}/star`, { method: 'POST' });
         loadEntities();
-    } catch (e) { /* silent */ }
+    } catch (e) { console.warn('Entity operation failed:', e.message); }
 }
 
 // Bulk selection

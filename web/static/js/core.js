@@ -138,9 +138,19 @@ async function safeFetch(url, options = {}) {
         console.error(`Fetch failed: ${method} ${url}`, e);
         showToast(`Network error: ${e.message}`);
         // Return a mock Response so callers can safely call .json() / .text()
-        return new Response(JSON.stringify({}), { status: 0, statusText: 'Network Error' });
+        // Includes _networkError flag so callers can distinguish network failures from empty data
+        return new Response(JSON.stringify({ _networkError: true }), {
+            status: 0,
+            statusText: 'Network Error',
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
+
+/** Check whether parsed JSON data came from a network error mock response. */
+window.isNetworkError = function(data) {
+    return data && data._networkError === true;
+};
 
 // --- HTML Escaping ---
 function esc(str) {
@@ -417,7 +427,7 @@ async function _loadEntityStatsForHeader() {
             const parts = Object.entries(entityStats).map(([type, count]) => `${count} ${type}`);
             document.getElementById('statCompanies').textContent = parts.join(', ');
         }
-    } catch (e) { /* entity stats are supplementary */ }
+    } catch (e) { console.warn('Entity stats load failed:', e.message); }
 }
 
 // --- Dark Mode ---

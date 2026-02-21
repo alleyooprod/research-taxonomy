@@ -331,35 +331,51 @@ def competitive_matrix():
 
     entity_type = request.args.get("entity_type")
     attr_slug = request.args.get("attr_slug", "features")
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
 
     with db._get_conn() as conn:
-        # Fetch entities of the given type (or all if no type specified)
+        # Count total entities for pagination metadata
         if entity_type:
+            total_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM entities WHERE project_id = ? AND type_slug = ? AND is_deleted = 0",
+                (project_id, entity_type),
+            ).fetchone()["cnt"]
             entity_rows = conn.execute(
                 """
                 SELECT id, name FROM entities
                 WHERE project_id = ? AND type_slug = ? AND is_deleted = 0
                 ORDER BY name COLLATE NOCASE
+                LIMIT ? OFFSET ?
                 """,
-                (project_id, entity_type),
+                (project_id, entity_type, limit, offset),
             ).fetchall()
         else:
+            total_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM entities WHERE project_id = ? AND is_deleted = 0",
+                (project_id,),
+            ).fetchone()["cnt"]
             entity_rows = conn.execute(
                 """
                 SELECT id, name FROM entities
                 WHERE project_id = ? AND is_deleted = 0
                 ORDER BY name COLLATE NOCASE
+                LIMIT ? OFFSET ?
                 """,
-                (project_id,),
+                (project_id, limit, offset),
             ).fetchall()
 
         entities = [{"id": r["id"], "name": r["name"]} for r in entity_rows]
         entity_ids = [e["id"] for e in entities]
 
         if not entity_ids:
-            return jsonify({"entities": [], "features": [], "matrix": {}})
+            return jsonify({
+                "entities": [], "features": [], "matrix": {},
+                "pagination": {"limit": limit, "offset": offset, "total": total_count},
+            })
 
         # Fetch canonical features for this project+attr_slug (if any)
         canonical_rows = conn.execute(
@@ -940,21 +956,40 @@ def competitive_market_map():
                 "size_label": size_attr.replace("_", " ").title(),
             })
 
+        # Batch load all needed attributes for all entities
+        attr_slugs = [s for s in [x_attr, y_attr, size_attr] if s]
+        attr_lookup = {}  # {entity_id: {slug: value}}
+
+        if attr_slugs:
+            eid_list = [ent["id"] for ent in entity_rows]
+            eid_ph = ",".join("?" * len(eid_list))
+            slug_ph = ",".join("?" * len(attr_slugs))
+            attr_rows = conn.execute(
+                f"""
+                SELECT ea.entity_id, ea.attr_slug, ea.value
+                FROM entity_attributes ea
+                INNER JOIN (
+                    SELECT entity_id, attr_slug, MAX(id) as max_id
+                    FROM entity_attributes
+                    WHERE entity_id IN ({eid_ph}) AND attr_slug IN ({slug_ph})
+                    GROUP BY entity_id, attr_slug
+                ) latest ON ea.id = latest.max_id
+                """,
+                eid_list + attr_slugs,
+            ).fetchall()
+
+            for row in attr_rows:
+                attr_lookup.setdefault(row["entity_id"], {})[row["attr_slug"]] = row["value"]
+
         result_entities = []
         for ent in entity_rows:
+            ent_attrs = attr_lookup.get(ent["id"], {})
             attrs = {}
             for slug in [x_attr, y_attr, size_attr]:
-                row = conn.execute(
-                    """
-                    SELECT value FROM entity_attributes
-                    WHERE entity_id = ? AND attr_slug = ?
-                    ORDER BY id DESC LIMIT 1
-                    """,
-                    (ent["id"], slug),
-                ).fetchone()
-                if row:
+                raw = ent_attrs.get(slug)
+                if raw is not None:
                     try:
-                        attrs[slug] = float(row["value"])
+                        attrs[slug] = float(raw)
                     except (ValueError, TypeError):
                         attrs[slug] = None
                 else:

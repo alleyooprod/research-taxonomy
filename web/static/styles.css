@@ -1,7 +1,6 @@
 /* Master stylesheet — imports all feature CSS files */
 /* Design System: The Instrument — Plus Jakarta Sans + JetBrains Mono */
-
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+/* Fonts loaded via <link> in index.html to avoid double-fetch */
 
 @import url("base.css");
 @import url("layout.css");
