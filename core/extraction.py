@@ -64,9 +64,14 @@ def _maybe_strip_html(content: str) -> str:
 
 
 # ── LLM Result Cache ─────────────────────────────────────────
+#
+# Two-level cache: fast in-memory LRU (L1) backed by persistent SQLite
+# using the existing ``mcp_cache`` table (L2).  On a miss from L1 the
+# code checks L2 (24-hour TTL).  Successful extractions write to both.
 
 _EXTRACTION_CACHE_MAX = 256
 _extraction_cache: OrderedDict = OrderedDict()
+_db_cache_enabled = True  # Disabled during testing to avoid cross-test bleed
 
 
 def _content_cache_key(content: str, extractor_type: str) -> str:
@@ -75,26 +80,104 @@ def _content_cache_key(content: str, extractor_type: str) -> str:
     return f"extraction:{h}"
 
 
+def _db_cache_get(key: str):
+    """Check the persistent mcp_cache table for a cached extraction result."""
+    if not _db_cache_enabled:
+        return None
+    try:
+        from storage.db import Database
+        from core.mcp_client import _cache_get as mcp_cache_get, _ensure_cache_table
+        db = Database()
+        conn = db._get_conn()
+        try:
+            _ensure_cache_table(conn)
+            data = mcp_cache_get(conn, key)
+            if data is not None:
+                logger.debug("Extraction DB cache hit: %s", key)
+                return data
+        finally:
+            conn.close()
+    except Exception:
+        pass
+    return None
+
+
+def _db_cache_set(key: str, value):
+    """Persist an extraction result dict to the mcp_cache table (24 h TTL)."""
+    if not _db_cache_enabled:
+        return
+    try:
+        from storage.db import Database
+        from core.mcp_client import _cache_set as mcp_cache_set
+        db = Database()
+        conn = db._get_conn()
+        try:
+            mcp_cache_set(conn, key, "extraction", value, ttl_hours=24)
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+
 def _cache_get(key: str):
-    """Retrieve a cached extraction result, or None on miss."""
+    """Retrieve a cached extraction result (L1 in-memory, then L2 SQLite)."""
+    # L1: in-memory LRU
     if key in _extraction_cache:
         _extraction_cache.move_to_end(key)
-        logger.debug("Extraction cache hit: %s", key)
+        logger.debug("Extraction cache hit (memory): %s", key)
         return _extraction_cache[key]
+    # L2: persistent SQLite
+    data = _db_cache_get(key)
+    if data is not None:
+        # Promote back into L1
+        result = _dict_to_extraction_result(data)
+        if result is not None:
+            _extraction_cache[key] = result
+            _extraction_cache.move_to_end(key)
+            while len(_extraction_cache) > _EXTRACTION_CACHE_MAX:
+                _extraction_cache.popitem(last=False)
+            return result
     return None
 
 
 def _cache_set(key: str, value):
-    """Store an extraction result in the cache (LRU eviction)."""
+    """Store an extraction result in L1 (memory) and L2 (SQLite)."""
+    # L1
     _extraction_cache[key] = value
     _extraction_cache.move_to_end(key)
     while len(_extraction_cache) > _EXTRACTION_CACHE_MAX:
         _extraction_cache.popitem(last=False)
+    # L2
+    _db_cache_set(key, value.to_dict() if hasattr(value, "to_dict") else value)
+
+
+def _dict_to_extraction_result(data):
+    """Reconstruct an ExtractionResult from a serialised dict.  Returns None on failure."""
+    try:
+        return ExtractionResult(
+            success=data.get("success", False),
+            entity_id=data.get("entity_id", 0),
+            job_id=data.get("job_id"),
+            extracted_attributes=data.get("extracted_attributes", []),
+            error=data.get("error"),
+            model=data.get("model"),
+            cost_usd=data.get("cost_usd", 0.0),
+            duration_ms=data.get("duration_ms", 0),
+            metadata=data.get("metadata", {}),
+        )
+    except Exception:
+        return None
 
 
 def clear_extraction_cache():
-    """Clear the in-memory extraction cache. Useful for testing."""
+    """Clear the in-memory extraction cache and disable DB cache.
+
+    The DB cache is disabled on clear to prevent cross-test interference
+    when tests share the same process but use isolated temp databases.
+    """
+    global _db_cache_enabled
     _extraction_cache.clear()
+    _db_cache_enabled = False
 
 # Default model for extraction
 DEFAULT_EXTRACTION_MODEL = "claude-sonnet-4-6"

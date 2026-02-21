@@ -754,28 +754,41 @@ def competitive_enriched_matrix():
 
     entity_type = request.args.get("entity_type")
     attr_slug = request.args.get("attr_slug", "features")
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
 
     with db._get_conn() as conn:
         # ── Fetch entities (same logic as competitive_matrix) ──
         if entity_type:
+            total_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM entities WHERE project_id = ? AND type_slug = ? AND is_deleted = 0",
+                (project_id, entity_type),
+            ).fetchone()["cnt"]
             entity_rows = conn.execute(
                 """
                 SELECT id, name FROM entities
                 WHERE project_id = ? AND type_slug = ? AND is_deleted = 0
                 ORDER BY name COLLATE NOCASE
+                LIMIT ? OFFSET ?
                 """,
-                (project_id, entity_type),
+                (project_id, entity_type, limit, offset),
             ).fetchall()
         else:
+            total_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM entities WHERE project_id = ? AND is_deleted = 0",
+                (project_id,),
+            ).fetchone()["cnt"]
             entity_rows = conn.execute(
                 """
                 SELECT id, name FROM entities
                 WHERE project_id = ? AND is_deleted = 0
                 ORDER BY name COLLATE NOCASE
+                LIMIT ? OFFSET ?
                 """,
-                (project_id,),
+                (project_id, limit, offset),
             ).fetchall()
 
         entities = [{"id": r["id"], "name": r["name"]} for r in entity_rows]
@@ -786,6 +799,7 @@ def competitive_enriched_matrix():
                 "entities": [], "features": [], "matrix": {},
                 "attr_slug": attr_slug, "canonical": False,
                 "financial_columns": [], "financial_data": {},
+                "pagination": {"limit": limit, "offset": offset, "total": total_count},
             })
 
         # ── Feature matrix (duplicated from competitive_matrix) ──
@@ -912,6 +926,7 @@ def competitive_enriched_matrix():
         "canonical": use_canonical,
         "financial_columns": sorted(all_financial_slugs_found),
         "financial_data": financial_data,
+        "pagination": {"limit": limit, "offset": offset, "total": total_count},
     })
 
 
@@ -936,6 +951,9 @@ def competitive_market_map():
     x_attr = request.args.get("x_attr", "domain_rank")
     y_attr = request.args.get("y_attr", "hn_mention_count")
     size_attr = request.args.get("size_attr", "patent_count")
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
 
@@ -955,6 +973,7 @@ def competitive_market_map():
                 "x_label": x_attr.replace("_", " ").title(),
                 "y_label": y_attr.replace("_", " ").title(),
                 "size_label": size_attr.replace("_", " ").title(),
+                "pagination": {"limit": limit, "offset": offset, "total": 0},
             })
 
         # Batch load all needed attributes for all entities
@@ -1006,11 +1025,15 @@ def competitive_market_map():
                     "size_value": attrs.get(size_attr, 1),
                 })
 
+    total_count = len(result_entities)
+    paginated_entities = result_entities[offset:offset + limit]
+
     return jsonify({
-        "entities": result_entities,
+        "entities": paginated_entities,
         "x_label": x_attr.replace("_", " ").title(),
         "y_label": y_attr.replace("_", " ").title(),
         "size_label": size_attr.replace("_", " ").title(),
+        "pagination": {"limit": limit, "offset": offset, "total": total_count},
     })
 
 

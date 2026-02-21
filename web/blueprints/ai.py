@@ -543,10 +543,17 @@ Categories: {', '.join(c['name'] + f' ({c["company_count"]})' for c in categorie
 Companies (name | category | what they do | tags):
 """
     for c in relevant:
-        tags = ', '.join(c.get('tags', []))
-        what = (c.get('what') or '')[:80]
+        parts = [c['name']]
         cat = c.get('category_name') or ''
-        context += f"- {c['name']} | {cat} | {what} | {tags}\n"
+        if cat:
+            parts.append(cat)
+        what = (c.get('what') or '')[:80]
+        if what:
+            parts.append(what)
+        tags = ', '.join(c.get('tags', []))
+        if tags:
+            parts.append(tags)
+        context += f"- {' | '.join(parts)}\n"
 
     instructions = """Answer this question using ONLY the data above. Be extremely brief and data-focused.
 Rules:

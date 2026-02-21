@@ -1104,5 +1104,5 @@ def migrate_companies():
         )
         return jsonify({"status": "ok", "dry_run": dry_run, **stats})
     except Exception as e:
-        logger.error("Migration failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.exception("Migration failed: %s", e)
+        return jsonify({"error": "Internal server error"}), 500
