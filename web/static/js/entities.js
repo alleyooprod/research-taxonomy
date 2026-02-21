@@ -86,7 +86,7 @@ async function _loadEntityTypeCounts() {
             const existing = btn.textContent.replace(/\s*\(\d+\)$/, '');
             btn.textContent = `${existing} (${count})`;
         });
-    } catch (e) { /* stats are cosmetic */ }
+    } catch (e) { console.warn('Stats load failed:', e.message); }
 }
 
 function _setEntityTypeFilter(typeSlug) {

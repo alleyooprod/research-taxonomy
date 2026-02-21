@@ -472,6 +472,7 @@ def competitive_matrix():
         "matrix": matrix,
         "attr_slug": attr_slug,
         "canonical": use_canonical,
+        "pagination": {"limit": limit, "offset": offset, "total": total_count},
     })
 
 
@@ -1329,6 +1330,10 @@ def design_patterns():
     if err:
         return err
 
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    limit = min(limit, 500)  # Cap at 500
+
     db = current_app.db
 
     # Collect patterns from multiple sources
@@ -1502,9 +1507,9 @@ def design_patterns():
             logger.debug("entity_attributes not available for design patterns")
 
     # Build result
-    patterns = []
+    all_patterns = []
     for key, data in sorted(pattern_map.items(), key=lambda x: len(x[1]["entity_names"]), reverse=True):
-        patterns.append({
+        all_patterns.append({
             "name": data["name"],
             "category": data["category"],
             "occurrences": len(data["entity_names"]) + len(data["evidence_ids"]),
@@ -1513,16 +1518,22 @@ def design_patterns():
             "description": data["description"],
         })
 
-    # Collect unique categories from found patterns
-    found_categories = sorted({p["category"] for p in patterns})
+    total_count = len(all_patterns)
+
+    # Collect unique categories from ALL found patterns (before pagination)
+    found_categories = sorted({p["category"] for p in all_patterns})
     if not found_categories:
         found_categories = list(_PATTERN_CATEGORIES)
+
+    # Apply pagination to pattern list
+    patterns = all_patterns[offset:offset + limit]
 
     return jsonify({
         "patterns": patterns,
         "categories": found_categories,
-        "total_patterns": len(patterns),
+        "total_patterns": total_count,
         "total_evidence": total_evidence,
+        "pagination": {"limit": limit, "offset": offset, "total": total_count},
     })
 
 
@@ -1551,6 +1562,10 @@ def design_scoring():
     project_id, err = _require_project_id()
     if err:
         return err
+
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    limit = min(limit, 500)  # Cap at 500
 
     db = current_app.db
 
@@ -1757,12 +1772,17 @@ def design_scoring():
     # Sort by overall score descending
     results.sort(key=lambda r: r["overall_score"], reverse=True)
 
-    avg_score = round(score_sum / len(results), 3) if results else 0
+    total_count = len(results)
+    avg_score = round(score_sum / total_count, 3) if total_count else 0
+
+    # Apply pagination to the scored results
+    paginated_results = results[offset:offset + limit]
 
     return jsonify({
-        "entities": results,
+        "entities": paginated_results,
         "max_evidence": max_evidence,
         "average_score": avg_score,
+        "pagination": {"limit": limit, "offset": offset, "total": total_count},
     })
 
 

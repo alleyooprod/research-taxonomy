@@ -516,6 +516,25 @@ def ai_chat():
     stats = db.get_stats(project_id=project_id)
     categories = db.get_category_stats(project_id=project_id)
 
+    # Filter to relevant companies based on message keywords to reduce context
+    keywords = {w for w in question.lower().split() if len(w) > 2}
+    if keywords:
+        relevant = [
+            c for c in companies
+            if any(
+                k in c.get("name", "").lower()
+                or k in (c.get("what") or "").lower()
+                or k in (c.get("category_name") or "").lower()
+                for k in keywords
+            )
+        ]
+        if not relevant:
+            relevant = companies[:20]  # Fallback if no keyword match
+        else:
+            relevant = relevant[:30]  # Cap at 30 relevant companies
+    else:
+        relevant = companies[:30]
+
     # Build the taxonomy context (cacheable across chat turns)
     context = f"""You have access to a taxonomy database with {stats['total_companies']} companies across {stats['total_categories']} categories.
 
@@ -523,9 +542,11 @@ Categories: {', '.join(c['name'] + f' ({c["company_count"]})' for c in categorie
 
 Companies (name | category | what they do | tags):
 """
-    for c in companies[:100]:
+    for c in relevant:
         tags = ', '.join(c.get('tags', []))
-        context += f"- {c['name']} | {c.get('category_name', 'N/A')} | {c.get('what', 'N/A')[:80]} | {tags}\n"
+        what = (c.get('what') or '')[:80]
+        cat = c.get('category_name') or ''
+        context += f"- {c['name']} | {cat} | {what} | {tags}\n"
 
     instructions = """Answer this question using ONLY the data above. Be extremely brief and data-focused.
 Rules:
@@ -584,23 +605,30 @@ def _run_market_report(job_id, category_name, project_id, model):
     companies = report_db.get_companies(project_id=project_id, limit=200)
     cat_companies = [c for c in companies if c.get('category_name') == category_name]
 
-    company_summaries = "\n".join([
-        f"### {c['name']}\n"
-        f"- URL: {c.get('url','')}\n"
-        f"- Description: {c.get('what','N/A')}\n"
-        f"- Target Market: {c.get('target','N/A')}\n"
-        f"- Products: {c.get('products','N/A')}\n"
-        f"- Funding: {c.get('funding','N/A')}\n"
-        f"- Funding Stage: {c.get('funding_stage','N/A')}\n"
-        f"- Total Raised: {c.get('total_funding_usd','N/A')}\n"
-        f"- Geography: {c.get('geography','N/A')}\n"
-        f"- HQ: {c.get('hq_city','')}, {c.get('hq_country','')}\n"
-        f"- Employees: {c.get('employee_range','N/A')}\n"
-        f"- Founded: {c.get('founded_year','N/A')}\n"
-        f"- TAM: {c.get('tam','N/A')}\n"
-        f"- Tags: {', '.join(c.get('tags',[]))}\n"
-        for c in cat_companies
-    ])
+    # Build company summaries, skipping null/N/A fields to reduce token waste
+    _COMPANY_FIELDS = [
+        ("URL", "url"), ("Description", "what"), ("Target Market", "target"),
+        ("Products", "products"), ("Funding", "funding"),
+        ("Funding Stage", "funding_stage"), ("Total Raised", "total_funding_usd"),
+        ("Geography", "geography"), ("Employees", "employee_range"),
+        ("Founded", "founded_year"), ("TAM", "tam"),
+    ]
+    summaries = []
+    for c in cat_companies:
+        lines = [f"### {c['name']}"]
+        for label, key in _COMPANY_FIELDS:
+            val = c.get(key)
+            if val and str(val).strip() and str(val).strip() != "N/A":
+                lines.append(f"- {label}: {val}")
+        # HQ: combine city + country, skip if both empty
+        hq_parts = [p for p in (c.get("hq_city", ""), c.get("hq_country", "")) if p]
+        if hq_parts:
+            lines.append(f"- HQ: {', '.join(hq_parts)}")
+        tags = c.get("tags", [])
+        if tags:
+            lines.append(f"- Tags: {', '.join(tags)}")
+        summaries.append("\n".join(lines))
+    company_summaries = "\n\n".join(summaries)
 
     prompt = f"""You are a senior market analyst at a tier-1 research firm (similar to Gartner, IDC, or Mintel). Generate a rigorous, data-driven market intelligence briefing for the "{category_name}" category.
 

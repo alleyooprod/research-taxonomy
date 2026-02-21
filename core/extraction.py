@@ -91,6 +91,11 @@ def _cache_set(key: str, value):
     while len(_extraction_cache) > _EXTRACTION_CACHE_MAX:
         _extraction_cache.popitem(last=False)
 
+
+def clear_extraction_cache():
+    """Clear the in-memory extraction cache. Useful for testing."""
+    _extraction_cache.clear()
+
 # Default model for extraction
 DEFAULT_EXTRACTION_MODEL = "claude-sonnet-4-6"
 

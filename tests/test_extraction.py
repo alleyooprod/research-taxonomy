@@ -21,6 +21,7 @@ from core.extraction import (
     _read_evidence_content,
     extract_from_content,
     detect_contradictions,
+    clear_extraction_cache,
     MAX_CONTENT_LENGTH,
     DEFAULT_EXTRACTION_MODEL,
 )
@@ -257,6 +258,10 @@ class TestEvidenceReading:
 
 class TestContentExtraction:
     """EXT-CONTENT: extract_from_content with mocked LLM."""
+
+    def setup_method(self):
+        """Clear extraction cache before each test to avoid cross-test interference."""
+        clear_extraction_cache()
 
     @patch("core.llm.run_cli")
     def test_successful_extraction(self, mock_llm):
