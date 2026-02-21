@@ -133,6 +133,8 @@ async function _loadCompetitiveLens() {
                     onclick="_switchCompetitiveSubView('gap')">Gap Analysis</button>
             <button class="lens-subview-btn"
                     onclick="_switchCompetitiveSubView('positioning')">Positioning</button>
+            <button class="lens-subview-btn"
+                    onclick="_switchCompetitiveSubView('market_map')">Market Map</button>
         </div>
         <div id="competitiveSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading feature matrix&hellip;</div>
@@ -152,7 +154,7 @@ function _switchCompetitiveSubView(view) {
         bar.querySelectorAll('.lens-subview-btn').forEach(btn => {
             btn.classList.remove('lens-subview-btn-active');
         });
-        const idx = { matrix: 0, gap: 1, positioning: 2 }[view];
+        const idx = { matrix: 0, gap: 1, positioning: 2, market_map: 3 }[view];
         const btns = bar.querySelectorAll('.lens-subview-btn');
         if (btns[idx]) btns[idx].classList.add('lens-subview-btn-active');
     }
@@ -161,6 +163,7 @@ function _switchCompetitiveSubView(view) {
         case 'matrix':      _loadFeatureMatrixData();   break;
         case 'gap':         _loadGapAnalysisData();     break;
         case 'positioning': _loadPositioningData();     break;
+        case 'market_map':  _loadMarketMapData();       break;
     }
 }
 
@@ -261,7 +264,10 @@ function _renderFeatureMatrix(data) {
     const totalCells = features.length * entities.length;
     const coveragePct = totalCells > 0 ? Math.round(((totalCells - gapCount) / totalCells) * 100) : 0;
 
+    const toggleHtml = _renderEnrichedToggle(false);
+
     return `
+        ${toggleHtml}
         <div class="matrix-meta">
             <span class="matrix-meta-stat">${entities.length} entities</span>
             <span class="matrix-meta-sep">/</span>
@@ -396,6 +402,237 @@ function _renderPositioningMap(data) {
         </div>
         <div class="pos-entity-count">${entities.length} entities plotted</div>
     `;
+}
+
+// ── Competitive Lens: Market Map ─────────────────────────────
+
+async function _loadMarketMapData() {
+    const sub = document.getElementById('competitiveSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading market map&hellip;</div>';
+
+    try {
+        const resp = await fetch(
+            `/api/lenses/competitive/market-map?project_id=${currentProjectId}`,
+            { headers: { 'X-CSRFToken': CSRF_TOKEN } }
+        );
+        if (!resp.ok) {
+            sub.innerHTML = _lensEmptyState('No Data', 'Market map unavailable. Enrich entities with financial data first.');
+            return;
+        }
+        const data = await resp.json();
+        sub.innerHTML = _renderMarketMap(data);
+    } catch (e) {
+        console.warn('Market map load failed:', e);
+        sub.innerHTML = _lensEmptyState('Market Map Unavailable', 'Enrich entities with financial data first.');
+    }
+}
+
+function _renderMarketMap(data) {
+    const entities = data.entities || [];
+    const xLabel = data.x_label || 'X Axis';
+    const yLabel = data.y_label || 'Y Axis';
+    const sizeLabel = data.size_label || 'Size';
+
+    if (!entities.length) {
+        return _lensEmptyState('No Financial Data', 'Enrich entities with financial data to generate a market map.');
+    }
+
+    const width = 600;
+    const height = 400;
+    const padding = 50;
+
+    // Extract raw values
+    const xVals = entities.map(e => e.x_value || 0);
+    const yVals = entities.map(e => e.y_value || 0);
+    const sizeVals = entities.map(e => e.size_value || 1);
+
+    // Compute ranges
+    const minX = Math.min(...xVals), maxX = Math.max(...xVals);
+    const minY = Math.min(...yVals), maxY = Math.max(...yVals);
+    const minS = Math.min(...sizeVals), maxS = Math.max(...sizeVals);
+    const rangeX = maxX - minX || 1;
+    const rangeY = maxY - minY || 1;
+    const rangeS = maxS - minS || 1;
+
+    // Map entities to SVG circles
+    const circles = entities.map(e => {
+        const cx = padding + ((e.x_value || 0) - minX) / rangeX * (width - padding * 2);
+        const cy = padding + (1 - ((e.y_value || 0) - minY) / rangeY) * (height - padding * 2);
+        const r = 8 + ((e.size_value || 0) - minS) / rangeS * 24;
+        const name = _truncateLabel(e.name || '', 14);
+
+        return `
+            <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}"
+                    class="market-map-dot" />
+            <text x="${cx.toFixed(1)}" y="${(cy + r + 14).toFixed(1)}"
+                  class="market-map-label" text-anchor="middle">${esc(name)}</text>
+        `;
+    }).join('');
+
+    // Axis lines
+    const axisLines = `
+        <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" class="market-map-axis" />
+        <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" class="market-map-axis" />
+    `;
+
+    // Axis labels
+    const axisLabels = `
+        <text x="${width / 2}" y="${height - 8}" class="market-map-axis-label" text-anchor="middle">${esc(xLabel)}</text>
+        <text x="14" y="${height / 2}" class="market-map-axis-label" text-anchor="middle" transform="rotate(-90, 14, ${height / 2})">${esc(yLabel)}</text>
+    `;
+
+    const svg = `
+        <svg width="${width}" height="${height}" class="market-map-svg" viewBox="0 0 ${width} ${height}">
+            ${axisLines}
+            ${axisLabels}
+            ${circles}
+        </svg>
+    `;
+
+    return `
+        <div class="market-map-meta">
+            <span class="matrix-meta-stat">${entities.length} entities</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="matrix-meta-stat">Size: ${esc(sizeLabel)}</span>
+        </div>
+        <div class="market-map-container">${svg}</div>
+    `;
+}
+
+// ── Competitive Lens: Enriched Matrix ────────────────────────
+
+let _enrichedMatrixEnabled = false;
+
+async function _loadEnrichedMatrixData() {
+    const sub = document.getElementById('competitiveSubContent');
+    if (!sub) return;
+    sub.innerHTML = '<div class="lens-loading">Loading enriched matrix&hellip;</div>';
+
+    try {
+        const resp = await fetch(
+            `/api/lenses/competitive/enriched-matrix?project_id=${currentProjectId}`,
+            { headers: { 'X-CSRFToken': CSRF_TOKEN } }
+        );
+        if (!resp.ok) {
+            sub.innerHTML = _lensEmptyState('No Enriched Data', 'No financial data available for enriched matrix.');
+            return;
+        }
+        const data = await resp.json();
+        sub.innerHTML = _renderEnrichedMatrix(data);
+    } catch (e) {
+        console.warn('Enriched matrix load failed:', e);
+        sub.innerHTML = _lensEmptyState('Load Failed', 'Could not load enriched matrix.');
+    }
+}
+
+function _renderEnrichedMatrix(data) {
+    const entities = data.entities || [];
+    const features = data.features || [];
+    const financialColumns = data.financial_columns || [];
+
+    if (!entities.length || (!features.length && !financialColumns.length)) {
+        return _lensEmptyState('No Enriched Data', 'Entities need attributes and financial data for an enriched matrix.');
+    }
+
+    // Entity header cells
+    const headerCells = entities.map(e =>
+        `<th class="matrix-col-header" title="${escAttr(e.name)}">${esc(_truncateLabel(e.name, 16))}</th>`
+    ).join('');
+
+    // Feature rows (same as standard matrix)
+    const featureRows = features.map((feat, rowIdx) => {
+        const cells = entities.map(e => {
+            const val = feat.values ? feat.values[e.id] : undefined;
+            const isGap = val === undefined || val === null || val === '';
+            const display = _matrixCellDisplay(val);
+            return `<td class="matrix-cell ${isGap ? 'matrix-cell-gap' : 'matrix-cell-filled'}" title="${escAttr(isGap ? 'No data' : String(val))}">${display}</td>`;
+        }).join('');
+
+        return `
+            <tr class="${rowIdx % 2 === 0 ? 'matrix-row-even' : 'matrix-row-odd'}">
+                <th class="matrix-row-header" title="${escAttr(feat.label || feat.slug)}">${esc(feat.label || feat.slug)}</th>
+                ${cells}
+            </tr>
+        `;
+    }).join('');
+
+    // Financial rows (visually distinct)
+    const financialRows = financialColumns.map((col, rowIdx) => {
+        const cells = entities.map(e => {
+            const financials = e.financials || {};
+            const val = financials[col.key];
+            const isGap = val === undefined || val === null || val === '';
+            const display = isGap ? '<span class="matrix-gap-marker">\u2014</span>' : `<span class="matrix-value">${esc(_truncateLabel(String(val), 12))}</span>`;
+            return `<td class="matrix-cell matrix-cell-financial ${isGap ? 'matrix-cell-gap' : 'matrix-cell-filled'}" title="${escAttr(isGap ? 'No data' : String(val))}">${display}</td>`;
+        }).join('');
+
+        return `
+            <tr class="matrix-row-financial ${rowIdx % 2 === 0 ? 'matrix-row-even' : 'matrix-row-odd'}">
+                <th class="matrix-row-header matrix-row-header-financial" title="${escAttr(col.label)}">${esc(col.label)}</th>
+                ${cells}
+            </tr>
+        `;
+    }).join('');
+
+    // Separator row between features and financials
+    const separatorRow = financialColumns.length && features.length
+        ? `<tr class="matrix-separator-row"><td colspan="${entities.length + 1}" class="matrix-separator-cell"><span class="matrix-separator-label">Financial Data</span></td></tr>`
+        : '';
+
+    const toggleHtml = _renderEnrichedToggle(true);
+
+    return `
+        ${toggleHtml}
+        <div class="matrix-meta">
+            <span class="matrix-meta-stat">${entities.length} entities</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="matrix-meta-stat">${features.length} features</span>
+            <span class="matrix-meta-sep">/</span>
+            <span class="matrix-meta-stat">${financialColumns.length} financial fields</span>
+        </div>
+        <div class="matrix-scroll-wrap">
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th class="matrix-origin-cell"></th>
+                        ${headerCells}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${featureRows}
+                    ${separatorRow}
+                    ${financialRows}
+                </tbody>
+            </table>
+        </div>
+        <div class="matrix-legend">
+            <span class="matrix-legend-item matrix-legend-filled">Filled</span>
+            <span class="matrix-legend-item matrix-legend-gap">Gap</span>
+            <span class="matrix-legend-item matrix-legend-financial">Financial</span>
+        </div>
+    `;
+}
+
+function _renderEnrichedToggle(active) {
+    return `
+        <div class="matrix-enriched-toggle">
+            <label class="matrix-toggle-label">
+                <input type="checkbox" ${active ? 'checked' : ''}
+                       onchange="_toggleEnrichedMatrix(this.checked)" />
+                <span>Show financial data</span>
+            </label>
+        </div>
+    `;
+}
+
+function _toggleEnrichedMatrix(enabled) {
+    _enrichedMatrixEnabled = enabled;
+    if (enabled) {
+        _loadEnrichedMatrixData();
+    } else {
+        _loadFeatureMatrixData();
+    }
 }
 
 // ── Design Lens ──────────────────────────────────────────────
@@ -1729,3 +1966,4 @@ window._expandGalleryItem        = _expandGalleryItem;
 window._closeLightbox            = _closeLightbox;
 window._runComparison            = _runComparison;
 window._filterPatternCategory    = _filterPatternCategory;
+window._toggleEnrichedMatrix     = _toggleEnrichedMatrix;

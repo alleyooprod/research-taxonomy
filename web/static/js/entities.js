@@ -336,13 +336,30 @@ function _renderEntityDetail(entity) {
         const displayVal = val ? (typeof val === 'object' ? val.value || '' : val) : '';
         const source = val && typeof val === 'object' ? val.source : '';
         const confidence = val && typeof val === 'object' ? val.confidence : null;
+        const isMcp = source && source.startsWith('mcp:');
+        const sourceLabel = isMcp ? source.replace('mcp:', '') : (source || '');
+        const sourceClass = isMcp ? 'attr-source-badge mcp-source' : 'attr-source-badge';
         html += `<div class="entity-attr-row">
             <span class="entity-attr-label">${esc(a.name)}</span>
             <span class="entity-attr-value">${esc(String(displayVal))}</span>
-            ${source ? `<span class="entity-attr-source">${esc(source)}</span>` : ''}
+            ${sourceLabel ? `<span class="${sourceClass}" title="Source: ${esc(source || '')}">${esc(sourceLabel)}</span>` : ''}
         </div>`;
     });
     html += `</div>`;
+
+    // Enrichment section
+    html += `<div class="entity-detail-section">
+        <h3 class="section-label">ENRICHMENT</h3>
+        <div class="enrichment-controls" id="enrichmentControls_${entity.id}">
+            <button class="btn" onclick="startEnrichment(${entity.id})">Enrich</button>
+            <button class="btn btn-sm" onclick="showEnrichmentSources(${entity.id})">Select sources...</button>
+        </div>
+        <div id="enrichmentProgress_${entity.id}" class="enrichment-progress hidden">
+            <div class="enrichment-progress-bar" id="enrichmentProgressBar_${entity.id}"></div>
+            <span class="enrichment-status" id="enrichmentStatus_${entity.id}">Querying sources...</span>
+        </div>
+        <div id="enrichmentResults_${entity.id}"></div>
+    </div>`;
 
     // Children section
     const childTypes = _entitySchema?.entity_types?.filter(t => t.parent_type === entity.type_slug) || [];
@@ -1144,5 +1161,263 @@ function _closeRefinePanel() {
         panel.innerHTML = '';
     }
     window._lastRefineResult = null;
+}
+
+// ── Enrichment ──────────────────────────────────────────────
+
+// Track active enrichment polls so we can clean up
+let _enrichmentPollTimers = {};
+
+/**
+ * Start enrichment for an entity, optionally with specific MCP servers.
+ * Posts to /api/entities/{entityId}/enrich and handles async polling.
+ */
+async function startEnrichment(entityId, servers) {
+    const progressEl = document.getElementById(`enrichmentProgress_${entityId}`);
+    const barEl = document.getElementById(`enrichmentProgressBar_${entityId}`);
+    const statusEl = document.getElementById(`enrichmentStatus_${entityId}`);
+    const controlsEl = document.getElementById(`enrichmentControls_${entityId}`);
+    const resultsEl = document.getElementById(`enrichmentResults_${entityId}`);
+
+    // Show progress, hide controls
+    if (progressEl) progressEl.classList.remove('hidden');
+    if (barEl) barEl.style.width = '5%';
+    if (statusEl) statusEl.textContent = 'Querying sources...';
+    if (controlsEl) controlsEl.classList.add('hidden');
+    if (resultsEl) resultsEl.innerHTML = '';
+
+    const body = {};
+    if (servers && servers.length > 0) body.servers = servers;
+    body.async = true;
+
+    try {
+        const res = await safeFetch(`/api/entities/${entityId}/enrich`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            showToast(data.error, 5000);
+            _resetEnrichmentUI(entityId);
+            return;
+        }
+
+        // If we got a job_id, poll for completion
+        if (data.job_id) {
+            _pollEnrichmentJob(entityId, data.job_id);
+            return;
+        }
+
+        // Synchronous result — render immediately
+        if (barEl) barEl.style.width = '100%';
+        if (statusEl) statusEl.textContent = 'Complete';
+        _renderEnrichmentResults(entityId, data);
+        setTimeout(() => { if (progressEl) progressEl.classList.add('hidden'); }, 1500);
+        showEntityDetail(entityId);
+    } catch (e) {
+        showToast('Enrichment failed: ' + (e.message || 'unknown error'), 5000);
+        _resetEnrichmentUI(entityId);
+    }
+}
+
+/**
+ * Show a dialog with recommended enrichment sources for an entity.
+ * Fetches server recommendations and renders checkboxes.
+ */
+async function showEnrichmentSources(entityId) {
+    let sources = [];
+    try {
+        const res = await safeFetch(`/api/entities/${entityId}/enrichment/recommend`);
+        const data = await res.json();
+        sources = data.servers || data.sources || [];
+    } catch (e) {
+        showToast('Failed to load enrichment sources');
+        return;
+    }
+
+    if (sources.length === 0) {
+        showToast('No enrichment sources available for this entity');
+        return;
+    }
+
+    // Build dialog content
+    let html = `<div class="enrichment-source-dialog">
+        <div class="enrichment-source-list">`;
+    sources.forEach((s, i) => {
+        const name = s.name || s.server || '';
+        const reason = s.reason || '';
+        const priority = s.priority || '';
+        const checked = priority === 'high' ? 'checked' : '';
+        html += `<label class="enrichment-source-item">
+            <input type="checkbox" value="${escAttr(name)}" ${checked} data-index="${i}">
+            <span class="enrichment-source-name">${esc(name)}</span>
+            ${reason ? `<span class="enrichment-source-reason">${esc(reason)}</span>` : ''}
+            ${priority ? `<span class="enrichment-source-priority">${esc(priority)}</span>` : ''}
+        </label>`;
+    });
+    html += `</div>
+        <div class="enrichment-source-actions">
+            <button class="btn" onclick="_enrichFromSelected(${entityId})">Enrich Selected</button>
+        </div>
+    </div>`;
+
+    // Use the entity modal to show source selection
+    const modal = document.getElementById('entityModal');
+    const title = document.getElementById('entityModalTitle');
+    const body = document.getElementById('entityModalBody');
+    if (!modal || !body) return;
+
+    title.textContent = 'Enrichment Sources';
+    body.innerHTML = html;
+    modal.classList.remove('hidden');
+}
+
+/**
+ * Triggered from the enrichment sources dialog — gather selected servers
+ * and start enrichment.
+ */
+function _enrichFromSelected(entityId) {
+    const checkboxes = document.querySelectorAll('.enrichment-source-item input[type=checkbox]:checked');
+    const selected = Array.from(checkboxes).map(cb => cb.value).filter(Boolean);
+
+    closeEntityModal();
+
+    if (selected.length === 0) {
+        showToast('Select at least one source');
+        return;
+    }
+
+    startEnrichment(entityId, selected);
+}
+
+/**
+ * Render enrichment results summary into the results container.
+ */
+function _renderEnrichmentResults(entityId, results) {
+    const container = document.getElementById(`enrichmentResults_${entityId}`);
+    if (!container) return;
+
+    const enrichedAttrs = results.enriched_attrs || [];
+    const serversUsed = results.servers_used || [];
+    const errors = results.errors || [];
+    const attrCount = enrichedAttrs.length;
+    const serverCount = serversUsed.length;
+
+    let html = `<div class="enrichment-results">`;
+
+    if (attrCount > 0 || serverCount > 0) {
+        html += `<div class="enrichment-results-summary">Enriched ${attrCount} attribute${attrCount !== 1 ? 's' : ''} from ${serverCount} source${serverCount !== 1 ? 's' : ''}</div>`;
+    }
+
+    // List servers with attribute counts
+    if (serversUsed.length > 0) {
+        serversUsed.forEach(s => {
+            const name = typeof s === 'string' ? s : (s.name || s.server || '');
+            const count = typeof s === 'object' ? (s.attr_count || s.count || '') : '';
+            html += `<div class="server-item">
+                <span>${esc(name)}</span>
+                ${count ? `<span class="server-attr-count">${count} attr${count !== 1 ? 's' : ''}</span>` : ''}
+            </div>`;
+        });
+    }
+
+    // Errors
+    if (errors.length > 0) {
+        errors.forEach(err => {
+            const msg = typeof err === 'string' ? err : (err.message || err.error || JSON.stringify(err));
+            html += `<div class="error-item">${esc(msg)}</div>`;
+        });
+    }
+
+    if (attrCount === 0 && serverCount === 0 && errors.length === 0) {
+        html += `<div class="error-item">No new data found</div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+/**
+ * Poll an async enrichment job until completion or timeout.
+ * Polls /api/enrichment/poll/{jobId} every 2 seconds, max 60 polls (2 minutes).
+ */
+async function _pollEnrichmentJob(entityId, jobId) {
+    // Clean up any previous poll for this entity
+    if (_enrichmentPollTimers[entityId]) {
+        clearInterval(_enrichmentPollTimers[entityId]);
+        delete _enrichmentPollTimers[entityId];
+    }
+
+    let pollCount = 0;
+    const maxPolls = 60;
+
+    const barEl = document.getElementById(`enrichmentProgressBar_${entityId}`);
+    const statusEl = document.getElementById(`enrichmentStatus_${entityId}`);
+    const progressEl = document.getElementById(`enrichmentProgress_${entityId}`);
+
+    _enrichmentPollTimers[entityId] = setInterval(async () => {
+        pollCount++;
+
+        // Timeout after max polls
+        if (pollCount >= maxPolls) {
+            clearInterval(_enrichmentPollTimers[entityId]);
+            delete _enrichmentPollTimers[entityId];
+            if (statusEl) statusEl.textContent = 'Timed out';
+            showToast('Enrichment timed out', 5000);
+            _resetEnrichmentUI(entityId);
+            return;
+        }
+
+        // Update progress bar (estimate)
+        const pct = Math.min(5 + (pollCount / maxPolls) * 90, 95);
+        if (barEl) barEl.style.width = pct + '%';
+
+        try {
+            const res = await safeFetch(`/api/enrichment/poll/${jobId}`);
+            const data = await res.json();
+
+            if (data.status === 'complete' || data.status === 'completed') {
+                clearInterval(_enrichmentPollTimers[entityId]);
+                delete _enrichmentPollTimers[entityId];
+
+                if (barEl) barEl.style.width = '100%';
+                if (statusEl) statusEl.textContent = 'Complete';
+                _renderEnrichmentResults(entityId, data.result || data);
+                setTimeout(() => { if (progressEl) progressEl.classList.add('hidden'); }, 1500);
+                // Refresh entity detail to show new attributes
+                showEntityDetail(entityId);
+                showToast('Enrichment complete', 3000);
+                return;
+            }
+
+            if (data.status === 'error' || data.status === 'failed') {
+                clearInterval(_enrichmentPollTimers[entityId]);
+                delete _enrichmentPollTimers[entityId];
+                showToast('Enrichment failed: ' + (data.error || 'unknown error'), 5000);
+                _resetEnrichmentUI(entityId);
+                return;
+            }
+
+            // Still in progress — update status text if provided
+            if (data.message && statusEl) {
+                statusEl.textContent = data.message;
+            }
+        } catch (e) {
+            // Network error during poll — keep trying until maxPolls
+        }
+    }, 2000);
+}
+
+/**
+ * Reset enrichment UI to initial state (show controls, hide progress).
+ */
+function _resetEnrichmentUI(entityId) {
+    const progressEl = document.getElementById(`enrichmentProgress_${entityId}`);
+    const controlsEl = document.getElementById(`enrichmentControls_${entityId}`);
+
+    if (progressEl) progressEl.classList.add('hidden');
+    if (controlsEl) controlsEl.classList.remove('hidden');
 }
 

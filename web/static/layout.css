@@ -847,6 +847,117 @@ textarea {
 .entity-form { display: flex; flex-direction: column; gap: 12px; max-width: 500px; }
 .entity-form .form-group { margin-bottom: 0; }
 
+/* ========== Enrichment ========== */
+.enrichment-controls {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+}
+.enrichment-progress {
+    margin: 8px 0;
+}
+.enrichment-progress-bar {
+    height: 2px;
+    background: var(--text-primary);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+.enrichment-status {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    display: block;
+    font-family: var(--font-mono);
+}
+
+/* Source badges on attributes */
+.attr-source-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-left: 4px;
+    font-family: var(--font-mono);
+}
+.attr-source-badge.mcp-source {
+    border: 1px solid var(--text-primary);
+    padding: 0 4px;
+    color: var(--text-primary);
+}
+
+/* Enrichment results */
+.enrichment-results {
+    margin: 8px 0;
+    font-size: 12px;
+}
+.enrichment-results-summary {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+}
+.enrichment-results .server-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border-default);
+}
+.enrichment-results .server-attr-count {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+.enrichment-results .error-item {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 2px 0;
+}
+
+/* Enrichment source selection dialog */
+.enrichment-source-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 500px;
+}
+.enrichment-source-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.enrichment-source-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-default);
+}
+.enrichment-source-item input[type=checkbox] {
+    margin: 0;
+}
+.enrichment-source-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+.enrichment-source-reason {
+    font-size: 11px;
+    color: var(--text-muted);
+    flex: 1;
+}
+.enrichment-source-priority {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+.enrichment-source-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
 /* ========== Schema Refinement Panel ========== */
 .refine-panel {
     margin-top: 16px;

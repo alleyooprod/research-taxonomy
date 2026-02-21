@@ -21,7 +21,10 @@ monitoring_bp = Blueprint("monitoring", __name__)
 
 # ── Constants ────────────────────────────────────────────────
 
-_VALID_MONITOR_TYPES = {"website", "appstore", "playstore", "rss"}
+_VALID_MONITOR_TYPES = {
+    "website", "appstore", "playstore", "rss",
+    "hackernews", "news_search", "traffic", "patent",
+}
 
 _URL_ATTR_SLUGS = {
     "website", "url", "homepage", "website_url", "home_url",
@@ -217,8 +220,8 @@ def _score_severity(change_type, change_summary=None, details=None):
     """Determine severity from change_type and optional content analysis.
 
     Severity levels:
-        info     — minor text changes, new blog post
-        minor    — screenshot updates, description changes
+        info     — minor text changes, new blog post, news mentions
+        minor    — screenshot updates, description changes, traffic shifts
         major    — pricing changes, new features, version updates
         critical — shutdown, acquisition, major pivot
     """
@@ -230,17 +233,22 @@ def _score_severity(change_type, change_summary=None, details=None):
         "price_change": "major",
         "funding": "major",
         "shutdown": "critical",
+        "news_mention": "info",
+        "news_article": "info",
+        "traffic_change": "minor",
+        "patent_filed": "info",
     }
     severity = severity_map.get(change_type, "info")
 
     # Upgrade severity based on content analysis if summary is provided
-    if change_summary and severity == "minor":
+    if change_summary and severity in ("minor", "info"):
         summary_lower = change_summary.lower()
         # Check for keywords that suggest higher severity
         major_keywords = [
             "pricing", "price", "plan", "tier", "cost",
             "version", "release", "update", "feature",
             "acquisition", "acquired", "merger",
+            "ipo", "bankrupt",
         ]
         critical_keywords = [
             "shutdown", "shutting down", "end of life", "deprecated",
@@ -600,12 +608,339 @@ def _check_rss(monitor, conn):
     return result
 
 
+def _check_hackernews(monitor, conn):
+    """Check Hacker News for mentions of the entity."""
+    from core.mcp_client import search_hackernews
+
+    entity_name = monitor["target_url"]
+    try:
+        stories = search_hackernews(entity_name, num_results=50, conn=conn)
+    except Exception as e:
+        return _check_error(f"Hacker News search failed: {e}")
+
+    if stories is None:
+        return _check_error("Hacker News search unavailable (API returned None)")
+
+    # Build fingerprint from sorted story IDs
+    story_ids = sorted({str(s.get("story_id", s.get("id", ""))) for s in stories if s})
+    content_hash = hashlib.sha256(json.dumps(story_ids).encode()).hexdigest()
+
+    prev = _get_prev_check(conn, monitor["id"])
+    changes_detected = prev is not None and prev["content_hash"] != content_hash
+
+    change_summary = None
+    change_details = None
+    custom_severity = None
+
+    if changes_detected:
+        # Determine which stories are new
+        old_ids = set()
+        if prev and prev["change_details"]:
+            try:
+                old_details = json.loads(prev["change_details"])
+                old_ids = {
+                    str(s.get("story_id", s.get("id", "")))
+                    for s in old_details.get("stories", [])
+                }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        current_ids = {str(s.get("story_id", s.get("id", ""))) for s in stories if s}
+        new_ids = current_ids - old_ids
+        new_stories = [
+            s for s in stories
+            if str(s.get("story_id", s.get("id", ""))) in new_ids
+        ]
+        new_count = len(new_stories)
+
+        # Build summary with top story title
+        top_title = ""
+        if new_stories:
+            top_title = f" — \"{new_stories[0].get('title', 'Untitled')}\""
+        change_summary = f"{new_count} new Hacker News mention{'s' if new_count != 1 else ''}{top_title}"
+
+        change_details = json.dumps({
+            "stories": [s for s in stories[:10]],
+            "new_count": new_count,
+        })
+
+        # Custom severity based on points
+        max_points = max(
+            (s.get("points", 0) or 0 for s in new_stories),
+            default=0,
+        )
+        if max_points > 500:
+            custom_severity = "critical"
+        elif max_points > 100:
+            custom_severity = "major"
+    else:
+        change_details = json.dumps({
+            "stories": [s for s in stories[:10]],
+            "new_count": 0,
+        })
+
+    result = {
+        "status": "completed",
+        "content_hash": content_hash,
+        "changes_detected": changes_detected,
+        "change_summary": change_summary,
+        "change_details": change_details,
+        "error": None,
+    }
+    if changes_detected:
+        result["_change_type"] = "news_mention"
+        if custom_severity:
+            result["_severity_override"] = custom_severity
+    return result
+
+
+def _check_news_search(monitor, conn):
+    """Check news sources for articles about the entity."""
+    from core.mcp_client import search_news
+
+    entity_name = monitor["target_url"]
+    try:
+        articles = search_news(entity_name, num_results=20, conn=conn)
+    except Exception as e:
+        return _check_error(f"News search failed: {e}")
+
+    if articles is None:
+        return _check_error("News search unavailable (API returned None)")
+
+    # Build fingerprint from sorted article URLs
+    article_urls = sorted({
+        a.get("url", a.get("link", "")) for a in articles if a
+    })
+    content_hash = hashlib.sha256(json.dumps(article_urls).encode()).hexdigest()
+
+    prev = _get_prev_check(conn, monitor["id"])
+    changes_detected = prev is not None and prev["content_hash"] != content_hash
+
+    change_summary = None
+    change_details = None
+
+    if changes_detected:
+        # Determine which articles are new
+        old_urls = set()
+        if prev and prev["change_details"]:
+            try:
+                old_details = json.loads(prev["change_details"])
+                old_urls = {
+                    a.get("url", a.get("link", ""))
+                    for a in old_details.get("articles", [])
+                }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        current_urls = {a.get("url", a.get("link", "")) for a in articles if a}
+        new_urls = current_urls - old_urls
+        new_articles = [
+            a for a in articles
+            if a.get("url", a.get("link", "")) in new_urls
+        ]
+        new_count = len(new_articles)
+
+        # Build summary with first new article title
+        first_title = ""
+        if new_articles:
+            first_title = f" — \"{new_articles[0].get('title', 'Untitled')}\""
+        change_summary = (
+            f"{new_count} new news article{'s' if new_count != 1 else ''} "
+            f"about {entity_name}{first_title}"
+        )
+
+        change_details = json.dumps({
+            "articles": articles[:20],
+            "new_count": new_count,
+        })
+    else:
+        change_details = json.dumps({
+            "articles": articles[:20],
+            "new_count": 0,
+        })
+
+    result = {
+        "status": "completed",
+        "content_hash": content_hash,
+        "changes_detected": changes_detected,
+        "change_summary": change_summary,
+        "change_details": change_details,
+        "error": None,
+    }
+    if changes_detected:
+        result["_change_type"] = "news_article"
+    return result
+
+
+def _check_traffic(monitor, conn):
+    """Check domain traffic rank via Cloudflare Radar."""
+    from core.mcp_client import get_domain_rank
+
+    domain = monitor["target_url"]
+    try:
+        rank_data = get_domain_rank(domain, conn=conn)
+    except Exception as e:
+        return _check_error(f"Traffic rank lookup failed: {e}")
+
+    if rank_data is None:
+        return _check_error("Traffic rank unavailable (API returned None)")
+
+    rank = rank_data.get("rank", 0)
+    category = rank_data.get("category", "unknown")
+
+    # Build fingerprint from rank + category
+    fingerprint_str = f"{rank}:{category}"
+    content_hash = hashlib.sha256(fingerprint_str.encode()).hexdigest()
+
+    prev = _get_prev_check(conn, monitor["id"])
+    changes_detected = prev is not None and prev["content_hash"] != content_hash
+
+    change_summary = None
+    change_details = None
+    custom_severity = None
+
+    if changes_detected:
+        # Calculate rank difference from previous check
+        prev_rank = None
+        if prev and prev["change_details"]:
+            try:
+                old_details = json.loads(prev["change_details"])
+                prev_rank = old_details.get("rank")
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        change_pct = 0.0
+        if prev_rank and prev_rank > 0 and rank > 0:
+            change_pct = round(abs(rank - prev_rank) / prev_rank * 100, 1)
+
+        if prev_rank is not None:
+            change_summary = f"Domain rank changed: {prev_rank} -> {rank}"
+        else:
+            change_summary = f"Domain rank: {rank} (category: {category})"
+
+        change_details = json.dumps({
+            "rank": rank,
+            "prev_rank": prev_rank,
+            "category": category,
+            "change_pct": change_pct,
+        })
+
+        # Custom severity based on rank swing percentage
+        if change_pct > 80:
+            custom_severity = "critical"
+        elif change_pct > 50:
+            custom_severity = "major"
+    else:
+        change_details = json.dumps({
+            "rank": rank,
+            "prev_rank": None,
+            "category": category,
+            "change_pct": 0.0,
+        })
+
+    result = {
+        "status": "completed",
+        "content_hash": content_hash,
+        "changes_detected": changes_detected,
+        "change_summary": change_summary,
+        "change_details": change_details,
+        "error": None,
+    }
+    if changes_detected:
+        result["_change_type"] = "traffic_change"
+        if custom_severity:
+            result["_severity_override"] = custom_severity
+    return result
+
+
+def _check_patent(monitor, conn):
+    """Check for new patent filings by the entity."""
+    from core.mcp_client import search_patents
+
+    entity_name = monitor["target_url"]
+    try:
+        patents = search_patents(entity_name, num_results=20, conn=conn)
+    except Exception as e:
+        return _check_error(f"Patent search failed: {e}")
+
+    if patents is None:
+        return _check_error("Patent search unavailable (API returned None)")
+
+    # Build fingerprint from sorted patent IDs
+    patent_ids = sorted({
+        str(p.get("patent_id", p.get("id", ""))) for p in patents if p
+    })
+    content_hash = hashlib.sha256(json.dumps(patent_ids).encode()).hexdigest()
+
+    prev = _get_prev_check(conn, monitor["id"])
+    changes_detected = prev is not None and prev["content_hash"] != content_hash
+
+    change_summary = None
+    change_details = None
+
+    if changes_detected:
+        # Determine which patents are new
+        old_ids = set()
+        if prev and prev["change_details"]:
+            try:
+                old_details = json.loads(prev["change_details"])
+                old_ids = {
+                    str(p.get("patent_id", p.get("id", "")))
+                    for p in old_details.get("patents", [])
+                }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        current_ids = {str(p.get("patent_id", p.get("id", ""))) for p in patents if p}
+        new_ids = current_ids - old_ids
+        new_patents = [
+            p for p in patents
+            if str(p.get("patent_id", p.get("id", ""))) in new_ids
+        ]
+        new_count = len(new_patents)
+
+        # Build summary with first new patent title
+        first_title = ""
+        if new_patents:
+            first_title = f" — \"{new_patents[0].get('title', 'Untitled')}\""
+        change_summary = (
+            f"{new_count} new patent{'s' if new_count != 1 else ''} "
+            f"filed by {entity_name}{first_title}"
+        )
+
+        change_details = json.dumps({
+            "patents": patents[:20],
+            "new_count": new_count,
+        })
+    else:
+        change_details = json.dumps({
+            "patents": patents[:20],
+            "new_count": 0,
+        })
+
+    result = {
+        "status": "completed",
+        "content_hash": content_hash,
+        "changes_detected": changes_detected,
+        "change_summary": change_summary,
+        "change_details": change_details,
+        "error": None,
+    }
+    if changes_detected:
+        result["_change_type"] = "patent_filed"
+    return result
+
+
 # Dispatcher for check functions by monitor type
 _CHECK_HANDLERS = {
     "website": _check_website,
     "appstore": _check_appstore,
     "playstore": _check_playstore,
     "rss": _check_rss,
+    "hackernews": _check_hackernews,
+    "news_search": _check_news_search,
+    "traffic": _check_traffic,
+    "patent": _check_patent,
 }
 
 
@@ -753,6 +1088,9 @@ def _execute_check(monitor, conn):
     if result.get("changes_detected"):
         change_type = result.get("_change_type", "content_change")
         severity = _score_severity(change_type, result.get("change_summary"))
+        # Allow handlers to override severity (e.g. hackernews points, traffic swing)
+        if result.get("_severity_override"):
+            severity = result["_severity_override"]
 
         title = result.get("change_summary") or f"Change detected for {monitor['target_url']}"
         # Truncate title if too long
@@ -1574,19 +1912,24 @@ def auto_setup_monitors():
             if source:
                 candidates.append((row["id"], source))
 
-        # Get existing monitors for dedup
+        # Get existing monitors for dedup (keyed by entity + url + type)
         existing_monitors = conn.execute(
-            "SELECT entity_id, target_url FROM monitors WHERE project_id = ?",
+            "SELECT entity_id, target_url, monitor_type FROM monitors WHERE project_id = ?",
             (project_id,),
         ).fetchall()
         existing_set = {
             (row["entity_id"], row["target_url"]) for row in existing_monitors
+        }
+        existing_typed_set = {
+            (row["entity_id"], row["target_url"], row["monitor_type"])
+            for row in existing_monitors
         }
 
         created = 0
         skipped = 0
         created_monitors = []
 
+        # --- URL-based monitors (website, appstore, playstore, rss) ---
         for entity_id, url in candidates:
             if (entity_id, url) in existing_set:
                 skipped += 1
@@ -1606,6 +1949,7 @@ def auto_setup_monitors():
             )
             monitor_id = cursor.lastrowid
             existing_set.add((entity_id, url))
+            existing_typed_set.add((entity_id, url, monitor_type))
             created += 1
             created_monitors.append({
                 "id": monitor_id,
@@ -1614,6 +1958,80 @@ def auto_setup_monitors():
                 "target_url": url,
                 "monitor_type": monitor_type,
             })
+
+        # --- Entity-name-based monitors (hackernews, news_search, patent) ---
+        for entity_id, entity_name in entity_names.items():
+            # Hacker News monitor for every entity
+            if (not allowed_types or "hackernews" in allowed_types) and \
+               (entity_id, entity_name, "hackernews") not in existing_typed_set:
+                cursor = conn.execute(
+                    """INSERT INTO monitors
+                       (project_id, entity_id, monitor_type, target_url,
+                        check_interval_hours, is_active)
+                       VALUES (?, ?, 'hackernews', ?, ?, 1)""",
+                    (project_id, entity_id, entity_name, check_interval),
+                )
+                existing_typed_set.add((entity_id, entity_name, "hackernews"))
+                created += 1
+                created_monitors.append({
+                    "id": cursor.lastrowid,
+                    "entity_id": entity_id,
+                    "entity_name": entity_name,
+                    "target_url": entity_name,
+                    "monitor_type": "hackernews",
+                })
+
+            # News search monitor for every entity
+            if (not allowed_types or "news_search" in allowed_types) and \
+               (entity_id, entity_name, "news_search") not in existing_typed_set:
+                cursor = conn.execute(
+                    """INSERT INTO monitors
+                       (project_id, entity_id, monitor_type, target_url,
+                        check_interval_hours, is_active)
+                       VALUES (?, ?, 'news_search', ?, ?, 1)""",
+                    (project_id, entity_id, entity_name, check_interval),
+                )
+                existing_typed_set.add((entity_id, entity_name, "news_search"))
+                created += 1
+                created_monitors.append({
+                    "id": cursor.lastrowid,
+                    "entity_id": entity_id,
+                    "entity_name": entity_name,
+                    "target_url": entity_name,
+                    "monitor_type": "news_search",
+                })
+
+        # --- Traffic monitors (domain from URL attributes) ---
+        if not allowed_types or "traffic" in allowed_types:
+            for entity_id, url in candidates:
+                # Extract domain from URL
+                domain = None
+                try:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(url)
+                    domain = parsed.hostname
+                except Exception:
+                    pass
+                if not domain:
+                    continue
+
+                if (entity_id, domain, "traffic") not in existing_typed_set:
+                    cursor = conn.execute(
+                        """INSERT INTO monitors
+                           (project_id, entity_id, monitor_type, target_url,
+                            check_interval_hours, is_active)
+                           VALUES (?, ?, 'traffic', ?, ?, 1)""",
+                        (project_id, entity_id, domain, check_interval),
+                    )
+                    existing_typed_set.add((entity_id, domain, "traffic"))
+                    created += 1
+                    created_monitors.append({
+                        "id": cursor.lastrowid,
+                        "entity_id": entity_id,
+                        "entity_name": entity_names.get(entity_id, ""),
+                        "target_url": domain,
+                        "monitor_type": "traffic",
+                    })
 
     logger.info(
         "Auto-setup for project %d: created %d monitors, skipped %d",

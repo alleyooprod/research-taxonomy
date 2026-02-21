@@ -71,14 +71,19 @@ def _create_monitoring_tables(db):
         )""")
         conn.execute("""CREATE TABLE IF NOT EXISTS change_feed (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            monitor_id INTEGER NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+            project_id INTEGER NOT NULL,
+            entity_id INTEGER NOT NULL,
+            monitor_id INTEGER REFERENCES monitors(id),
+            check_id INTEGER,
             change_type TEXT NOT NULL,
-            field_name TEXT,
-            old_value TEXT,
-            new_value TEXT,
-            detected_at TEXT,
             severity TEXT DEFAULT 'info',
-            metadata_json TEXT DEFAULT '{}'
+            title TEXT NOT NULL,
+            description TEXT,
+            details_json TEXT DEFAULT '{}',
+            source_url TEXT,
+            is_read INTEGER DEFAULT 0,
+            is_dismissed INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
         )""")
         conn.commit()
 
@@ -90,6 +95,11 @@ def _setup_full_signal_data(db, entity_id):
     """
     _create_monitoring_tables(db)
     with db._get_conn() as conn:
+        # Look up the project_id for this entity
+        project_id = conn.execute(
+            "SELECT project_id FROM entities WHERE id = ?", (entity_id,)
+        ).fetchone()[0]
+
         # Insert a monitor
         conn.execute(
             "INSERT INTO monitors (entity_id, monitor_type, config_json, is_active) VALUES (?, 'website', '{}', 1)",
@@ -99,18 +109,20 @@ def _setup_full_signal_data(db, entity_id):
 
         # Insert change feed entries at known timestamps
         conn.execute(
-            """INSERT INTO change_feed (monitor_id, change_type, field_name,
-               old_value, new_value, detected_at, severity)
-               VALUES (?, 'content_change', 'pricing', 'old price', 'new price',
+            """INSERT INTO change_feed (project_id, entity_id, monitor_id, change_type,
+               title, description, created_at, severity)
+               VALUES (?, ?, ?, 'content_change', 'pricing',
+                       'Pricing changed from old price to new price',
                        '2026-02-15 10:00:00', 'medium')""",
-            (monitor_id,),
+            (project_id, entity_id, monitor_id),
         )
         conn.execute(
-            """INSERT INTO change_feed (monitor_id, change_type, field_name,
-               old_value, new_value, detected_at, severity)
-               VALUES (?, 'content_change', 'features', 'old list', 'new list',
+            """INSERT INTO change_feed (project_id, entity_id, monitor_id, change_type,
+               title, description, created_at, severity)
+               VALUES (?, ?, ?, 'content_change', 'features',
+                       'Features changed from old list to new list',
                        '2026-02-16 10:00:00', 'low')""",
-            (monitor_id,),
+            (project_id, entity_id, monitor_id),
         )
         conn.commit()
 

@@ -235,6 +235,10 @@ function _renderFeedFilterBar() {
         { value: 'app_update', label: 'App update' },
         { value: 'screenshot_change', label: 'Screenshot' },
         { value: 'new_post', label: 'New post' },
+        { value: 'news_mention', label: 'HN mention' },
+        { value: 'news_article', label: 'News article' },
+        { value: 'traffic_change', label: 'Traffic change' },
+        { value: 'patent_filed', label: 'Patent filed' },
     ];
 
     const severityOptions = [
@@ -445,7 +449,9 @@ function _renderMonitorRow(monitor) {
         </span>`;
     }
 
-    const displayUrl = _truncateMonitorUrl(url);
+    const queryTypes = ['hackernews', 'news_search', 'patent'];
+    const isQueryType = queryTypes.includes(monType);
+    const displayUrl = isQueryType ? _truncateDetail(url, 40) : _truncateMonitorUrl(url);
 
     return `
         <div class="monitor-row ${!isActive ? 'monitor-row--inactive' : ''}" data-monitor-id="${monitor.id}">
@@ -454,7 +460,7 @@ function _renderMonitorRow(monitor) {
                 ${_monitorTypeIcon(monType)}
                 <span class="monitor-type-label">${esc(_formatMonitorType(monType))}</span>
             </span>
-            <span class="monitor-col monitor-col-url" title="${escAttr(url)}">${esc(displayUrl)}</span>
+            <span class="monitor-col monitor-col-url" title="${escAttr(url)}">${isQueryType ? '<span class="monitor-query-prefix">Q:</span> ' : ''}${esc(displayUrl)}</span>
             <span class="monitor-col monitor-col-interval">
                 <span class="monitor-interval">${interval}h</span>
             </span>
@@ -501,13 +507,23 @@ async function _createMonitor() {
             { value: 'play_store', label: 'Play Store' },
             { value: 'rss', label: 'RSS Feed' },
             { value: 'social', label: 'Social Media' },
+            { value: 'hackernews', label: 'Hacker News' },
+            { value: 'news_search', label: 'News Search' },
+            { value: 'traffic', label: 'Traffic Monitor' },
+            { value: 'patent', label: 'Patent Watch' },
         ];
 
         window.showSelectDialog('Monitor Type', typeOptions, (monitorType) => {
             if (!monitorType) return;
 
-            // Step 3: enter URL
-            window.showPromptDialog('Target URL', 'https://example.com', (targetUrl) => {
+            // Types that take a search query instead of a URL
+            const queryTypes = ['hackernews', 'news_search', 'patent'];
+            const isQueryType = queryTypes.includes(monitorType);
+            const promptLabel = isQueryType ? 'Search query' : 'Target URL';
+            const promptPlaceholder = isQueryType ? 'Entity or topic name' : 'https://example.com';
+
+            // Step 3: enter URL or search query
+            window.showPromptDialog(promptLabel, promptPlaceholder, (targetUrl) => {
                 if (!targetUrl) return;
 
                 _submitCreateMonitor(parseInt(entityId), monitorType, targetUrl);
@@ -784,6 +800,10 @@ function _monitorTypeIcon(type) {
         play_store: '<span class="monitor-type-icon" title="Play Store">AND</span>',
         rss: '<span class="monitor-type-icon" title="RSS Feed">RSS</span>',
         social: '<span class="monitor-type-icon" title="Social Media">SOC</span>',
+        hackernews: '<span class="monitor-type-icon" title="Hacker News">HN</span>',
+        news_search: '<span class="monitor-type-icon" title="News Search">NEWS</span>',
+        traffic: '<span class="monitor-type-icon" title="Traffic Monitor">TRF</span>',
+        patent: '<span class="monitor-type-icon" title="Patent Watch">PAT</span>',
     };
     return icons[type] || `<span class="monitor-type-icon">${esc((type || '').substring(0, 3).toUpperCase())}</span>`;
 }
@@ -795,6 +815,10 @@ function _formatMonitorType(type) {
         play_store: 'Play Store',
         rss: 'RSS',
         social: 'Social',
+        hackernews: 'Hacker News',
+        news_search: 'News Search',
+        traffic: 'Traffic',
+        patent: 'Patents',
     };
     return labels[type] || type || '';
 }
@@ -812,6 +836,14 @@ function _formatSourceType(type) {
         play_store: 'Play Store',
         rss: 'RSS',
         social: 'Social',
+        hackernews: 'Hacker News',
+        news_search: 'News Search',
+        traffic: 'Traffic',
+        patent: 'Patents',
+        news_mention: 'HN Mention',
+        news_article: 'News Article',
+        traffic_change: 'Traffic Change',
+        patent_filed: 'Patent Filed',
     };
     return labels[type] || type || '';
 }

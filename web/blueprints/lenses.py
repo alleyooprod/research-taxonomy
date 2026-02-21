@@ -203,8 +203,7 @@ def lenses_available():
         try:
             change_feed_count = conn.execute(
                 """SELECT COUNT(*) FROM change_feed cf
-                   JOIN monitors m ON m.id = cf.monitor_id
-                   JOIN entities e ON e.id = m.entity_id
+                   JOIN entities e ON e.id = cf.entity_id
                    WHERE e.project_id = ? AND e.is_deleted = 0""",
                 (project_id,),
             ).fetchone()[0]
@@ -704,6 +703,270 @@ def competitive_positioning():
             })
 
     return jsonify({"x_attr": x_attr, "y_attr": y_attr, "entities": result})
+
+
+_FINANCIAL_SLUGS = {
+    "annual_revenue", "revenue", "market_cap", "employee_count",
+    "employees", "sec_cik", "company_number", "domain_rank",
+    "hn_mention_count", "patent_count", "recent_news_count",
+}
+
+
+@lenses_bp.route("/api/lenses/competitive/enriched-matrix")
+def competitive_enriched_matrix():
+    """Extended feature matrix with optional financial columns.
+
+    Reuses the standard competitive matrix logic and augments each entity
+    with financial / MCP-sourced attribute data.
+
+    Query: ?project_id=N&entity_type=slug&attr_slug=features
+
+    Returns:
+        {
+            entities: [{id, name}],
+            features: [str],
+            matrix: {feature_name: {entity_id: true/false, ...}, ...},
+            attr_slug, canonical,
+            financial_columns: [slug, ...],
+            financial_data: {entity_id: {slug: value, ...}, ...}
+        }
+    """
+    project_id, err = _require_project_id()
+    if err:
+        return err
+
+    entity_type = request.args.get("entity_type")
+    attr_slug = request.args.get("attr_slug", "features")
+
+    db = current_app.db
+
+    with db._get_conn() as conn:
+        # ── Fetch entities (same logic as competitive_matrix) ──
+        if entity_type:
+            entity_rows = conn.execute(
+                """
+                SELECT id, name FROM entities
+                WHERE project_id = ? AND type_slug = ? AND is_deleted = 0
+                ORDER BY name COLLATE NOCASE
+                """,
+                (project_id, entity_type),
+            ).fetchall()
+        else:
+            entity_rows = conn.execute(
+                """
+                SELECT id, name FROM entities
+                WHERE project_id = ? AND is_deleted = 0
+                ORDER BY name COLLATE NOCASE
+                """,
+                (project_id,),
+            ).fetchall()
+
+        entities = [{"id": r["id"], "name": r["name"]} for r in entity_rows]
+        entity_ids = [e["id"] for e in entities]
+
+        if not entity_ids:
+            return jsonify({
+                "entities": [], "features": [], "matrix": {},
+                "attr_slug": attr_slug, "canonical": False,
+                "financial_columns": [], "financial_data": {},
+            })
+
+        # ── Feature matrix (duplicated from competitive_matrix) ──
+        canonical_rows = conn.execute(
+            """
+            SELECT cf.id, cf.canonical_name, cf.category,
+                   GROUP_CONCAT(fm.raw_value, '|||') as raw_values
+            FROM canonical_features cf
+            LEFT JOIN feature_mappings fm ON fm.canonical_feature_id = cf.id
+            WHERE cf.project_id = ? AND cf.attr_slug = ?
+            GROUP BY cf.id
+            ORDER BY cf.category NULLS LAST, cf.canonical_name COLLATE NOCASE
+            """,
+            (project_id, attr_slug),
+        ).fetchall()
+
+        use_canonical = len(canonical_rows) > 0
+
+        raw_to_canonical = {}
+        canonical_features = []
+        for row in canonical_rows:
+            cname = row["canonical_name"]
+            canonical_features.append(cname)
+            if row["raw_values"]:
+                for raw in row["raw_values"].split("|||"):
+                    raw_to_canonical[raw.strip().lower()] = cname
+
+        placeholders = ",".join("?" * len(entity_ids))
+        attr_rows = conn.execute(
+            f"""
+            SELECT ea.entity_id, ea.value
+            FROM entity_attributes ea
+            WHERE ea.entity_id IN ({placeholders})
+              AND ea.attr_slug = ?
+              AND ea.id IN (
+                  SELECT MAX(id) FROM entity_attributes
+                  WHERE entity_id IN ({placeholders})
+                    AND attr_slug = ?
+                  GROUP BY entity_id
+              )
+            """,
+            entity_ids + [attr_slug] + entity_ids + [attr_slug],
+        ).fetchall()
+
+        entity_values = {}
+        all_raw_features = set()
+        for row in attr_rows:
+            val = row["value"]
+            if not val:
+                entity_values[row["entity_id"]] = []
+                continue
+            try:
+                parsed = json.loads(val)
+                if isinstance(parsed, list):
+                    items = [str(v).strip() for v in parsed if v]
+                else:
+                    items = [str(parsed).strip()]
+            except (json.JSONDecodeError, TypeError):
+                items = [v.strip() for v in val.split(",") if v.strip()]
+            entity_values[row["entity_id"]] = items
+            all_raw_features.update(i.lower() for i in items)
+
+        if use_canonical:
+            feature_list = canonical_features
+        else:
+            feature_list = sorted(all_raw_features, key=str.casefold)
+
+        matrix = {}
+        for feature in feature_list:
+            feature_lower = feature.lower()
+            row_data = {}
+            for entity in entities:
+                eid = entity["id"]
+                ev_items = entity_values.get(eid, [])
+                ev_lower = [v.lower() for v in ev_items]
+                if use_canonical:
+                    has_feature = any(
+                        raw_to_canonical.get(v, v) == feature for v in ev_lower
+                    )
+                else:
+                    has_feature = feature_lower in ev_lower
+                row_data[str(eid)] = has_feature
+            matrix[feature] = row_data
+
+        # ── Financial data per entity ──
+        financial_data = {}
+        all_financial_slugs_found = set()
+        fin_slug_list = sorted(_FINANCIAL_SLUGS)
+        fin_placeholders = ",".join("?" * len(fin_slug_list))
+
+        for eid in entity_ids:
+            fin_rows = conn.execute(
+                f"""
+                SELECT attr_slug, value, source, confidence
+                FROM entity_attributes
+                WHERE entity_id = ?
+                  AND attr_slug IN ({fin_placeholders})
+                GROUP BY attr_slug
+                HAVING id = MAX(id)
+                """,
+                [eid] + fin_slug_list,
+            ).fetchall()
+
+            fd = {}
+            for r in fin_rows:
+                fd[r["attr_slug"]] = r["value"]
+                all_financial_slugs_found.add(r["attr_slug"])
+            financial_data[str(eid)] = fd
+
+    return jsonify({
+        "entities": entities,
+        "features": feature_list,
+        "matrix": matrix,
+        "attr_slug": attr_slug,
+        "canonical": use_canonical,
+        "financial_columns": sorted(all_financial_slugs_found),
+        "financial_data": financial_data,
+    })
+
+
+@lenses_bp.route("/api/lenses/competitive/market-map")
+def competitive_market_map():
+    """Bubble chart: entities positioned by two attributes, sized by a metric.
+
+    Query: ?project_id=N&x_attr=domain_rank&y_attr=hn_mention_count&size_attr=patent_count
+
+    Returns:
+        {
+            entities: [{id, name, x_value, y_value, size_value}],
+            x_label, y_label, size_label
+        }
+
+    Only entities with at least x and y values are included.
+    """
+    project_id, err = _require_project_id()
+    if err:
+        return err
+
+    x_attr = request.args.get("x_attr", "domain_rank")
+    y_attr = request.args.get("y_attr", "hn_mention_count")
+    size_attr = request.args.get("size_attr", "patent_count")
+
+    db = current_app.db
+
+    with db._get_conn() as conn:
+        entity_rows = conn.execute(
+            """
+            SELECT id, name FROM entities
+            WHERE project_id = ? AND is_deleted = 0
+            ORDER BY name COLLATE NOCASE
+            """,
+            (project_id,),
+        ).fetchall()
+
+        if not entity_rows:
+            return jsonify({
+                "entities": [],
+                "x_label": x_attr.replace("_", " ").title(),
+                "y_label": y_attr.replace("_", " ").title(),
+                "size_label": size_attr.replace("_", " ").title(),
+            })
+
+        result_entities = []
+        for ent in entity_rows:
+            attrs = {}
+            for slug in [x_attr, y_attr, size_attr]:
+                row = conn.execute(
+                    """
+                    SELECT value FROM entity_attributes
+                    WHERE entity_id = ? AND attr_slug = ?
+                    ORDER BY id DESC LIMIT 1
+                    """,
+                    (ent["id"], slug),
+                ).fetchone()
+                if row:
+                    try:
+                        attrs[slug] = float(row["value"])
+                    except (ValueError, TypeError):
+                        attrs[slug] = None
+                else:
+                    attrs[slug] = None
+
+            # Only include entities that have at least x and y values
+            if attrs.get(x_attr) is not None and attrs.get(y_attr) is not None:
+                result_entities.append({
+                    "id": ent["id"],
+                    "name": ent["name"],
+                    "x_value": attrs.get(x_attr),
+                    "y_value": attrs.get(y_attr),
+                    "size_value": attrs.get(size_attr, 1),
+                })
+
+    return jsonify({
+        "entities": result_entities,
+        "x_label": x_attr.replace("_", " ").title(),
+        "y_label": y_attr.replace("_", " ").title(),
+        "size_label": size_attr.replace("_", " ").title(),
+    })
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1710,34 +1973,33 @@ def signals_timeline():
         try:
             cf_rows = conn.execute(
                 f"""
-                SELECT cf.id, cf.monitor_id, cf.change_type, cf.field_name,
-                       cf.old_value, cf.new_value, cf.detected_at,
-                       cf.severity, cf.metadata_json,
+                SELECT cf.id, cf.monitor_id, cf.change_type, cf.title,
+                       cf.description, cf.created_at,
+                       cf.severity, cf.details_json, cf.source_url,
                        e.id as entity_id, e.name as entity_name
                 FROM change_feed cf
-                JOIN monitors m ON m.id = cf.monitor_id
-                JOIN entities e ON e.id = m.entity_id
+                JOIN entities e ON e.id = cf.entity_id
                 WHERE e.project_id = ? AND e.is_deleted = 0{entity_filter}
-                ORDER BY cf.detected_at DESC
+                ORDER BY cf.created_at DESC
                 """,
                 params_base,
             ).fetchall()
 
             for row in cf_rows:
                 metadata = {}
-                if row["metadata_json"]:
+                if row["details_json"]:
                     try:
-                        metadata = json.loads(row["metadata_json"]) if isinstance(row["metadata_json"], str) else row["metadata_json"]
+                        metadata = json.loads(row["details_json"]) if isinstance(row["details_json"], str) else row["details_json"]
                     except (json.JSONDecodeError, TypeError):
                         pass
                 events.append({
                     "type": "change_detected",
                     "entity_id": row["entity_id"],
                     "entity_name": row["entity_name"],
-                    "title": f"{row['change_type']}: {row['field_name'] or 'unknown'}",
-                    "description": f"Changed from '{row['old_value'] or ''}' to '{row['new_value'] or ''}'",
+                    "title": f"{row['change_type']}: {row['title']}",
+                    "description": row["description"] or "",
                     "severity": row["severity"] or "info",
-                    "timestamp": row["detected_at"],
+                    "timestamp": row["created_at"],
                     "metadata": metadata,
                 })
         except Exception:
@@ -1860,13 +2122,12 @@ def signals_activity():
         try:
             cf_rows = conn.execute(
                 f"""
-                SELECT m.entity_id,
+                SELECT cf.entity_id,
                        COUNT(*) as cnt,
-                       MAX(cf.detected_at) as last_change
+                       MAX(cf.created_at) as last_change
                 FROM change_feed cf
-                JOIN monitors m ON m.id = cf.monitor_id
-                WHERE m.entity_id IN ({placeholders})
-                GROUP BY m.entity_id
+                WHERE cf.entity_id IN ({placeholders})
+                GROUP BY cf.entity_id
                 """,
                 entity_ids,
             ).fetchall()
@@ -1984,13 +2245,12 @@ def signals_trends():
         try:
             cf_rows = conn.execute(
                 f"""
-                SELECT date(cf.detected_at, 'weekday 0', '-6 days') as week_start,
+                SELECT date(cf.created_at, 'weekday 0', '-6 days') as week_start,
                        COUNT(*) as cnt
                 FROM change_feed cf
-                JOIN monitors m ON m.id = cf.monitor_id
-                JOIN entities e ON e.id = m.entity_id
+                JOIN entities e ON e.id = cf.entity_id
                 WHERE e.project_id = ? AND e.is_deleted = 0{entity_filter}
-                  AND cf.detected_at IS NOT NULL
+                  AND cf.created_at IS NOT NULL
                 GROUP BY week_start
                 ORDER BY week_start
                 """,
@@ -2127,11 +2387,10 @@ def signals_heatmap():
         try:
             cf_rows = conn.execute(
                 f"""
-                SELECT m.entity_id, COUNT(*) as cnt
+                SELECT cf.entity_id, COUNT(*) as cnt
                 FROM change_feed cf
-                JOIN monitors m ON m.id = cf.monitor_id
-                WHERE m.entity_id IN ({placeholders})
-                GROUP BY m.entity_id
+                WHERE cf.entity_id IN ({placeholders})
+                GROUP BY cf.entity_id
                 """,
                 entity_ids,
             ).fetchall()
@@ -2217,7 +2476,7 @@ def signals_summary():
             period_days, entity_count, total_events,
             most_active_entities: [{entity_id, entity_name, event_count}],
             top_changed_fields: [{field_name, change_count, entities_affected}],
-            recent_highlights: [{entity_name, change_type, field_name, old_value, new_value, timestamp}],
+            recent_highlights: [{entity_name, change_type, field_name, description, timestamp}],
             source_breakdown: {change_detected, attribute_updated, evidence_captured},
             severity_breakdown: {critical, high, medium, low, info}
         }
@@ -2266,14 +2525,13 @@ def signals_summary():
 
         try:
             cf_rows = conn.execute(
-                f"""SELECT cf.change_type, cf.field_name, cf.old_value, cf.new_value,
-                           cf.detected_at, cf.severity,
-                           m.entity_id
+                f"""SELECT cf.change_type, cf.title, cf.description,
+                           cf.created_at, cf.severity, cf.details_json,
+                           cf.source_url, cf.entity_id
                     FROM change_feed cf
-                    JOIN monitors m ON m.id = cf.monitor_id
-                    WHERE m.entity_id IN ({placeholders})
-                      AND cf.detected_at >= ?
-                    ORDER BY cf.detected_at DESC""",
+                    WHERE cf.entity_id IN ({placeholders})
+                      AND cf.created_at >= ?
+                    ORDER BY cf.created_at DESC""",
                 entity_ids + [cutoff],
             ).fetchall()
 
@@ -2281,7 +2539,7 @@ def signals_summary():
                 eid = row["entity_id"]
                 change_counts[eid] = change_counts.get(eid, 0) + 1
 
-                fname = row["field_name"] or "unknown"
+                fname = row["title"] or "unknown"
                 if fname not in field_changes:
                     field_changes[fname] = {"count": 0, "entity_ids": set()}
                 field_changes[fname]["count"] += 1
@@ -2296,9 +2554,8 @@ def signals_summary():
                         "entity_name": entity_map.get(eid, ""),
                         "change_type": row["change_type"],
                         "field_name": fname,
-                        "old_value": row["old_value"],
-                        "new_value": row["new_value"],
-                        "timestamp": row["detected_at"],
+                        "description": row["description"] or "",
+                        "timestamp": row["created_at"],
                     })
         except Exception:
             logger.debug("change_feed not available for signals summary")
