@@ -35,13 +35,14 @@ AFTER:  User defines mission + reviews output. Active time: 2-3 hours.
 
 ---
 
-## Current State (Built — Sessions 1-31)
+## Current State (Built — Sessions 1-32)
 
 - **1700 pytest tests passing** across 43+ test files
 - **Phases 1-7 complete:** Entity schema, capture engine, extraction pipeline, review workflow, 6 analysis lenses, 5 report templates, monitoring (8 check types), intelligence (insights, hypotheses, playbooks, cross-project)
 - **MCP integration:** 11 enrichment adapters, smart routing, 16 server catalogue entries
-- **Red-team audit:** 108 findings addressed across 3 phases
+- **Red-team audit:** 108 original findings + 60 v2 findings addressed across 4 phases (Sessions 28-32)
 - **Architecture:** Flask + Blueprints (split into packages), SQLite WAL, esbuild bundled JS/CSS, lazy tab rendering, event delegation
+- **Session 32 additions:** defusedxml for XXE prevention, cost tracking on all 36 `run_cli()` calls, trapFocus on modals, `_conn()` context manager with commit/rollback, entity prompt cap (30 attrs + 500 chars), busy_timeout 10s, overlap scan caching
 - **Key infrastructure for agent:** `core/capture.py`, `core/extraction.py`, 7 extractors, `core/mcp_client.py`, `core/mcp_enrichment.py`, `web/async_jobs.py`, `core/llm.py` with cost tracking
 
 ---
