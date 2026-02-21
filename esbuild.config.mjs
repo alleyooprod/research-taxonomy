@@ -51,12 +51,33 @@ const JS_ORDER = [
 ];
 
 // ─────────────────────────────────────────────────────────────
-// CSS files to bundle (excludes print.css which uses media="print")
-// styles.css is at web/static/styles.css (root of static, not css/)
+// CSS files to bundle
+// Root-level CSS in explicit order (was previously @import'd by styles.css,
+// but @import breaks when bundled — files must be inlined directly).
+// Then component CSS from web/static/css/ (alphabetical).
+// print.css excluded — loaded separately with media="print".
 // ─────────────────────────────────────────────────────────────
+const CSS_ROOT_ORDER = [
+  'base.css',
+  'layout.css',
+  'companies.css',
+  'taxonomy.css',
+  'processing.css',
+  'maps.css',
+  'reports.css',
+  'social.css',
+  'canvas.css',
+  'integrations.css',
+  'views.css',
+  'presentation.css',
+  'app-settings.css',
+  'dimensions.css',
+  'discovery.css',
+];
+
 const CSS_FILES = [
-  // Base styles first
-  join(STATIC, 'styles.css'),
+  // Root-level CSS files (order matches former styles.css @imports)
+  ...CSS_ROOT_ORDER.map(f => join(STATIC, f)),
   // Then component CSS (from web/static/css/)
   ...getCssFiles(),
 ];
@@ -166,8 +187,8 @@ if (isWatch) {
   await runBuild();
 
   const watchDirs = [join(STATIC, 'js'), join(STATIC, 'css')];
-  // Also watch styles.css at static root
-  const watchFiles = [join(STATIC, 'styles.css')];
+  // Also watch root-level CSS files
+  const watchFiles = CSS_ROOT_ORDER.map(f => join(STATIC, f));
 
   for (const dir of watchDirs) {
     fsWatch(dir, { recursive: true }, async (eventType, filename) => {
