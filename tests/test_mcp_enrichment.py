@@ -513,6 +513,10 @@ class TestParsers:
 class TestEnrichEntity:
     """Tests for enrich_entity() — full orchestration."""
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=SAMPLE_SEC)
     @patch("core.mcp_client.search_patents", return_value=SAMPLE_PATENTS)
@@ -522,7 +526,8 @@ class TestEnrichEntity:
     @patch("core.mcp_client.search_hackernews", return_value=SAMPLE_HN)
     def test_enrich_entity_success(self, mock_hn, mock_news, mock_wiki,
                                     mock_rank, mock_patents, mock_sec,
-                                    mock_ch, company_entity):
+                                    mock_ch, mock_wayback, mock_fca,
+                                    mock_gleif, mock_cooper, company_entity):
         """Successful enrichment writes attributes to the database."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -543,6 +548,10 @@ class TestEnrichEntity:
         assert "domain_rank" in attrs
         assert attrs["domain_rank"]["value"] == "4521"
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=SAMPLE_SEC)
     @patch("core.mcp_client.search_patents", return_value=SAMPLE_PATENTS)
@@ -552,7 +561,8 @@ class TestEnrichEntity:
     @patch("core.mcp_client.search_hackernews", return_value=SAMPLE_HN)
     def test_enrich_entity_skips_fresh(self, mock_hn, mock_news, mock_wiki,
                                        mock_rank, mock_patents, mock_sec,
-                                       mock_ch, company_entity):
+                                       mock_ch, mock_wayback, mock_fca,
+                                       mock_gleif, mock_cooper, company_entity):
         """Fresh attributes are skipped (not overwritten)."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -570,6 +580,10 @@ class TestEnrichEntity:
         attrs = entity["attributes"]
         assert attrs["hn_mention_count"]["value"] == "99"
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -579,7 +593,8 @@ class TestEnrichEntity:
     @patch("core.mcp_client.search_hackernews", return_value=None)
     def test_enrich_entity_handles_api_error(self, mock_hn, mock_news, mock_wiki,
                                               mock_rank, mock_patents, mock_sec,
-                                              mock_ch, company_entity):
+                                              mock_ch, mock_wayback, mock_fca,
+                                              mock_gleif, mock_cooper, company_entity):
         """When some APIs return None, others still succeed."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -592,6 +607,10 @@ class TestEnrichEntity:
         attrs = entity["attributes"]
         assert "wikipedia_url" in attrs
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -601,7 +620,8 @@ class TestEnrichEntity:
     @patch("core.mcp_client.search_hackernews", return_value=SAMPLE_HN)
     def test_enrich_entity_with_server_filter(self, mock_hn, mock_news, mock_wiki,
                                                mock_rank, mock_patents, mock_sec,
-                                               mock_ch, company_entity):
+                                               mock_ch, mock_wayback, mock_fca,
+                                               mock_gleif, mock_cooper, company_entity):
         """Only specified servers are called when filter is provided."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -631,6 +651,10 @@ class TestEnrichEntity:
         assert len(result["errors"]) > 0
         assert "not found" in result["errors"][0]["error"].lower()
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -640,7 +664,8 @@ class TestEnrichEntity:
     @patch("core.mcp_client.search_hackernews", return_value=SAMPLE_HN)
     def test_enrich_entity_creates_snapshot(self, mock_hn, mock_news, mock_wiki,
                                              mock_rank, mock_patents, mock_sec,
-                                             mock_ch, company_entity):
+                                             mock_ch, mock_wayback, mock_fca,
+                                             mock_gleif, mock_cooper, company_entity):
         """Enrichment creates a snapshot for the attribute batch."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -658,6 +683,10 @@ class TestEnrichEntity:
         latest = snapshots_after[0]
         assert "MCP enrichment" in latest.get("description", "")
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=SAMPLE_CH)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -668,7 +697,9 @@ class TestEnrichEntity:
     def test_enrich_uk_company_gets_companies_house(self, mock_hn, mock_news,
                                                      mock_wiki, mock_rank,
                                                      mock_patents, mock_sec,
-                                                     mock_ch, uk_company_entity):
+                                                     mock_ch, mock_wayback,
+                                                     mock_fca, mock_gleif,
+                                                     mock_cooper, uk_company_entity):
         """UK company gets enriched with Companies House data."""
         db = uk_company_entity["db"]
         eid = uk_company_entity["entity_id"]
@@ -681,6 +712,10 @@ class TestEnrichEntity:
         assert attrs["company_number"]["value"] == "12345678"
         assert attrs["company_status"]["value"] == "active"
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -691,7 +726,9 @@ class TestEnrichEntity:
     def test_enrich_entity_all_apis_return_none(self, mock_hn, mock_news,
                                                  mock_wiki, mock_rank,
                                                  mock_patents, mock_sec,
-                                                 mock_ch, company_entity):
+                                                 mock_ch, mock_wayback,
+                                                 mock_fca, mock_gleif,
+                                                 mock_cooper, company_entity):
         """When all APIs return None, enrichment count is zero."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -701,6 +738,10 @@ class TestEnrichEntity:
         assert result["enriched_count"] == 0
         assert result["errors"] == []
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -710,7 +751,9 @@ class TestEnrichEntity:
     @patch("core.mcp_client.search_hackernews", return_value=None)
     def test_enrich_entity_source_format(self, mock_hn, mock_news, mock_wiki,
                                           mock_rank, mock_patents, mock_sec,
-                                          mock_ch, company_entity):
+                                          mock_ch, mock_wayback, mock_fca,
+                                          mock_gleif, mock_cooper,
+                                          company_entity):
         """Attributes are written with source format 'mcp:{adapter_name}'."""
         db = company_entity["db"]
         eid = company_entity["entity_id"]
@@ -735,6 +778,10 @@ class TestEnrichEntity:
 class TestEnrichBatch:
     """Tests for enrich_batch()."""
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -743,7 +790,8 @@ class TestEnrichBatch:
     @patch("core.mcp_client.search_news", return_value=None)
     @patch("core.mcp_client.search_hackernews", return_value=SAMPLE_HN)
     def test_enrich_batch(self, mock_hn, mock_news, mock_wiki, mock_rank,
-                           mock_patents, mock_sec, mock_ch, enrichment_project):
+                           mock_patents, mock_sec, mock_ch, mock_wayback,
+                           mock_fca, mock_gleif, mock_cooper, enrichment_project):
         """Batch enrichment processes multiple entities."""
         db = enrichment_project["db"]
         pid = enrichment_project["project_id"]
@@ -774,6 +822,10 @@ class TestEnrichBatch:
         assert result["errors"] == 0
         assert result["results"] == []
 
+    @patch("core.mcp_client.search_cooper_hewitt", return_value=None)
+    @patch("core.mcp_client.search_gleif", return_value=None)
+    @patch("core.mcp_client.search_fca_register", return_value=None)
+    @patch("core.mcp_client.search_wayback", return_value=None)
     @patch("core.mcp_client.search_companies_house", return_value=None)
     @patch("core.mcp_client.search_sec_filings", return_value=None)
     @patch("core.mcp_client.search_patents", return_value=None)
@@ -783,7 +835,8 @@ class TestEnrichBatch:
     @patch("core.mcp_client.search_hackernews", return_value=None)
     def test_enrich_batch_with_server_filter(self, mock_hn, mock_news, mock_wiki,
                                               mock_rank, mock_patents, mock_sec,
-                                              mock_ch, enrichment_project):
+                                              mock_ch, mock_wayback, mock_fca,
+                                              mock_gleif, mock_cooper, enrichment_project):
         """Batch enrichment respects server filter."""
         db = enrichment_project["db"]
         pid = enrichment_project["project_id"]

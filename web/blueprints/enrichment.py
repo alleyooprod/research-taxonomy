@@ -82,10 +82,49 @@ def list_servers():
     return jsonify(sources)
 
 
+@enrichment_bp.route("/api/enrichment/catalogue")
+def get_catalogue():
+    """Return the full server capability catalogue."""
+    try:
+        from core.mcp_catalogue import SERVER_CATALOGUE
+        entries = []
+        for name, cap in SERVER_CATALOGUE.items():
+            entries.append({
+                "name": cap.name,
+                "display_name": cap.display_name,
+                "description": cap.description,
+                "categories": cap.categories,
+                "cost_tier": cap.cost_tier,
+                "enrichment_capable": cap.enrichment_capable,
+                "priority": cap.priority,
+                "rate_limit_rpm": cap.rate_limit_rpm,
+            })
+        return jsonify(entries)
+    except ImportError:
+        return jsonify([])
+
+
+@enrichment_bp.route("/api/enrichment/health")
+def get_health():
+    """Return health status for all servers."""
+    from core.mcp_enrichment import get_all_server_health
+    db = current_app.db
+    conn = db._get_conn()
+    try:
+        health = get_all_server_health(conn)
+        return jsonify(health)
+    finally:
+        conn.close()
+
+
 @enrichment_bp.route("/api/entities/<int:entity_id>/enrichment/recommend")
 def recommend_enrichment(entity_id):
-    """Recommend enrichment sources for a specific entity."""
-    from core.mcp_enrichment import build_entity_context, select_adapters, check_staleness
+    """Recommend enrichment sources for a specific entity.
+
+    Uses smart scoring via the server capability catalogue.
+    Accepts optional ``intent`` query parameter (e.g. ``?intent=regulatory``).
+    """
+    from core.mcp_enrichment import build_entity_context, recommend_servers
 
     db = current_app.db
     entity = db.get_entity(entity_id)
@@ -94,31 +133,17 @@ def recommend_enrichment(entity_id):
 
     attrs = entity.get("attributes", {})
     context = build_entity_context(entity, attrs)
-    adapters = select_adapters(context)
+    intent = request.args.get("intent")
 
-    # Check which attributes are stale
-    stale_attrs = []
-    for adapter in adapters:
-        for attr_slug in adapter.get("produces", []):
-            if check_staleness(db, entity_id, attr_slug, max_age_hours=168):
-                stale_attrs.append(attr_slug)
-
-    # Deduplicate stale attrs
-    stale_attrs = sorted(set(stale_attrs))
-
-    recommended = []
-    for adapter in adapters:
-        recommended.append({
-            "name": adapter["name"],
-            "description": adapter.get("description", ""),
-            "priority": adapter.get("priority", 0),
-            "reason": _build_reason(adapter, context),
-        })
+    conn = db._get_conn()
+    try:
+        recommended = recommend_servers(context, intent=intent, conn=conn)
+    finally:
+        conn.close()
 
     return jsonify({
         "entity_id": entity_id,
         "recommended_servers": recommended,
-        "stale_attributes": stale_attrs,
     })
 
 

@@ -109,6 +109,52 @@ def _parse_companies_house(result):
     ]
 
 
+def _parse_wayback(result):
+    """Parse Wayback Machine results into entity attributes."""
+    if not result:
+        return []
+    return [
+        {"attr_slug": "wayback_first_capture", "value": result.get("first_capture", ""), "confidence": 0.95},
+        {"attr_slug": "wayback_last_capture", "value": result.get("last_capture", ""), "confidence": 0.95},
+        {"attr_slug": "wayback_snapshot_count", "value": str(result.get("total_snapshots", 0)), "confidence": 0.95},
+    ]
+
+
+def _parse_fca_register(result):
+    """Parse FCA Register results into entity attributes."""
+    if not result:
+        return []
+    top = result[0]
+    return [
+        {"attr_slug": "fca_frn", "value": top.get("frn", ""), "confidence": 0.95},
+        {"attr_slug": "fca_status", "value": top.get("status", ""), "confidence": 0.95},
+        {"attr_slug": "fca_firm_type", "value": top.get("type", ""), "confidence": 0.9},
+        {"attr_slug": "fca_effective_date", "value": top.get("effective_date", ""), "confidence": 0.9},
+    ]
+
+
+def _parse_gleif(result):
+    """Parse GLEIF results into entity attributes."""
+    if not result:
+        return []
+    top = result[0]
+    return [
+        {"attr_slug": "lei_code", "value": top.get("lei", ""), "confidence": 0.95},
+        {"attr_slug": "lei_status", "value": top.get("status", ""), "confidence": 0.95},
+        {"attr_slug": "legal_jurisdiction", "value": top.get("jurisdiction", ""), "confidence": 0.9},
+    ]
+
+
+def _parse_cooper_hewitt(result):
+    """Parse Cooper Hewitt Museum results into entity attributes."""
+    if not result:
+        return []
+    titles = [obj.get("title", "") for obj in result[:3] if obj.get("title")]
+    return [
+        {"attr_slug": "related_design_objects", "value": json.dumps(titles), "confidence": 0.7},
+    ]
+
+
 # ── Adapter Registry ─────────────────────────────────────────
 
 _ADAPTERS = [
@@ -175,6 +221,42 @@ _ADAPTERS = [
         "priority": 5,
         "parse": _parse_companies_house,
     },
+    {
+        "name": "wayback_machine",
+        "description": "Internet Archive historical snapshots",
+        "fn": "search_wayback",
+        "applies_to": "*",
+        "conditions": {"has_url": True},
+        "priority": 15,
+        "parse": _parse_wayback,
+    },
+    {
+        "name": "fca_register",
+        "description": "UK Financial Conduct Authority register",
+        "fn": "search_fca_register",
+        "applies_to": "company",
+        "conditions": {"country": "UK"},
+        "priority": 5,
+        "parse": _parse_fca_register,
+    },
+    {
+        "name": "gleif",
+        "description": "GLEIF Legal Entity Identifier lookup",
+        "fn": "search_gleif",
+        "applies_to": "company",
+        "conditions": {},
+        "priority": 10,
+        "parse": _parse_gleif,
+    },
+    {
+        "name": "cooper_hewitt",
+        "description": "Cooper Hewitt Smithsonian Design Museum",
+        "fn": "search_cooper_hewitt",
+        "applies_to": ["product", "design"],
+        "conditions": {},
+        "priority": 25,
+        "parse": _parse_cooper_hewitt,
+    },
 ]
 
 
@@ -238,9 +320,15 @@ def select_adapters(context, server_filter=None):
     """
     selected = []
     for adapter in _ADAPTERS:
-        # Check type match
-        if adapter["applies_to"] != "*" and adapter["applies_to"] != context.get("type_slug"):
-            continue
+        # Check type match (supports "*", single string, or list of strings)
+        applies = adapter["applies_to"]
+        type_slug = context.get("type_slug", "")
+        if applies != "*":
+            if isinstance(applies, list):
+                if type_slug not in applies:
+                    continue
+            elif applies != type_slug:
+                continue
 
         # Check conditions
         conditions_met = True
@@ -347,18 +435,25 @@ def _call_adapter(adapter, context, conn):
             domain = _extract_domain(context.get("url"))
             if not domain:
                 return None
-            return fn(domain, conn=conn)
-        elif adapter_name == "sec_edgar":
-            return fn(name, conn=conn)
-        elif adapter_name == "companies_house":
-            return fn(name, conn=conn)
-        elif adapter_name == "patents":
-            return fn(name, conn=conn)
+            result = fn(domain, conn=conn)
+        elif adapter_name == "wayback_machine":
+            url = context.get("url")
+            if not url:
+                return None
+            result = fn(url, conn=conn)
+        elif adapter_name in ("sec_edgar", "companies_house", "fca_register",
+                              "gleif", "patents", "cooper_hewitt"):
+            result = fn(name, conn=conn)
         else:
             # hackernews, news, wikipedia all take a query string
-            return fn(name, conn=conn)
+            result = fn(name, conn=conn)
+
+        # Record health status
+        _record_health(conn, adapter_name, success=result is not None)
+        return result
     except Exception as exc:
         logger.warning("Adapter {} failed for entity {}: {}", adapter_name, name, exc)
+        _record_health(conn, adapter_name, success=False)
         return None
 
 
@@ -502,6 +597,184 @@ def enrich_entity(entity_id, db, servers=None, max_age_hours=168):
         conn.close()
 
     return summary
+
+
+# ── Health Tracking ───────────────────────────────────────────
+
+
+def _record_health(conn, server_name, success):
+    """Record success/failure for a server in the cache table.
+
+    Uses cache key ``health:{server_name}`` with a 30-day TTL.
+    """
+    if conn is None:
+        return
+    try:
+        from core.mcp_client import _cache_get, _cache_set
+        key = f"health:{server_name}"
+        existing = _cache_get(conn, key)
+        if existing is None:
+            existing = {"last_success": None, "last_failure": None, "consecutive_failures": 0}
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if success:
+            existing["last_success"] = now
+            existing["consecutive_failures"] = 0
+        else:
+            existing["last_failure"] = now
+            existing["consecutive_failures"] = existing.get("consecutive_failures", 0) + 1
+        _cache_set(conn, key, "health", existing, ttl_hours=720)
+    except Exception as exc:
+        logger.debug("Health tracking failed for {}: {}", server_name, exc)
+
+
+def get_server_health(conn, server_name):
+    """Read health status for a server from cache.
+
+    Returns dict with keys: last_success, last_failure, consecutive_failures.
+    """
+    if conn is None:
+        return {"last_success": None, "last_failure": None, "consecutive_failures": 0}
+    try:
+        from core.mcp_client import _cache_get
+        result = _cache_get(conn, f"health:{server_name}")
+        return result or {"last_success": None, "last_failure": None, "consecutive_failures": 0}
+    except Exception:
+        return {"last_success": None, "last_failure": None, "consecutive_failures": 0}
+
+
+def get_all_server_health(conn):
+    """Read health status for all servers in the catalogue.
+
+    Returns dict mapping server_name to health dict.
+    """
+    try:
+        from core.mcp_catalogue import SERVER_CATALOGUE
+        return {name: get_server_health(conn, name) for name in SERVER_CATALOGUE}
+    except ImportError:
+        return {}
+
+
+# ── Smart Routing ────────────────────────────────────────────
+
+
+def _score_server(cap, context, intent=None, health=None):
+    """Compute a relevance score for a server given entity context.
+
+    Higher score = more relevant.
+
+    Factors:
+    - Base: ``100 - priority`` (lower priority number = higher score)
+    - +20 if entity type matches ``applies_to``
+    - +15 if ``intent`` matches one of the server's categories
+    - +10 if any ``provides`` tag matches existing entity context hints
+    - -10 if ``cost_tier`` is ``free_key`` and env key is not set
+    - -20 per consecutive failure (health penalty, capped at -60)
+    """
+    import os
+
+    score = 100 - cap.priority
+
+    # Entity-type match bonus
+    type_slug = context.get("type_slug", "")
+    applies = cap.applies_to
+    if applies == "*":
+        score += 5  # Small bonus for universal applicability
+    elif isinstance(applies, list):
+        if type_slug in applies:
+            score += 20
+    elif applies == type_slug:
+        score += 20
+
+    # Intent match bonus
+    if intent and intent in cap.categories:
+        score += 15
+
+    # Key availability penalty
+    if cap.env_key and not os.environ.get(cap.env_key):
+        score -= 10
+
+    # Health penalty
+    if health:
+        failures = health.get("consecutive_failures", 0)
+        score -= min(failures * 20, 60)
+
+    return score
+
+
+def recommend_servers(context, intent=None, max_servers=10, conn=None):
+    """Score-based server recommendation using the catalogue.
+
+    Goes beyond ``select_adapters()`` by scoring with catalogue metadata
+    for ranking and token-cost-aware recommendations.
+
+    Args:
+        context: Entity context from ``build_entity_context()``.
+        intent: Optional hint like ``"financial"``, ``"regulatory"``,
+                ``"design"``, or ``"news"``.
+        max_servers: Maximum number to recommend.
+        conn: Optional DB connection for health lookups.
+
+    Returns:
+        list of dicts with ``name``, ``display_name``, ``description``,
+        ``reason``, ``score``, ``cost_tier``, ``categories``.
+    """
+    # Get hard-filtered adapters
+    adapters = select_adapters(context)
+    adapter_names = {a["name"] for a in adapters}
+
+    try:
+        from core.mcp_catalogue import SERVER_CATALOGUE
+    except ImportError:
+        # Fallback: just return adapters without scoring
+        return [
+            {"name": a["name"], "description": a.get("description", ""),
+             "score": 100 - a.get("priority", 20), "reason": "Applicable adapter"}
+            for a in adapters[:max_servers]
+        ]
+
+    # Score each eligible adapter using catalogue metadata
+    scored = []
+    for name in adapter_names:
+        cap = SERVER_CATALOGUE.get(name)
+        if not cap:
+            continue
+        health = get_server_health(conn, name) if conn else None
+        score = _score_server(cap, context, intent=intent, health=health)
+        scored.append({
+            "name": name,
+            "display_name": cap.display_name,
+            "description": cap.description,
+            "score": score,
+            "cost_tier": cap.cost_tier,
+            "categories": cap.categories,
+            "reason": _build_recommendation_reason(cap, context, intent),
+        })
+
+    # Sort by score descending
+    scored.sort(key=lambda s: s["score"], reverse=True)
+    return scored[:max_servers]
+
+
+def _build_recommendation_reason(cap, context, intent=None):
+    """Build a human-readable reason for recommending a server."""
+    type_slug = context.get("type_slug", "")
+    country = context.get("country", "")
+
+    if cap.name == "fca_register" and country == "UK":
+        return "UK company — FCA regulatory data available"
+    if cap.name == "companies_house" and country == "UK":
+        return "UK company — Companies House registration data"
+    if cap.name == "sec_edgar" and country == "US":
+        return "US company — SEC filings available"
+    if cap.name == "gleif":
+        return "Legal Entity Identifier (LEI) lookup for corporate identity"
+    if cap.name == "wayback_machine":
+        return "Website has URL — historical snapshots available"
+    if cap.name == "cooper_hewitt" and type_slug in ("product", "design"):
+        return "Design entity — related museum objects available"
+    if intent and intent in cap.categories:
+        return f"Matches research intent: {intent}"
+    return cap.description
 
 
 def enrich_batch(entity_ids, db, servers=None, max_age_hours=168, delay=1.0):

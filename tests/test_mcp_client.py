@@ -520,12 +520,21 @@ class TestListAvailableSources:
     @pytest.mark.enrichment
     def test_list_available_sources(self):
         sources = list_available_sources()
-        assert len(sources) == 7
+        assert len(sources) >= 11  # 7 original + 4 new enrichment sources
         names = {s["name"] for s in sources}
-        assert names == {
-            "hackernews", "news", "cloudflare", "patents",
-            "sec_edgar", "companies_house", "wikipedia",
-        }
+        # Original 7 (cloudflare renamed to domain_rank in catalogue)
+        assert "hackernews" in names
+        assert "news" in names
+        assert "domain_rank" in names
+        assert "patents" in names
+        assert "sec_edgar" in names
+        assert "companies_house" in names
+        assert "wikipedia" in names
+        # New 4
+        assert "wayback_machine" in names
+        assert "fca_register" in names
+        assert "gleif" in names
+        assert "cooper_hewitt" in names
         # All sources have required keys
         for s in sources:
             assert "name" in s
@@ -548,7 +557,6 @@ class TestListAvailableSources:
         assert by_name["sec_edgar"]["available"] is True
         assert by_name["wikipedia"]["available"] is True
         # Key-dependent sources — should be available now
-        assert by_name["cloudflare"]["available"] is True
         assert by_name["companies_house"]["available"] is True
 
     @pytest.mark.enrichment
@@ -557,10 +565,11 @@ class TestListAvailableSources:
         env = os.environ.copy()
         env.pop("CLOUDFLARE_API_TOKEN", None)
         env.pop("COMPANIES_HOUSE_API_KEY", None)
+        env.pop("COOPER_HEWITT_API_KEY", None)
         with patch.dict(os.environ, env, clear=True):
             sources = list_available_sources()
             by_name = {s["name"]: s for s in sources}
-            assert by_name["cloudflare"]["available"] is False
             assert by_name["companies_house"]["available"] is False
-            assert by_name["cloudflare"]["needs_key"] is True
             assert by_name["companies_house"]["needs_key"] is True
+            assert by_name["cooper_hewitt"]["available"] is False
+            assert by_name["cooper_hewitt"]["needs_key"] is True

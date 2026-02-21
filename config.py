@@ -7,6 +7,27 @@ from pathlib import Path
 
 import keyring
 
+
+def _load_dotenv():
+    """Load .env file into os.environ if it exists (stdlib, no dependency)."""
+    env_path = Path(__file__).parent / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key, value = key.strip(), value.strip()
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+_load_dotenv()
+
 # App version (checked by auto-update)
 APP_VERSION = "1.1.0"
 BUILD_DATE = "2026-02-19"

@@ -9,7 +9,7 @@
       "command": "uvx",
       "args": ["sec-edgar-mcp"],
       "env": {
-        "SEC_EDGAR_USER_AGENT": "Sunny Research (sunny@research.local)"
+        "SEC_EDGAR_USER_AGENT": "${SEC_EDGAR_USER_AGENT}"
       }
     },
     "uk-ons": {
@@ -36,14 +36,7 @@
       "command": "npx",
       "args": ["-y", "companies-house-mcp-server"],
       "env": {
-        "COMPANIES_HOUSE_API_KEY": "NEEDS_FREE_KEY"
-      }
-    },
-    "fred-mcp-server": {
-      "command": "npx",
-      "args": ["-y", "fred-mcp-server"],
-      "env": {
-        "FRED_API_KEY": "NEEDS_FREE_KEY"
+        "COMPANIES_HOUSE_API_KEY": "${COMPANIES_HOUSE_API_KEY}"
       }
     },
     "rijksmuseum": {
@@ -60,6 +53,67 @@
     "va-museum": {
       "type": "url",
       "url": "https://mcp.vam.ac.uk/mcp/"
+    },
+    "colorsandfonts": {
+      "command": "npx",
+      "args": ["-y", "@colorsandfonts/mcp"]
+    },
+    "unsplash": {
+      "command": "npx",
+      "args": ["-y", "@jeff_kit/unsplash-mcp-server"],
+      "env": {
+        "UNSPLASH_ACCESS_KEY": "NEEDS_FREE_KEY"
+      }
+    },
+    "pexels": {
+      "command": "npx",
+      "args": ["-y", "pexels-image-search-mcp@latest"],
+      "env": {
+        "PEXELS_API_KEY": "NEEDS_FREE_KEY"
+      }
+    },
+    "icons8": {
+      "type": "url",
+      "url": "https://mcp.icons8.com/mcp/"
+    },
+    "page-design-guide": {
+      "command": "npx",
+      "args": ["-y", "page-design-guide-mcp"]
+    },
+    "ui-expert": {
+      "command": "npx",
+      "args": ["-y", "@reallygood83/ui-expert-mcp"]
+    },
+    "design-systems": {
+      "type": "url",
+      "url": "https://design-systems-mcp.southleft.com/mcp"
+    },
+    "bank-of-england": {
+      "command": "python",
+      "args": ["mcp-servers/bank_of_england.py"]
+    },
+    "eurostat": {
+      "command": "python",
+      "args": ["mcp-servers/eurostat.py"]
+    },
+    "ecb": {
+      "command": "python",
+      "args": ["mcp-servers/ecb.py"]
+    },
+    "oecd": {
+      "command": "python",
+      "args": ["mcp-servers/oecd.py"]
+    },
+    "dbnomics": {
+      "command": "python",
+      "args": ["mcp-servers/dbnomics.py"]
+    },
+    "cooper-hewitt": {
+      "command": "python",
+      "args": ["mcp-servers/cooper_hewitt.py"],
+      "env": {
+        "COOPER_HEWITT_API_KEY": "NEEDS_FREE_KEY"
+      }
     }
   }
 }

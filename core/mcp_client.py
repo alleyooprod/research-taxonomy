@@ -580,57 +580,304 @@ def search_wikipedia(query, timeout=_REQUEST_TIMEOUT, conn=None):
         return None
 
 
+# ── 8. Wayback Machine (Internet Archive CDX) ────────────────
+
+def search_wayback(url_query, limit=5, timeout=_REQUEST_TIMEOUT, conn=None):
+    """Search the Wayback Machine for archived snapshots of a URL.
+
+    Returns dict with keys: first_capture, last_capture, total_snapshots,
+    snapshots (list).  Returns None on error.
+    """
+    if not url_query:
+        return None
+
+    cache_key = f"wayback:{url_query}:{limit}"
+    if conn is not None:
+        try:
+            cached = _cache_get(conn, cache_key)
+            if cached is not None:
+                return cached
+        except Exception as exc:
+            logger.warning("Wayback cache read failed: {}", exc)
+
+    try:
+        import requests as req_lib
+        params = {
+            "url": url_query,
+            "output": "json",
+            "limit": str(limit),
+            "fl": "timestamp,original,statuscode,mimetype,length",
+        }
+        resp = req_lib.get(
+            "https://web.archive.org/cdx/search/cdx",
+            params=params,
+            timeout=timeout,
+            headers={"User-Agent": _USER_AGENT},
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+    except Exception as exc:
+        logger.warning("Wayback Machine search failed for {}: {}", url_query, exc)
+        return None
+
+    if not rows or len(rows) < 2:
+        return {"first_capture": "", "last_capture": "", "total_snapshots": 0, "snapshots": []}
+
+    header = rows[0]
+    data = rows[1:]
+    snapshots = [dict(zip(header, r)) for r in data]
+    timestamps = [s.get("timestamp", "") for s in snapshots]
+
+    first = timestamps[0] if timestamps else ""
+    last = timestamps[-1] if timestamps else ""
+
+    result = {
+        "first_capture": f"{first[:4]}-{first[4:6]}-{first[6:8]}" if len(first) >= 8 else first,
+        "last_capture": f"{last[:4]}-{last[4:6]}-{last[6:8]}" if len(last) >= 8 else last,
+        "total_snapshots": len(snapshots),
+        "snapshots": snapshots[:limit],
+    }
+
+    if conn is not None:
+        try:
+            _cache_set(conn, cache_key, "wayback_machine", result)
+        except Exception as exc:
+            logger.warning("Wayback cache write failed: {}", exc)
+
+    return result
+
+
+# ── 9. FCA Register ──────────────────────────────────────────
+
+def search_fca_register(name, timeout=_REQUEST_TIMEOUT, conn=None):
+    """Search the UK FCA Register for authorised firms.
+
+    Returns list of dicts with keys: frn, name, status, type,
+    effective_date.  Returns None on error.
+    """
+    if not name:
+        return []
+
+    cache_key = f"fca:{name}"
+    if conn is not None:
+        try:
+            cached = _cache_get(conn, cache_key)
+            if cached is not None:
+                return cached
+        except Exception as exc:
+            logger.warning("FCA cache read failed: {}", exc)
+
+    try:
+        import requests as req_lib
+        resp = req_lib.get(
+            "https://register.fca.org.uk/services/V0.1/Search",
+            params={"q": name, "type": "firm"},
+            timeout=timeout,
+            headers={"Accept": "application/json", "User-Agent": _USER_AGENT},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.warning("FCA Register search failed for {}: {}", name, exc)
+        return None
+
+    items = data.get("Data", [])
+    results = []
+    for item in items[:5]:
+        results.append({
+            "frn": item.get("FRN", ""),
+            "name": item.get("Organisation Name", item.get("Name", "")),
+            "status": item.get("Status", ""),
+            "type": item.get("Organisation Type", item.get("Type", "")),
+            "effective_date": item.get("Status Effective Date", ""),
+        })
+
+    if conn is not None:
+        try:
+            _cache_set(conn, cache_key, "fca_register", results)
+        except Exception as exc:
+            logger.warning("FCA cache write failed: {}", exc)
+
+    return results
+
+
+# ── 10. GLEIF (Legal Entity Identifiers) ─────────────────────
+
+def search_gleif(name, timeout=_REQUEST_TIMEOUT, conn=None):
+    """Search GLEIF for Legal Entity Identifiers (LEIs) by entity name.
+
+    Returns list of dicts with keys: lei, name, jurisdiction, status,
+    category, parent_lei.  Returns None on error.
+    """
+    if not name:
+        return []
+
+    cache_key = f"gleif:{name}"
+    if conn is not None:
+        try:
+            cached = _cache_get(conn, cache_key)
+            if cached is not None:
+                return cached
+        except Exception as exc:
+            logger.warning("GLEIF cache read failed: {}", exc)
+
+    try:
+        import requests as req_lib
+        resp = req_lib.get(
+            "https://api.gleif.org/api/v1/lei-records",
+            params={"filter[fulltext]": name, "page[size]": "5"},
+            timeout=timeout,
+            headers={
+                "Accept": "application/vnd.api+json",
+                "User-Agent": _USER_AGENT,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.warning("GLEIF search failed for {}: {}", name, exc)
+        return None
+
+    records = data.get("data", [])
+    results = []
+    for rec in records:
+        attrs = rec.get("attributes", {})
+        entity = attrs.get("entity", {})
+        reg = attrs.get("registration", {})
+        results.append({
+            "lei": attrs.get("lei", rec.get("id", "")),
+            "name": entity.get("legalName", {}).get("name", ""),
+            "jurisdiction": entity.get("jurisdiction", ""),
+            "status": reg.get("status", ""),
+            "category": entity.get("category", ""),
+            "parent_lei": "",  # Would need separate API call for parent
+        })
+
+    if conn is not None:
+        try:
+            _cache_set(conn, cache_key, "gleif", results)
+        except Exception as exc:
+            logger.warning("GLEIF cache write failed: {}", exc)
+
+    return results
+
+
+# ── 11. Cooper Hewitt Museum ─────────────────────────────────
+
+def search_cooper_hewitt(query, has_images=True, timeout=_REQUEST_TIMEOUT, conn=None):
+    """Search Cooper Hewitt Smithsonian Design Museum for design objects.
+
+    Requires COOPER_HEWITT_API_KEY env var.
+    Returns list of dicts with keys: id, title, description, medium,
+    date, url, image_url.  Returns None on error or if key not set.
+    """
+    api_key = os.environ.get("COOPER_HEWITT_API_KEY")
+    if not api_key:
+        logger.debug("COOPER_HEWITT_API_KEY not set — skipping Cooper Hewitt lookup")
+        return None
+
+    if not query:
+        return []
+
+    cache_key = f"cooperhewitt:{query}:{has_images}"
+    if conn is not None:
+        try:
+            cached = _cache_get(conn, cache_key)
+            if cached is not None:
+                return cached
+        except Exception as exc:
+            logger.warning("Cooper Hewitt cache read failed: {}", exc)
+
+    try:
+        import requests as req_lib
+        params = {
+            "access_token": api_key,
+            "method": "cooperhewitt.search.objects",
+            "query": query,
+            "page": "1",
+            "per_page": "5",
+        }
+        if has_images:
+            params["has_images"] = "1"
+        resp = req_lib.get(
+            "https://api.collection.cooperhewitt.org/rest/",
+            params=params,
+            timeout=timeout,
+            headers={"User-Agent": _USER_AGENT},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.warning("Cooper Hewitt search failed for {}: {}", query, exc)
+        return None
+
+    objects = data.get("objects", [])
+    results = []
+    for obj in objects:
+        images = obj.get("images", [])
+        image_url = ""
+        if images:
+            first_img = images[0] if isinstance(images, list) else {}
+            image_url = first_img.get("b", {}).get("url", "") if isinstance(first_img, dict) else ""
+        results.append({
+            "id": obj.get("id", ""),
+            "title": obj.get("title", ""),
+            "description": obj.get("description", ""),
+            "medium": obj.get("medium", ""),
+            "date": obj.get("date", ""),
+            "url": obj.get("url", ""),
+            "image_url": image_url,
+        })
+
+    if conn is not None:
+        try:
+            _cache_set(conn, cache_key, "cooper_hewitt", results)
+        except Exception as exc:
+            logger.warning("Cooper Hewitt cache write failed: {}", exc)
+
+    return results
+
+
 # ── Utility ───────────────────────────────────────────────────
 
 def list_available_sources():
     """Return metadata for all data sources with their availability status.
 
-    Returns list of dicts with keys: name, description, available, needs_key.
-    ``available`` is True when the source can be called right now (i.e. any
-    required API key is present in the environment).
+    Pulls from the server capability catalogue if available, falling back
+    to a hardcoded list for backward compatibility.
+
+    Returns list of dicts with keys: name, display_name, description,
+    available, needs_key, categories.
     """
-    sources = [
-        {
-            "name": "hackernews",
-            "description": "Hacker News stories via Algolia search API",
-            "available": True,
-            "needs_key": False,
-        },
-        {
-            "name": "news",
-            "description": "News articles via DuckDuckGo search",
-            "available": True,
-            "needs_key": False,
-        },
-        {
-            "name": "cloudflare",
-            "description": "Domain popularity ranking via Cloudflare Radar",
-            "available": bool(os.environ.get("CLOUDFLARE_API_TOKEN")),
-            "needs_key": True,
-        },
-        {
-            "name": "patents",
-            "description": "USPTO patent search via PatentsView",
-            "available": True,
-            "needs_key": False,
-        },
-        {
-            "name": "sec_edgar",
-            "description": "SEC EDGAR filings full-text search",
-            "available": True,
-            "needs_key": False,
-        },
-        {
-            "name": "companies_house",
-            "description": "UK Companies House company register",
-            "available": bool(os.environ.get("COMPANIES_HOUSE_API_KEY")),
-            "needs_key": True,
-        },
-        {
-            "name": "wikipedia",
-            "description": "Wikipedia article summaries and search",
-            "available": True,
-            "needs_key": False,
-        },
-    ]
-    return sources
+    try:
+        from core.mcp_catalogue import SERVER_CATALOGUE
+        sources = []
+        for name, cap in SERVER_CATALOGUE.items():
+            if not cap.enrichment_capable:
+                continue
+            needs_key = cap.env_key is not None
+            available = True
+            if needs_key:
+                available = bool(os.environ.get(cap.env_key, ""))
+            sources.append({
+                "name": name,
+                "display_name": cap.display_name,
+                "description": cap.description,
+                "available": available,
+                "needs_key": needs_key,
+                "categories": cap.categories,
+            })
+        return sources
+    except ImportError:
+        # Fallback if catalogue not yet available
+        return [
+            {"name": "hackernews", "description": "Hacker News stories", "available": True, "needs_key": False},
+            {"name": "news", "description": "News via DuckDuckGo", "available": True, "needs_key": False},
+            {"name": "wikipedia", "description": "Wikipedia summaries", "available": True, "needs_key": False},
+            {"name": "patents", "description": "USPTO patents", "available": True, "needs_key": False},
+            {"name": "sec_edgar", "description": "SEC EDGAR filings", "available": True, "needs_key": False},
+            {"name": "companies_house", "description": "UK Companies House",
+             "available": bool(os.environ.get("COMPANIES_HOUSE_API_KEY")), "needs_key": True},
+            {"name": "domain_rank", "description": "Cloudflare Radar",
+             "available": bool(os.environ.get("CLOUDFLARE_API_TOKEN")), "needs_key": True},
+        ]
