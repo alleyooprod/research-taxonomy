@@ -134,3 +134,8 @@ async function loadRecentActivity() {
         content.innerHTML = html;
     }
 }
+
+// --- Action Delegation ---
+registerActions({
+    'toggle-notification-panel': () => toggleNotificationPanel(),
+});

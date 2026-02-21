@@ -265,7 +265,9 @@ async function loadBatches() {
     const res = await safeFetch(`/api/jobs?project_id=${currentProjectId}`);
     const batches = await res.json();
 
-    document.getElementById('batchList').innerHTML = batches.length
+    const batchListEl = document.getElementById('batchList');
+    if (!batchListEl) return;
+    batchListEl.innerHTML = batches.length
         ? batches.map(b => {
             const errorParts = [];
             const otherErrors = (b.errors || 0) - (b.timeouts || 0);
@@ -447,6 +449,10 @@ registerActions({
     'close-batch-detail': () => closeBatchDetail(),
     'retry-timeouts': (el) => retryTimeouts(el.dataset.id),
     'retry-all-errors': (el) => retryAllErrors(el.dataset.id),
+    'submit-urls': () => submitUrls(),
+    'cancel-batch-polling': () => cancelBatchPolling(),
+    'confirm-and-process': () => confirmAndProcess(),
+    'reset-triage': () => resetTriage(),
 });
 
 async function retryAllErrors(batchId) {

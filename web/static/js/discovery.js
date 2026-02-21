@@ -391,6 +391,7 @@ registerActions({
     'generate-feature-landscape': () => generateFeatureLandscape(),
     'generate-gap-analysis': () => generateGapAnalysis(),
     'close-modal-overlay': (el) => el.closest('.modal-overlay').remove(),
+    'choose-context-file': () => document.getElementById('contextFileInput')?.click(),
 });
 
 // ── Expose on window (for external callers) ──────────────────

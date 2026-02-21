@@ -659,4 +659,12 @@ registerActions({
     'restore-from-trash': (el) => restoreFromTrash(Number(el.dataset.id)),
     'permanent-delete': (el) => permanentDelete(Number(el.dataset.id)),
     'merge-companies': (el) => mergeCompanies(Number(el.dataset.targetId), Number(el.dataset.sourceId)),
+    'export-full-pdf': () => exportFullPdf(),
+    'export-project-excel': () => exportProjectExcel(),
+    'export-project-pdf': () => exportProjectPdf(),
+    'export-project-word': () => exportProjectWord(),
+    'export-project-zip': () => exportProjectZip(),
+    'export-xlsx': () => exportXlsx(),
+    'find-duplicates': () => findDuplicates(),
+    'load-trash': () => loadTrash(),
 });

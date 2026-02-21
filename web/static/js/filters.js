@@ -7,15 +7,15 @@ async function loadFilterOptions() {
     const data = await res.json();
 
     const tagSel = document.getElementById('tagFilter');
-    tagSel.innerHTML = '<option value="">+ Tag</option>' +
+    if (tagSel) tagSel.innerHTML = '<option value="">+ Tag</option>' +
         data.tags.map(t => `<option value="${esc(t.tag)}">${esc(t.tag)} (${t.count})</option>`).join('');
 
     const geoSel = document.getElementById('geoFilter');
-    geoSel.innerHTML = '<option value="">+ Geography</option>' +
+    if (geoSel) geoSel.innerHTML = '<option value="">+ Geography</option>' +
         data.geographies.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
 
     const stageSel = document.getElementById('stageFilter');
-    stageSel.innerHTML = '<option value="">+ Stage</option>' +
+    if (stageSel) stageSel.innerHTML = '<option value="">+ Stage</option>' +
         data.funding_stages.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
 }
 
@@ -76,6 +76,7 @@ function clearAllFilters() {
 
 function renderFilterChips() {
     const container = document.getElementById('activeFilters');
+    if (!container) return;  // Tab not yet loaded (lazy)
     const chips = [];
 
     if (activeFilters.category_id) {
@@ -124,6 +125,7 @@ async function loadSavedViews() {
     const res = await safeFetch(`/api/views?project_id=${currentProjectId}`);
     savedViews = await res.json();
     const sel = document.getElementById('savedViewSelect');
+    if (!sel) return;  // Tab not yet loaded (lazy)
     sel.innerHTML = '<option value="">Saved views...</option>' +
         savedViews.map(v => `<option value="${v.id}">${esc(v.name)}</option>`).join('');
 }
@@ -176,4 +178,5 @@ async function saveCurrentView() {
 registerActions({
     'remove-filter': (el) => removeFilter(el.dataset.filterType, el.dataset.filterValue),
     'clear-all-filters': () => clearAllFilters(),
+    'save-current-view': () => saveCurrentView(),
 });

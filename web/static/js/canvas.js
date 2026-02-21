@@ -639,6 +639,16 @@ async function loadCanvasFromReport(data) {
 
 window.loadCanvasFromReport = loadCanvasFromReport;
 
+// --- Action Delegation ---
+registerActions({
+    'create-new-canvas': () => createNewCanvas(),
+    'delete-current-canvas': () => deleteCurrentCanvas(),
+    'rename-current-canvas': () => renameCurrentCanvas(),
+    'export-canvas-pdf': () => exportCanvasPdf(),
+    'export-canvas-png': () => exportCanvasPng(),
+    'export-canvas-svg': () => exportCanvasSvg(),
+});
+
 // Expose key functions globally for cross-module access
 window._excalidrawAPI = null;
 window._currentCanvasId = null;

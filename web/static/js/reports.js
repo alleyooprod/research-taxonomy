@@ -760,6 +760,16 @@ registerActions({
     'delete-report':            (el) => _deleteReport(Number(el.dataset.id)),
     'export-report':            (el) => _exportReport(Number(el.dataset.id), el.dataset.value),
     'export-report-canvas':     (el) => _exportReportToCanvas(Number(el.dataset.id)),
+    'generate-market-report':   () => {
+        const cat = document.getElementById('reportCategorySelect');
+        const model = document.getElementById('reportModelSelect');
+        if (!cat || !cat.value) { showToast('Select a category first'); return; }
+        _generateReport('market_overview', {
+            category_name: cat.value,
+            model: model ? model.value : undefined,
+            use_ai: true,
+        });
+    },
 });
 
 // ── Global Exposure (cross-module calls only) ─────────────────

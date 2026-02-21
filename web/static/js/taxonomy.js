@@ -52,7 +52,9 @@ async function loadTaxonomy() {
     const topLevel = categories.filter(c => !c.parent_id);
     const subs = categories.filter(c => c.parent_id);
 
-    document.getElementById('taxonomyTree').innerHTML = topLevel.map(cat => {
+    const taxonomyTreeEl = document.getElementById('taxonomyTree');
+    if (!taxonomyTreeEl) return;  // Tab not yet loaded (lazy)
+    taxonomyTreeEl.innerHTML = topLevel.map(cat => {
         const color = categoryColorMap[cat.id];
         const children = subs.filter(s => s.parent_id === cat.id);
         const childHtml = children.length
@@ -95,7 +97,7 @@ async function loadTaxonomy() {
 
     // Populate category filter dropdown
     const filter = document.getElementById('categoryFilter');
-    filter.innerHTML = '<option value="">+ Category</option>' +
+    if (filter) filter.innerHTML = '<option value="">+ Category</option>' +
         topLevel.map(c => `<option value="${c.id}">${esc(c.name)} (${c.company_count})</option>`).join('');
 
     // Populate report category dropdown
@@ -108,7 +110,8 @@ async function loadTaxonomy() {
     // Load history
     const histRes = await safeFetch(`/api/taxonomy/history?project_id=${currentProjectId}`);
     const history = await histRes.json();
-    document.getElementById('taxonomyHistory').innerHTML = history.length
+    const historyEl = document.getElementById('taxonomyHistory');
+    if (historyEl) historyEl.innerHTML = history.length
         ? history.map(h => `<div class="history-entry">
             <span class="change-type">${esc(h.change_type)}</span>
             ${esc(h.reason || '')}

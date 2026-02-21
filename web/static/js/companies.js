@@ -493,9 +493,12 @@ function debounceSearch() {
 }
 
 async function loadCompanies() {
-    const search = document.getElementById('searchInput').value;
-    const starred = document.getElementById('starredFilter').checked;
-    const needsEnrichment = document.getElementById('enrichmentFilter').checked;
+    const searchEl = document.getElementById('searchInput');
+    const starredEl = document.getElementById('starredFilter');
+    const enrichEl = document.getElementById('enrichmentFilter');
+    const search = searchEl ? searchEl.value : '';
+    const starred = starredEl ? starredEl.checked : false;
+    const needsEnrichment = enrichEl ? enrichEl.checked : false;
 
     // When using MiniSearch for fuzzy search, still send the query to the backend
     // but also apply client-side fuzzy filtering
@@ -509,7 +512,8 @@ async function loadCompanies() {
     if (activeFilters.funding_stage) url += `funding_stage=${encodeURIComponent(activeFilters.funding_stage)}&`;
     if (activeFilters.founded_from) url += `founded_from=${activeFilters.founded_from}&`;
     if (activeFilters.founded_to) url += `founded_to=${activeFilters.founded_to}&`;
-    const relFilter = document.getElementById('relationshipFilter').value;
+    const relEl = document.getElementById('relationshipFilter');
+    const relFilter = relEl ? relEl.value : '';
     if (relFilter) url += `relationship_status=${encodeURIComponent(relFilter)}&`;
     url += `sort_by=${currentSort.by}&sort_dir=${currentSort.dir}&`;
 
@@ -559,8 +563,9 @@ async function loadCompanies() {
     });
 
     const tbody = document.getElementById('companyBody');
+    if (!tbody) return;  // Tab not yet loaded (lazy)
     if (!companies.length) {
-        const search = document.getElementById('searchInput').value;
+        const search = (document.getElementById('searchInput') || {}).value || '';
         const hasFilters = search || activeFilters.category_id || activeFilters.tags.length
             || activeFilters.geography || activeFilters.funding_stage;
         tbody.innerHTML = `<tr><td colspan="10" class="empty-state">

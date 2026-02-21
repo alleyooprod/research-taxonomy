@@ -217,4 +217,9 @@ registerActions({
         setTimeout(() => el.textContent = 'Copy', 1500);
     },
     'revoke-share-token': (el) => revokeShareToken(Number(el.dataset.id)),
+    'create-share-link': () => createShareLink(),
+    'load-activity': () => loadActivity(),
+    'save-cost-budget': () => saveCostBudget(),
+    'save-notif-prefs': () => saveNotifPrefs(),
+    'test-slack': () => testSlack(),
 });

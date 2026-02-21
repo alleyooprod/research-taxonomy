@@ -90,4 +90,11 @@ async function deleteTag(tagName) {
 // --- Action Delegation ---
 registerActions({
     'delete-tag': (el) => deleteTag(el.dataset.tag),
+    'open-tag-manager': () => openTagManager(),
+    'close-tag-manager': () => closeTagManager(),
+    'show-tag-rename-form': () => showTagRenameForm(),
+    'show-tag-merge-form': () => showTagMergeForm(),
+    'execute-tag-rename': () => executeTagRename(),
+    'execute-tag-merge': () => executeTagMerge(),
+    'hide-tag-forms': () => hideTagForms(),
 });

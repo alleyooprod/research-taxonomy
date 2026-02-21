@@ -697,6 +697,14 @@ if (document.readyState === 'loading') {
     initClipboardPaste();
 }
 
+// ── Action Registration ──────────────────────────────────────
+
+registerActions({
+    'capture-entity-url': () => captureEntityUrl(),
+    'bulk-capture-start': () => bulkCaptureStart(),
+    'upload-evidence': () => uploadEvidence(),
+});
+
 // Make functions globally accessible
 window.initCaptureUI = initCaptureUI;
 window.captureEntityUrl = captureEntityUrl;

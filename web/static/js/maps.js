@@ -887,6 +887,12 @@ async function renderAutoLayoutMap() {
 // --- Action Delegation ---
 registerActions({
     'toggle-compare-select': (el) => toggleCompareSelect(Number(el.dataset.id), el),
+    'load-market-map': () => loadMarketMap(),
+    'switch-map-view': (el) => switchMapView(el.dataset.view),
+    'toggle-geo-heatmap': () => toggleGeoHeatmap(),
+    'export-map-png': () => exportMapPng(),
+    'clear-comparison': () => clearComparison(),
+    'clear-compare-selection': () => clearCompareSelection(),
 });
 
 // Drag-drop delegation for map columns

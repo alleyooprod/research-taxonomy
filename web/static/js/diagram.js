@@ -433,3 +433,13 @@ function renderDiagramLayout(layout) {
 
     scheduleCanvasSave();
 }
+
+// --- Action Delegation ---
+registerActions({
+    'open-diagram-panel': () => openDiagramPanel(),
+    'close-diagram-panel': () => closeDiagramPanel(),
+    'start-diagram-generation': () => startDiagramGeneration(),
+    'cancel-diagram-generation': () => cancelDiagramGeneration(),
+    'use-diagram-template': (el) => useDiagramTemplate(el.dataset.template),
+    'toggle-all-diagram-categories': (el) => toggleAllDiagramCategories(el.dataset.state === 'true'),
+});

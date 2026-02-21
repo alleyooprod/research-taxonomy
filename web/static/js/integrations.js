@@ -592,4 +592,5 @@ registerActions({
         e.stopPropagation();
         navigateTo('category', Number(el.dataset.id), el.dataset.name);
     },
+    'start-product-tour': () => startProductTour(),
 });

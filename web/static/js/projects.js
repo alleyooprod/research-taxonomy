@@ -62,9 +62,12 @@ function selectProject(id, name) {
     currentProjectId = id;
     document.getElementById('projectTitle').textContent = name;
 
-    document.getElementById('exportJson').href = `/api/export/json?project_id=${id}`;
-    document.getElementById('exportMd').href = `/api/export/md?project_id=${id}`;
-    document.getElementById('exportCsv').href = `/api/export/csv?project_id=${id}`;
+    const exportJson = document.getElementById('exportJson');
+    const exportMd = document.getElementById('exportMd');
+    const exportCsv = document.getElementById('exportCsv');
+    if (exportJson) exportJson.href = `/api/export/json?project_id=${id}`;
+    if (exportMd) exportMd.href = `/api/export/md?project_id=${id}`;
+    if (exportCsv) exportCsv.href = `/api/export/csv?project_id=${id}`;
 
     document.getElementById('projectSelection').classList.add('hidden');
     document.getElementById('newProjectForm').classList.add('hidden');
@@ -339,6 +342,8 @@ async function createProject(event) {
 // --- Action Delegation ---
 registerActions({
     'show-new-project-form': () => showNewProjectForm(),
+    'show-project-selection': () => showProjectSelection(),
+    'switch-project': () => switchProject(),
     'select-project': (el, e) => {
         if (e.target.closest('[data-action="delete-project-from-grid"]')) return;
         selectProject(Number(el.dataset.id), el.dataset.name);
@@ -348,6 +353,8 @@ registerActions({
         confirmDeleteProjectFromGrid(Number(el.dataset.id), el.dataset.name);
     },
     'select-template': (el) => _selectTemplate(el.dataset.template),
+    'create-project': (el, e) => createProject(e),
+    'suggest-schema': () => suggestSchema(),
 });
 
 async function confirmDeleteProjectFromGrid(projectId, projectName) {

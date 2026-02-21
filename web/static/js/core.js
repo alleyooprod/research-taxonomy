@@ -231,6 +231,15 @@ document.addEventListener('input', (e) => {
     handler(el, e);
 });
 
+document.addEventListener('keydown', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    const handler = _actionHandlers[action];
+    if (!handler) return;
+    if (e.key === 'Enter') handler(el, e);
+});
+
 document.addEventListener('focusout', (e) => {
     const el = e.target.closest('[data-on-blur]');
     if (!el) return;
@@ -246,6 +255,13 @@ registerActions({
     'retry-tab-load': (el) => showTab(el.dataset.id),
     'dismiss-toast': () => dismissToast(),
     'execute-undo': () => executeUndo(),
+    'show-tab': (el) => showTab(el.dataset.tab),
+    'show-tab-close-tools': (el) => { closeToolsDropdown(); showTab(el.dataset.tab); },
+    'toggle-section': (el) => toggleSection(el),
+    'toggle-theme': () => toggleTheme(),
+    'toggle-tools-dropdown': () => toggleToolsDropdown(),
+    'toggle-shortcuts-overlay': () => toggleShortcutsOverlay(),
+    'toggle-shortcuts-overlay-backdrop': () => toggleShortcutsOverlay(),
 });
 
 // --- Reusable Model Select HTML ---

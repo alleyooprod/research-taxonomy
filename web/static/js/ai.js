@@ -476,7 +476,16 @@ async function sendChatMessage() {
 
 // --- Action Delegation ---
 registerActions({
+    'close-chat': () => closeChat(),
     'copy-command': (el) => copyCommand(el),
     'add-discovered-urls': () => addDiscoveredUrls(),
     'add-similar-to-queue': () => addSimilarToQueue(),
+    'find-similar': (el) => findSimilar(Number(el.dataset.id)),
+    'save-ai-api-key': () => saveAiApiKey(),
+    'save-default-model': () => saveDefaultModel(),
+    'send-chat-message': () => sendChatMessage(),
+    'start-discovery': () => startDiscovery(),
+    'test-ai-backend': (el) => testAiBackend(el.dataset.backend),
+    'toggle-chat': () => toggleChat(),
+    'chat-input-keydown': () => sendChatMessage(),
 });
