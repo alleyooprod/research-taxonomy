@@ -1,6 +1,6 @@
 ---
 document_type: healthtech_taxonomy
-last_updated: 2026-02-21T13:29:05
+last_updated: 2026-02-21T13:29:44
 total_companies: 0
 total_categories: 3
 format_version: 2.0
