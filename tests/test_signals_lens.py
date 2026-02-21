@@ -308,6 +308,7 @@ class TestSignalsTimeline:
         """Timeline with only change_feed entries."""
         db = signal_project["db"]
         eid = signal_project["entity_ids"][0]
+        pid = signal_project["project_id"]
         _create_monitoring_tables(db)
         with db._get_conn() as conn:
             conn.execute(
@@ -316,23 +317,23 @@ class TestSignalsTimeline:
             )
             mid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute(
-                """INSERT INTO change_feed (monitor_id, change_type, field_name,
-                   old_value, new_value, detected_at, severity)
-                   VALUES (?, 'content_change', 'title', 'Old Title', 'New Title',
+                """INSERT INTO change_feed (project_id, entity_id, monitor_id, change_type,
+                   title, description, created_at, severity)
+                   VALUES (?, ?, ?, 'content_change', 'Title changed',
+                           'Changed from Old Title to New Title',
                            '2026-02-18 09:00:00', 'high')""",
-                (mid,),
+                (pid, eid, mid),
             )
             conn.commit()
 
         c = signal_project["client"]
-        pid = signal_project["project_id"]
         r = c.get(f"/api/lenses/signals/timeline?project_id={pid}")
         assert r.status_code == 200
         data = r.get_json()
         cf_events = [e for e in data["events"] if e["type"] == "change_detected"]
         assert len(cf_events) == 1
         assert cf_events[0]["severity"] == "high"
-        assert "title" in cf_events[0]["title"]
+        assert "Title changed" in cf_events[0]["title"]
 
     def test_combined_events_sorted_desc(self, signal_project_with_data):
         """All 3 event types present and sorted by timestamp descending."""
@@ -614,6 +615,7 @@ class TestSignalsTrends:
         """Events from different sources in the same week bucket combine."""
         db = signal_project["db"]
         eid = signal_project["entity_ids"][0]
+        pid = signal_project["project_id"]
         _create_monitoring_tables(db)
 
         # All events in the same week (Feb 10-16, 2026)
@@ -624,10 +626,11 @@ class TestSignalsTrends:
             )
             mid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute(
-                """INSERT INTO change_feed (monitor_id, change_type, field_name,
-                   old_value, new_value, detected_at, severity)
-                   VALUES (?, 'content_change', 'title', 'A', 'B', '2026-02-11 10:00:00', 'low')""",
-                (mid,),
+                """INSERT INTO change_feed (project_id, entity_id, monitor_id, change_type,
+                   title, description, created_at, severity)
+                   VALUES (?, ?, ?, 'content_change', 'Title changed',
+                           'Changed from A to B', '2026-02-11 10:00:00', 'low')""",
+                (pid, eid, mid),
             )
             conn.commit()
 
@@ -830,9 +833,10 @@ class TestSignalsEdgeCases:
         """Events with NULL timestamps are handled gracefully in timeline."""
         db = signal_project["db"]
         eid = signal_project["entity_ids"][0]
+        pid = signal_project["project_id"]
         _create_monitoring_tables(db)
 
-        # Insert a change_feed entry with NULL detected_at
+        # Insert a change_feed entry with NULL created_at
         with db._get_conn() as conn:
             conn.execute(
                 "INSERT INTO monitors (entity_id, monitor_type, config_json, is_active) VALUES (?, 'website', '{}', 1)",
@@ -840,10 +844,11 @@ class TestSignalsEdgeCases:
             )
             mid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute(
-                """INSERT INTO change_feed (monitor_id, change_type, field_name,
-                   old_value, new_value, detected_at, severity)
-                   VALUES (?, 'content_change', 'test', 'a', 'b', NULL, 'info')""",
-                (mid,),
+                """INSERT INTO change_feed (project_id, entity_id, monitor_id, change_type,
+                   title, description, created_at, severity)
+                   VALUES (?, ?, ?, 'content_change', 'test change',
+                           'Changed from a to b', NULL, 'info')""",
+                (pid, eid, mid),
             )
             conn.commit()
 
