@@ -16,7 +16,7 @@ import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
-import web.blueprints.reports as reports_mod
+import web.blueprints.reports._shared as reports_mod
 
 pytestmark = [pytest.mark.db, pytest.mark.api]
 
@@ -484,7 +484,7 @@ class TestReportPdfExport:
         })
         return r.get_json()
 
-    @patch("web.blueprints.reports.weasyprint", create=True)
+    @patch("web.blueprints.reports.export.weasyprint", create=True)
     def test_pdf_export_returns_pdf_content_type(self, mock_wp, report_project):
         """PDF export should return application/pdf when weasyprint is available."""
         c = report_project["client"]
@@ -505,7 +505,7 @@ class TestReportPdfExport:
         assert "application/pdf" in r.content_type
         assert r.data == b"%PDF-1.4 fake pdf content"
 
-    @patch("web.blueprints.reports.weasyprint", create=True)
+    @patch("web.blueprints.reports.export.weasyprint", create=True)
     def test_pdf_export_content_disposition(self, mock_wp, report_project):
         """PDF export should set Content-Disposition with .pdf filename."""
         c = report_project["client"]
@@ -549,7 +549,7 @@ class TestReportPdfExport:
             else:
                 sys.modules.pop("weasyprint", None)
 
-    @patch("web.blueprints.reports.weasyprint", create=True)
+    @patch("web.blueprints.reports.export.weasyprint", create=True)
     def test_pdf_export_empty_report(self, mock_wp, report_project):
         """PDF export should work for a report with no sections."""
         c = report_project["client"]
@@ -574,7 +574,7 @@ class TestReportPdfExport:
         html_string = call_args[1].get("string") or call_args[0][0] if call_args[0] else call_args[1].get("string", "")
         assert "Market Overview" in html_string
 
-    @patch("web.blueprints.reports.weasyprint", create=True)
+    @patch("web.blueprints.reports.export.weasyprint", create=True)
     def test_pdf_export_multiple_sections(self, mock_wp, report_project):
         """PDF export should include all sections in the generated HTML."""
         c = report_project["client"]

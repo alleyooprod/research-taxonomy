@@ -15,7 +15,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-import web.blueprints.monitoring as monitoring_mod
+import web.blueprints.monitoring._shared as monitoring_mod
 
 pytestmark = [pytest.mark.db, pytest.mark.api]
 

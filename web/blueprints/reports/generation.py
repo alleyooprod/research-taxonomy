@@ -8,7 +8,7 @@ from loguru import logger
 from . import reports_bp
 from ._shared import (
     _require_project_id, _now_iso, _ensure_table,
-    _row_to_report, _REPORT_TABLE_SQL,
+    _row_to_report, _REPORT_TABLE_SQL, _REPORT_SCHEMA, _TEMPLATES,
 )
 
 # ═══════════════════════════════════════════════════════════════

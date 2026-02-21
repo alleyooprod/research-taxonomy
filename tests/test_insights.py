@@ -15,7 +15,7 @@ import json
 import pytest
 from unittest.mock import patch
 
-import web.blueprints.insights as insights_mod
+import web.blueprints.insights._shared as insights_mod
 
 pytestmark = [pytest.mark.db, pytest.mark.api]
 
