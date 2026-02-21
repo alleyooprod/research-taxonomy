@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "last_updated": "2026-02-21T13:24:05.386200",
+    "last_updated": "2026-02-21T13:29:05.012757",
     "total_companies": 3,
     "total_categories": 3,
-    "exported_at": "2026-02-21T13:24:05.386213"
+    "exported_at": "2026-02-21T13:29:05.012760"
   },
   "categories": [
     {
@@ -12,8 +12,8 @@
       "name": "Alpha",
       "parent_id": null,
       "description": null,
-      "created_at": "2026-02-21 13:24:05",
-      "updated_at": "2026-02-21 13:24:05",
+      "created_at": "2026-02-21 13:29:04",
+      "updated_at": "2026-02-21 13:29:04",
       "is_active": 1,
       "merged_into_id": null,
       "synonyms": null,
@@ -28,8 +28,8 @@
       "name": "Beta",
       "parent_id": null,
       "description": null,
-      "created_at": "2026-02-21 13:24:05",
-      "updated_at": "2026-02-21 13:24:05",
+      "created_at": "2026-02-21 13:29:04",
+      "updated_at": "2026-02-21 13:29:04",
       "is_active": 1,
       "merged_into_id": null,
       "synonyms": null,
@@ -44,8 +44,8 @@
       "name": "Gamma",
       "parent_id": null,
       "description": null,
-      "created_at": "2026-02-21 13:24:05",
-      "updated_at": "2026-02-21 13:24:05",
+      "created_at": "2026-02-21 13:29:04",
+      "updated_at": "2026-02-21 13:29:04",
       "is_active": 1,
       "merged_into_id": null,
       "synonyms": null,
@@ -73,8 +73,8 @@
       "tags": [],
       "raw_research": null,
       "source_url": null,
-      "processed_at": "2026-02-21T13:24:05.255723",
-      "updated_at": "2026-02-21T13:24:05.265130",
+      "processed_at": "2026-02-21T13:29:04.982115",
+      "updated_at": "2026-02-21T13:29:04.984366",
       "confidence_score": null,
       "logo_url": "https://logo.clearbit.com/demo.com",
       "employee_range": null,
@@ -84,7 +84,7 @@
       "hq_city": null,
       "hq_country": null,
       "linkedin_url": null,
-      "last_verified_at": "2026-02-21T13:24:05.255723",
+      "last_verified_at": "2026-02-21T13:29:04.982115",
       "is_starred": 0,
       "is_deleted": 0,
       "deleted_at": null,
@@ -128,8 +128,8 @@
       "tags": [],
       "raw_research": null,
       "source_url": null,
-      "processed_at": "2026-02-21T13:24:05.357451",
-      "updated_at": "2026-02-21T13:24:05.363519",
+      "processed_at": "2026-02-21T13:29:05.003151",
+      "updated_at": "2026-02-21T13:29:05.005784",
       "confidence_score": null,
       "logo_url": "https://logo.clearbit.com/sample.co.uk",
       "employee_range": null,
@@ -139,7 +139,7 @@
       "hq_city": null,
       "hq_country": null,
       "linkedin_url": null,
-      "last_verified_at": "2026-02-21T13:24:05.357451",
+      "last_verified_at": "2026-02-21T13:29:05.003151",
       "is_starred": 0,
       "is_deleted": 0,
       "deleted_at": null,
@@ -183,8 +183,8 @@
       "tags": [],
       "raw_research": null,
       "source_url": null,
-      "processed_at": "2026-02-21T13:24:05.215606",
-      "updated_at": "2026-02-21T13:24:05.223853",
+      "processed_at": "2026-02-21T13:29:04.971920",
+      "updated_at": "2026-02-21T13:29:04.974167",
       "confidence_score": null,
       "logo_url": "https://logo.clearbit.com/testcorp.com",
       "employee_range": null,
@@ -194,7 +194,7 @@
       "hq_city": null,
       "hq_country": null,
       "linkedin_url": null,
-      "last_verified_at": "2026-02-21T13:24:05.215606",
+      "last_verified_at": "2026-02-21T13:29:04.971920",
       "is_starred": 0,
       "is_deleted": 0,
       "deleted_at": null,
@@ -226,22 +226,22 @@
   "reports": [],
   "activity_log": [
     {
-      "id": 1,
-      "project_id": 1,
-      "action": "company_updated",
-      "description": "Updated Test Corp",
-      "entity_type": "company",
-      "entity_id": 1,
-      "created_at": "2026-02-21 13:24:05"
-    },
-    {
       "id": 2,
       "project_id": 1,
       "action": "company_updated",
       "description": "Updated Demo Inc",
       "entity_type": "company",
       "entity_id": 2,
-      "created_at": "2026-02-21 13:24:05"
+      "created_at": "2026-02-21 13:29:05"
+    },
+    {
+      "id": 1,
+      "project_id": 1,
+      "action": "company_updated",
+      "description": "Updated Test Corp",
+      "entity_type": "company",
+      "entity_id": 1,
+      "created_at": "2026-02-21 13:29:04"
     }
   ],
   "saved_views": []
