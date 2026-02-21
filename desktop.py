@@ -696,12 +696,30 @@ def _menu_about():
         _window_ref.evaluate_js("openAboutDialog()")
 
 
+def _menu_new_window():
+    """Open a new app window."""
+    if _window_ref:
+        try:
+            url = f"http://{WEB_HOST}:{_port_ref}"
+            webview.create_window(
+                title="Research Taxonomy Library",
+                url=url,
+                width=1440,
+                height=900,
+                min_size=(1024, 680),
+                js_api=DesktopAPI(),
+            )
+        except Exception as e:
+            logger.debug("New window failed: %s", e)
+
+
 def _build_menus():
     """Build full native macOS menu bar."""
     file_menu = Menu(
         "File",
         [
             MenuAction("New Project", _menu_new_project),
+            MenuAction("New Window", _menu_new_window),
             MenuSeparator(),
             MenuAction("Export JSON", _menu_export_json),
             MenuAction("Export CSV", _menu_export_csv),
@@ -812,6 +830,31 @@ class DesktopAPI:
             logger.debug("Window lost focus -- background operations may be paused")
         else:
             logger.debug("Window gained focus")
+
+    def update_monitoring_badge(self, count, changes_json=None):
+        """Update menu bar status item from JS monitoring checks."""
+        import json as _json
+        changes = _json.loads(changes_json) if changes_json else None
+        _update_status_item(count, changes)
+
+    def open_new_window(self):
+        """Open a new app window (macOS will merge into tab group)."""
+        if not _port_ref:
+            return False
+        try:
+            url = f"http://{WEB_HOST}:{_port_ref}"
+            new_win = webview.create_window(
+                title="Research Taxonomy Library",
+                url=url,
+                width=1440,
+                height=900,
+                min_size=(1024, 680),
+                js_api=DesktopAPI(),
+            )
+            return True
+        except Exception as e:
+            logger.debug("New window creation failed: %s", e)
+            return False
 
     # --- Native File Dialogs ---
 
@@ -1087,6 +1130,175 @@ def _handle_research_url(url):
             logger.debug("Unknown research:// resource: %s", resource)
     except Exception as e:
         logger.debug("URL navigation error: %s", e)
+
+
+# --- Menu Bar Status Item ---
+
+_status_item = None
+_status_menu = None
+
+
+def _setup_status_item():
+    """Create a persistent menu bar status item showing monitoring alerts."""
+    global _status_item, _status_menu
+    try:
+        from AppKit import (
+            NSStatusBar, NSMenu, NSMenuItem,
+            NSVariableStatusItemLength, NSFont, NSApplication,
+        )
+
+        status_bar = NSStatusBar.systemStatusBar()
+        _status_item = status_bar.statusItemWithLength_(NSVariableStatusItemLength)
+
+        button = _status_item.button()
+        button.setTitle_("R")
+        button.setFont_(NSFont.monospacedSystemFontOfSize_weight_(11, 0.4))
+
+        _status_menu = NSMenu.alloc().initWithTitle_("Research Workbench")
+
+        no_alerts = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "No pending alerts", None, ""
+        )
+        no_alerts.setEnabled_(False)
+        _status_menu.addItem_(no_alerts)
+        _status_menu.addItem_(NSMenuItem.separatorItem())
+
+        # "Show App" item
+        show_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Show Research Workbench", "showApp:", ""
+        )
+        _status_menu.addItem_(show_item)
+
+        _status_menu.addItem_(NSMenuItem.separatorItem())
+
+        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Quit", "terminate:", ""
+        )
+        _status_menu.addItem_(quit_item)
+
+        _status_item.setMenu_(_status_menu)
+        logger.debug("Menu bar status item created")
+    except ImportError:
+        logger.debug("AppKit not available — status item skipped")
+    except Exception as e:
+        logger.debug("Status item setup failed: %s", e)
+
+
+def _update_status_item(alert_count, recent_changes=None):
+    """Update the status item badge count and dropdown menu."""
+    if not _status_item:
+        return
+    try:
+        button = _status_item.button()
+        if alert_count and int(alert_count) > 0:
+            button.setTitle_(f"R\u00b7{int(alert_count)}")
+        else:
+            button.setTitle_("R")
+
+        if recent_changes and _status_menu:
+            from AppKit import NSMenuItem
+            # Remove all items before the separator (dynamic change items)
+            # Keep: separator + Show App + separator + Quit (last 4)
+            while _status_menu.numberOfItems() > 4:
+                _status_menu.removeItemAtIndex_(0)
+
+            # Insert recent changes at the top
+            for i, change in enumerate(recent_changes[:5]):
+                entity = str(change.get("entity", "Unknown"))[:30]
+                summary = str(change.get("summary", ""))[:50]
+                title = f"{entity}: {summary}" if summary else entity
+                item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                    title, None, ""
+                )
+                item.setEnabled_(False)
+                _status_menu.insertItem_atIndex_(item, i)
+    except Exception as e:
+        logger.debug("Status item update failed: %s", e)
+
+
+def _remove_status_item():
+    """Remove status item from menu bar on shutdown."""
+    global _status_item
+    if _status_item:
+        try:
+            from AppKit import NSStatusBar
+            NSStatusBar.systemStatusBar().removeStatusItem_(_status_item)
+            _status_item = None
+        except Exception:
+            pass
+
+
+# --- Window Tabs (macOS native tabbing) ---
+
+
+def _setup_window_tabbing():
+    """Enable macOS native window tabbing for multi-window support."""
+    try:
+        from AppKit import NSApplication, NSWindow
+        # Enable automatic window tabbing system-wide for this app
+        NSWindow.setAllowsAutomaticWindowTabbing_(True)
+
+        app = NSApplication.sharedApplication()
+        ns_window = app.mainWindow()
+        if not ns_window:
+            windows = app.windows()
+            for w in windows:
+                if w.isVisible():
+                    ns_window = w
+                    break
+        if ns_window:
+            # NSWindowTabbingModeAutomatic = 0
+            ns_window.setTabbingMode_(0)
+        logger.debug("Window tabbing enabled")
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.debug("Window tabbing setup failed: %s", e)
+
+
+# --- macOS Services Provider ---
+
+_services_provider = None  # prevent GC
+
+
+def _setup_services():
+    """Register as macOS Services provider for URL capture from other apps."""
+    global _services_provider
+    try:
+        from AppKit import NSRegisterServicesProvider, NSApplication
+        from Foundation import NSObject, NSPasteboard
+
+        class ServicesProvider(NSObject):
+            def captureURL_userData_error_(self, pboard, userData, error):
+                """Handle 'Capture URL' service call from other apps."""
+                try:
+                    # NSPasteboardTypeString = 'public.utf8-plain-text'
+                    text = pboard.stringForType_("public.utf8-plain-text")
+                    if text and _window_ref:
+                        safe = str(text).replace("'", "\\'").replace("\\", "\\\\")[:2000]
+                        _window_ref.evaluate_js(
+                            f"showTab('process'); "
+                            f"setTimeout(function() {{ "
+                            f"  var el = document.getElementById('captureUrl'); "
+                            f"  if (el) el.value = '{safe}'; "
+                            f"}}, 300)"
+                        )
+                        send_notification("URL Received", f"Ready to capture: {text[:80]}")
+                except Exception as e:
+                    logger.warning("Services capture error: %s", e)
+                return None
+
+        _services_provider = ServicesProvider.alloc().init()
+        NSRegisterServicesProvider(_services_provider, "ResearchTaxonomyLibrary")
+        # Refresh the services menu
+        NSApplication.sharedApplication().registerServicesMenuSendTypes_returnTypes_(
+            ["public.utf8-plain-text"], []
+        )
+        logger.debug("macOS Services provider registered")
+    except ImportError:
+        logger.debug("AppKit not available — Services skipped")
+    except Exception as e:
+        logger.debug("Services setup failed: %s", e)
 
 
 # --- Server Helpers ---

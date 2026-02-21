@@ -95,6 +95,17 @@ cat > "${PROJECT_DIR}/${APP_DIR}/Contents/Info.plist" << PLIST
     <string>Olly Research</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>Research Taxonomy URL</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>research</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

@@ -1032,6 +1032,110 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// ========== Native Context Menus (desktop mode) ==========
+
+document.addEventListener('contextmenu', function(e) {
+    if (!window.pywebview?.api?.show_context_menu) return;
+    // Don't intercept on editable elements
+    if (e.target.matches('input, textarea, [contenteditable="true"]')) return;
+
+    const items = _buildContextMenuItems(e.target);
+    if (!items || items.length === 0) return;
+
+    e.preventDefault();
+    window.pywebview.api.show_context_menu(
+        JSON.stringify(items),
+        e.clientX,
+        e.clientY
+    );
+});
+
+function _buildContextMenuItems(target) {
+    // Entity table row
+    const entityRow = target.closest('tr[data-entity-id], tr[data-id]');
+    if (entityRow) {
+        const id = entityRow.dataset.entityId || entityRow.dataset.id;
+        return [
+            { label: 'Open', action: 'entity_open', id: id },
+            { label: 'Capture Evidence', action: 'entity_capture', id: id },
+            { separator: true },
+            { label: 'Copy Name', action: 'entity_copy_name', id: id },
+            { separator: true },
+            { label: 'Delete', action: 'entity_delete', id: id },
+        ];
+    }
+    // Evidence card
+    const evidenceCard = target.closest('[data-evidence-id]');
+    if (evidenceCard) {
+        const id = evidenceCard.dataset.evidenceId;
+        return [
+            { label: 'View', action: 'evidence_view', id: id },
+            { label: 'Download', action: 'evidence_download', id: id },
+            { separator: true },
+            { label: 'Delete', action: 'evidence_delete', id: id },
+        ];
+    }
+    // Tab right-click
+    const tab = target.closest('.tab[data-tab]');
+    if (tab) {
+        const tabName = tab.dataset.tab;
+        return [
+            { label: 'Reload Tab', action: 'tab_reload', id: tabName },
+        ];
+    }
+    // Project card
+    const projectCard = target.closest('[data-project-id]');
+    if (projectCard) {
+        const id = projectCard.dataset.projectId;
+        return [
+            { label: 'Open Project', action: 'project_open', id: id },
+            { separator: true },
+            { label: 'Delete Project', action: 'project_delete', id: id },
+        ];
+    }
+    return null;
+}
+
+window._handleContextMenuAction = function(action, id) {
+    switch (action) {
+        case 'entity_open':
+            if (typeof showEntityDetail === 'function') showEntityDetail(parseInt(id));
+            break;
+        case 'entity_capture':
+            showTab('process');
+            break;
+        case 'entity_copy_name': {
+            const row = document.querySelector(`tr[data-entity-id="${id}"], tr[data-id="${id}"]`);
+            if (row) {
+                const name = row.querySelector('td:first-child')?.textContent?.trim();
+                if (name) navigator.clipboard.writeText(name);
+            }
+            break;
+        }
+        case 'entity_delete':
+            if (typeof deleteEntity === 'function') deleteEntity(parseInt(id));
+            break;
+        case 'evidence_view':
+            // Open evidence viewer if available
+            break;
+        case 'evidence_download':
+            window.open(`/api/evidence/${id}/download`, '_blank');
+            break;
+        case 'evidence_delete':
+            if (typeof deleteEvidence === 'function') deleteEvidence(parseInt(id));
+            break;
+        case 'tab_reload':
+            showTab(id);
+            break;
+        case 'project_open':
+            if (typeof selectProject === 'function') selectProject(parseInt(id));
+            break;
+        case 'project_delete':
+            if (typeof deleteProject === 'function') deleteProject(parseInt(id));
+            break;
+    }
+};
+
 // ========== Share Functionality ==========
 window.shareData = async function(data) {
   // data: { title, text, url }
