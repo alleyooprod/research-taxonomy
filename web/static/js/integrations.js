@@ -318,14 +318,16 @@ function renderFuseResults(companies) {
 }
 
 // --- Override exportReportPdf to use pdfmake when available ---
-const _origExportReportPdf = exportReportPdf;
-exportReportPdf = function() {
-    if (window.pdfMake) {
-        exportReportPdfPdfmake();
-    } else {
-        _origExportReportPdf();
-    }
-};
+if (typeof exportReportPdf === 'function') {
+    const _origExportReportPdf = exportReportPdf;
+    exportReportPdf = function() {
+        if (window.pdfMake) {
+            exportReportPdfPdfmake();
+        } else {
+            _origExportReportPdf();
+        }
+    };
+}
 
 // --- Autosize (Auto-expanding textareas) ---
 function initAutosize() {

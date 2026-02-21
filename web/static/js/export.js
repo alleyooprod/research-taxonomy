@@ -183,6 +183,11 @@ async function exportXlsx() {
     if (notyf) notyf.success('Excel workbook exported!');
 }
 
+// --- Browser-native PDF export (fallback when pdfMake not loaded) ---
+function exportReportPdf() {
+    window.print();
+}
+
 // --- pdfmake (PDF Export) ---
 function exportReportPdfPdfmake() {
     if (!window.pdfMake) {
