@@ -298,7 +298,7 @@ function showTab(name) {
         if (typeof initReports === 'function') tasks.push(Promise.resolve(initReports()));
         Promise.all(tasks).finally(() => hideTabLoading('export'));
     }
-    if (name === 'settings') { if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); if (typeof loadDefaultModel === 'function') loadDefaultModel(); }
+    if (name === 'settings') { if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); if (typeof loadDefaultModel === 'function') loadDefaultModel(); if (typeof initCostDashboard === 'function') initCostDashboard(); }
 
     // Save app state on tab change
     if (typeof saveAppState === 'function') saveAppState();

@@ -33,6 +33,11 @@ from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify, current_app
 from loguru import logger
 
+from ._utils import (
+    now_iso as _now_iso,
+    parse_json_field as _parse_json_field,
+)
+
 crossproject_bp = Blueprint("crossproject", __name__)
 
 # ── Constants ────────────────────────────────────────────────
@@ -89,22 +94,6 @@ def _ensure_tables(conn):
 
 
 # ── Shared Helpers ───────────────────────────────────────────
-
-def _now_iso():
-    """Return current UTC time as ISO-8601 string."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _parse_json_field(raw, default=None):
-    """Safely parse a JSON text field from a DB row."""
-    if default is None:
-        default = {}
-    if not raw:
-        return default
-    try:
-        return json.loads(raw) if isinstance(raw, str) else raw
-    except (json.JSONDecodeError, TypeError):
-        return default
 
 
 def _row_to_link(row):

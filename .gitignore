@@ -22,5 +22,6 @@ build/
 *.app/
 setup.py
 node_modules/
+web/static/dist/
 test-results/
 playwright-report/

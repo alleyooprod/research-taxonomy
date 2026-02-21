@@ -24,8 +24,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 
-    <!-- App stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- App stylesheet (bundled) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/app.bundle.css') }}">
 
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- CDN Stylesheets                                            -->
@@ -67,19 +67,9 @@
     <!-- Diff viewer: diff2html -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.56/bundles/css/diff2html.min.css" integrity="sha384-PdRCG/+r1waybtXfuDB9Kmv2h7AGoN6WaTZ5OF+ctPeR9BGne0FaKRQnUeGV4nDL" crossorigin="anonymous">
 
-    <!-- Review Queue -->
-    <link rel="stylesheet" href="/static/css/review.css">
-    <link rel="stylesheet" href="/static/css/features.css">
-    <link rel="stylesheet" href="/static/css/capture.css">
-    <link rel="stylesheet" href="/static/css/lenses.css">
-    <link rel="stylesheet" href="/static/css/reports.css">
-    <link rel="stylesheet" href="/static/css/monitoring.css">
-    <link rel="stylesheet" href="/static/css/insights.css">
-    <link rel="stylesheet" href="/static/css/playbooks.css">
-    <link rel="stylesheet" href="/static/css/crossproject.css">
-    <link rel="stylesheet" href="/static/css/provenance.css">
+    <!-- Component CSS included in app.bundle.css above -->
 
-    <!-- Print styles -->
+    <!-- Print styles (separate — media="print") -->
     <link rel="stylesheet" href="/static/css/print.css" media="print">
 
     <!-- ═══════════════════════════════════════════════════════════ -->
@@ -1517,6 +1507,48 @@
                     </div>
                 </div>
 
+                <!-- Cost Tracking -->
+                <div class="settings-section">
+                    <h3 class="section-heading">Cost Tracking</h3>
+                    <p class="hint-text">Monitor LLM API usage and costs for the current project.</p>
+
+                    <div class="cost-summary-grid" id="costSummaryGrid">
+                        <div class="cost-card">
+                            <span class="cost-card-label">Total Spend</span>
+                            <span class="cost-card-value" id="costTotalSpend">$0.00</span>
+                        </div>
+                        <div class="cost-card">
+                            <span class="cost-card-label">Total Calls</span>
+                            <span class="cost-card-value" id="costTotalCalls">0</span>
+                        </div>
+                        <div class="cost-card">
+                            <span class="cost-card-label">Avg Cost/Call</span>
+                            <span class="cost-card-value" id="costAvgPerCall">$0.00</span>
+                        </div>
+                        <div class="cost-card">
+                            <span class="cost-card-label">Budget Used</span>
+                            <span class="cost-card-value" id="costBudgetPct">--</span>
+                        </div>
+                    </div>
+
+                    <div class="cost-budget-row" style="margin-top:12px">
+                        <label for="costBudgetInput" style="font-size:13px;font-weight:500">Project Budget (USD):</label>
+                        <input type="number" id="costBudgetInput" min="0" step="0.01" placeholder="0.00" style="width:120px;margin:0 8px">
+                        <button class="btn btn-sm" onclick="saveCostBudget()">Set Budget</button>
+                        <span id="costBudgetStatus" class="hint-text hint-inline"></span>
+                    </div>
+
+                    <h4 style="font-size:13px;font-weight:600;margin:16px 0 8px">Cost by Operation</h4>
+                    <div id="costByOperationTable" style="font-size:13px">
+                        <p class="hint-text">No cost data yet.</p>
+                    </div>
+
+                    <h4 style="font-size:13px;font-weight:600;margin:16px 0 8px">Last 7 Days</h4>
+                    <div id="costDailyChart" class="cost-daily-chart">
+                        <p class="hint-text">No daily data yet.</p>
+                    </div>
+                </div>
+
                 <!-- App Info -->
                 <div class="settings-section">
                     <h3 class="section-heading">Application</h3>
@@ -1864,41 +1896,8 @@
       </div>
     </div>
 
-    <!-- App JS modules (load order matters: core first, integrations/init last) -->
-    <script src="{{ url_for('static', filename='js/core.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/companies.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/entities.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/taxonomy.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/maps.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/processing.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tags.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/research.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/presentation.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/canvas.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/diagram.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ai.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/export.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/keyboard.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sse.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app-settings.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/integrations.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dimensions.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/discovery.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/review.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/features.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/capture.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/lenses.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/monitoring.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/playbooks.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/crossproject.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/provenance.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/init.js') }}"></script>
+    <!-- App JS (bundled — core.js first, init.js last) -->
+    <script src="{{ url_for('static', filename='dist/app.bundle.js') }}"></script>
 
     <script>
       // Prevent pinch-zoom (native apps don't zoom)

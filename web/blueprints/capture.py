@@ -31,31 +31,9 @@ from core.capture import (
     MAX_UPLOAD_SIZE,
 )
 
+from ._utils import is_safe_url as _is_safe_url
+
 capture_bp = Blueprint("capture", __name__)
-
-
-# ── SSRF Protection ──────────────────────────────────────────
-
-def _is_safe_url(url: str) -> bool:
-    """Reject URLs targeting private/internal networks."""
-    try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        if not hostname:
-            return False
-        # Reject common internal hostnames
-        if hostname in ("localhost", "0.0.0.0"):
-            return False
-        # Try to parse as IP and check if private
-        try:
-            ip = ipaddress.ip_address(hostname)
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-                return False
-        except ValueError:
-            pass  # Not an IP, it's a hostname — allow
-        return True
-    except Exception:
-        return False
 
 
 # ── Website Capture ───────────────────────────────────────────

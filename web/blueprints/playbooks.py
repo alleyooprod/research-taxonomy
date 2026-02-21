@@ -39,6 +39,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app
 from loguru import logger
 
+from ._utils import (
+    require_project_id as _require_project_id,
+    now_iso as _now_iso,
+    parse_json_field as _parse_json_field,
+)
+
 playbooks_bp = Blueprint("playbooks", __name__)
 
 # ── Constants ────────────────────────────────────────────────
@@ -89,33 +95,6 @@ def _ensure_tables(conn):
 
 
 # ── Shared Helpers ───────────────────────────────────────────
-
-def _require_project_id():
-    """Extract and validate project_id from query string or JSON body.
-
-    Returns (project_id, None) on success or (None, error_response) on failure.
-    """
-    pid = request.args.get("project_id", type=int)
-    if not pid:
-        return None, (jsonify({"error": "project_id is required"}), 400)
-    return pid, None
-
-
-def _now_iso():
-    """Return current UTC time as ISO-8601 string."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _parse_json_field(raw, default=None):
-    """Safely parse a JSON text field from a DB row."""
-    if default is None:
-        default = {}
-    if not raw:
-        return default
-    try:
-        return json.loads(raw) if isinstance(raw, str) else raw
-    except (json.JSONDecodeError, TypeError):
-        return default
 
 
 def _row_to_playbook(row):

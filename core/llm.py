@@ -23,6 +23,7 @@ Prompt caching:
 import json
 import logging
 import os
+import sqlite3
 import subprocess
 import time
 
@@ -32,6 +33,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from config import (
     CLAUDE_BIN, CLAUDE_COMMON_FLAGS,
     GEMINI_BIN, GEMINI_COMMON_FLAGS,
+    DB_PATH,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,59 @@ except ImportError:
 
 LLM_BACKEND = os.environ.get("LLM_BACKEND", "cli").lower()
 
+# ---- Cost logging -----------------------------------------------------------
+
+_COST_TABLE_ENSURED = False
+
+_COST_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS llm_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER,
+    operation TEXT,
+    model TEXT,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+)
+"""
+
+
+def log_cost(model, cost_usd, duration_ms, project_id=None, operation=None,
+             input_tokens=0, output_tokens=0):
+    """Log an LLM call's cost to the llm_calls table.
+
+    Uses a direct SQLite connection to the database file so this works
+    both inside and outside a Flask request context.
+
+    Args:
+        model: Model name used for the call.
+        cost_usd: Computed cost in USD.
+        duration_ms: Call duration in milliseconds.
+        project_id: Optional project ID for attribution.
+        operation: Optional label (e.g. "extraction", "research").
+        input_tokens: Number of input tokens (if known).
+        output_tokens: Number of output tokens (if known).
+    """
+    global _COST_TABLE_ENSURED
+    try:
+        conn = sqlite3.connect(str(DB_PATH), timeout=5)
+        conn.execute("PRAGMA journal_mode=WAL")
+        if not _COST_TABLE_ENSURED:
+            conn.execute(_COST_TABLE_SQL)
+            _COST_TABLE_ENSURED = True
+        conn.execute(
+            "INSERT INTO llm_calls (project_id, operation, model, input_tokens, "
+            "output_tokens, cost_usd, duration_ms) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (project_id, operation, model, input_tokens, output_tokens,
+             cost_usd, duration_ms),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        logger.debug("Failed to log LLM cost (non-fatal)")
+
 
 def is_gemini_model(model: str) -> bool:
     """Check if a model string refers to a Gemini model."""
@@ -66,7 +121,8 @@ def is_gemini_model(model: str) -> bool:
 )
 def run_cli(prompt: str, model: str, timeout: int,
             tools: str = None, json_schema: str = None,
-            max_tokens: int = 8192, system: str = None) -> dict:
+            max_tokens: int = 8192, system: str = None,
+            project_id: int = None, operation: str = None) -> dict:
     """Run an LLM call and return a normalised response dict.
 
     Args:
@@ -78,6 +134,8 @@ def run_cli(prompt: str, model: str, timeout: int,
         json_schema: JSON schema string for structured output (Claude only).
         max_tokens: Maximum output tokens (default 8192). Passed to SDK backends.
         system: Optional system message string (SDK backends only).
+        project_id: Optional project ID for cost attribution.
+        operation: Optional label for the call (e.g. "extraction", "research").
 
     Returns:
         Dict matching Claude CLI JSON format:
@@ -89,22 +147,38 @@ def run_cli(prompt: str, model: str, timeout: int,
         RuntimeError: CLI returned a non-zero exit code or flagged an error.
     """
     if is_gemini_model(model):
-        return _run_gemini(prompt, model, timeout)
+        response = _run_gemini(prompt, model, timeout)
+        log_cost(model, response.get("cost_usd", 0),
+                 response.get("duration_ms", 0),
+                 project_id=project_id, operation=operation)
+        return response
 
     # Use SDK for Claude when possible, fall back to CLI for web tools
     needs_cli_tools = tools and any(t.strip() for t in tools.split(","))
     if LLM_BACKEND == "sdk" and not needs_cli_tools:
-        return _run_claude_sdk(prompt, model, timeout, json_schema,
-                               max_tokens=max_tokens, system=system)
+        response = _run_claude_sdk(prompt, model, timeout, json_schema,
+                                    max_tokens=max_tokens, system=system)
+        log_cost(model, response.get("cost_usd", 0),
+                 response.get("duration_ms", 0),
+                 project_id=project_id, operation=operation)
+        return response
 
     try:
-        return _run_claude_cli(prompt, model, timeout, tools, json_schema,
-                               max_tokens=max_tokens)
+        response = _run_claude_cli(prompt, model, timeout, tools, json_schema,
+                                    max_tokens=max_tokens)
+        log_cost(model, response.get("cost_usd", 0),
+                 response.get("duration_ms", 0),
+                 project_id=project_id, operation=operation)
+        return response
     except FileNotFoundError:
         logger.warning("Claude CLI binary not found, attempting SDK fallback")
         if not needs_cli_tools:
-            return _run_claude_sdk(prompt, model, timeout, json_schema,
-                                   max_tokens=max_tokens, system=system)
+            response = _run_claude_sdk(prompt, model, timeout, json_schema,
+                                        max_tokens=max_tokens, system=system)
+            log_cost(model, response.get("cost_usd", 0),
+                     response.get("duration_ms", 0),
+                     project_id=project_id, operation=operation)
+            return response
         raise RuntimeError(
             "Claude CLI not found. Install it (run 'claude' in terminal) "
             "or set an Anthropic API key in Settings to use SDK mode."
