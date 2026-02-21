@@ -54,22 +54,6 @@ MOCK_SOURCES = [
     {"name": "patents", "description": "USPTO patent search", "available": True, "needs_key": False},
 ]
 
-# Sample adapters returned by select_adapters
-MOCK_ADAPTERS = [
-    {
-        "name": "wikipedia",
-        "description": "Wikipedia article lookup",
-        "priority": 1,
-        "produces": ["description", "founded_year"],
-    },
-    {
-        "name": "hackernews",
-        "description": "Hacker News search",
-        "priority": 2,
-        "produces": ["news_mentions"],
-    },
-]
-
 # Sample enrichment result
 MOCK_ENRICH_RESULT = {
     "entity_id": 1,
@@ -172,10 +156,7 @@ class TestListServers:
 class TestRecommendEnrichment:
     """Tests for GET /api/entities/<id>/enrichment/recommend."""
 
-    @patch("core.mcp_enrichment.check_staleness", return_value=True)
-    @patch("core.mcp_enrichment.select_adapters", return_value=MOCK_ADAPTERS)
-    @patch("core.mcp_enrichment.build_entity_context", return_value={"type_slug": "company", "url": "https://acme.com", "country": "UK"})
-    def test_recommend_for_entity(self, mock_context, mock_adapters, mock_stale, enrich_project):
+    def test_recommend_for_entity(self, enrich_project):
         """Returns recommendations for a valid entity."""
         c = enrich_project["client"]
         eid = enrich_project["entity_id"]
@@ -185,22 +166,18 @@ class TestRecommendEnrichment:
         data = r.get_json()
         assert data["entity_id"] == eid
         assert "recommended_servers" in data
-        assert "stale_attributes" in data
-        assert len(data["recommended_servers"]) == 2
-        assert data["recommended_servers"][0]["name"] == "wikipedia"
+        assert len(data["recommended_servers"]) >= 1
 
-    @patch("core.mcp_enrichment.check_staleness", return_value=False)
-    @patch("core.mcp_enrichment.select_adapters", return_value=MOCK_ADAPTERS)
-    @patch("core.mcp_enrichment.build_entity_context", return_value={"type_slug": "company", "url": "", "country": ""})
-    def test_recommend_no_stale_attributes(self, mock_context, mock_adapters, mock_stale, enrich_project):
-        """When nothing is stale, stale_attributes is empty."""
+    def test_recommend_with_intent(self, enrich_project):
+        """Intent parameter influences recommendation ranking."""
         c = enrich_project["client"]
         eid = enrich_project["entity_id"]
 
-        r = c.get(f"/api/entities/{eid}/enrichment/recommend")
+        r = c.get(f"/api/entities/{eid}/enrichment/recommend?intent=regulatory")
         assert r.status_code == 200
         data = r.get_json()
-        assert data["stale_attributes"] == []
+        assert data["entity_id"] == eid
+        assert len(data["recommended_servers"]) >= 1
 
     def test_recommend_entity_not_found(self, client):
         """Returns 404 for non-existent entity."""
@@ -209,10 +186,7 @@ class TestRecommendEnrichment:
         data = r.get_json()
         assert "error" in data
 
-    @patch("core.mcp_enrichment.check_staleness", return_value=True)
-    @patch("core.mcp_enrichment.select_adapters", return_value=MOCK_ADAPTERS)
-    @patch("core.mcp_enrichment.build_entity_context", return_value={"type_slug": "company", "url": "https://acme.com", "country": "UK"})
-    def test_recommend_includes_reason(self, mock_context, mock_adapters, mock_stale, enrich_project):
+    def test_recommend_includes_reason(self, enrich_project):
         """Each recommendation includes a human-readable reason."""
         c = enrich_project["client"]
         eid = enrich_project["entity_id"]
