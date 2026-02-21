@@ -37,6 +37,10 @@ async function loadProjects() {
             const metaLabel = typeCount > 1 ? `${typeCount} entity types` : `${p.company_count} companies`;
             return `
             <div class="project-card" onclick="selectProject(${p.id}, '${escAttr(p.name)}')">
+                <button class="project-card-delete" onclick="event.stopPropagation(); confirmDeleteProjectFromGrid(${p.id}, '${escAttr(p.name)}')"
+                        aria-label="Delete project" title="Delete project">
+                    <span class="material-symbols-outlined icon-16">delete</span>
+                </button>
                 <h3>${esc(p.name)}</h3>
                 <p class="project-purpose">${esc(p.purpose || '')}</p>
                 <div class="project-meta">
@@ -330,4 +334,22 @@ async function createProject(event) {
     }
 
     selectProject(result.id, data.name);
+}
+
+async function confirmDeleteProjectFromGrid(projectId, projectName) {
+    const confirmed = await showNativeConfirm({
+        title: `Delete "${projectName}"?`,
+        message: 'This will permanently delete this project and ALL its data. This cannot be undone.',
+        confirmText: 'Delete Forever',
+        cancelText: 'Cancel',
+        type: 'danger',
+    });
+    if (!confirmed) return;
+
+    const res = await safeFetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.error) { showToast(result.error); return; }
+
+    showToast(`"${projectName}" deleted`);
+    loadProjects();
 }

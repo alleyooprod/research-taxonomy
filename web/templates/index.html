@@ -763,6 +763,7 @@
                 <div class="research-mode-toggle">
                     <button class="view-toggle-btn active" id="quickReportModeBtn" onclick="switchResearchMode('report')">Quick Report</button>
                     <button class="view-toggle-btn" id="deepDiveModeBtn" onclick="switchResearchMode('deepdive')">Deep Dive</button>
+                    <button class="view-toggle-btn" id="setupModeBtn" onclick="switchResearchMode('setup')">Setup</button>
                 </div>
 
                 <!-- Quick Report mode (existing) -->
@@ -840,6 +841,13 @@
                     <h2 class="section-heading">Saved Research</h2>
                     <p class="hint-text">Previously completed deep dives are stored here.</p>
                     <div id="savedResearchList"></div>
+                </div>
+
+                <!-- Project Setup mode -->
+                <div id="researchModeSetup" class="hidden">
+                    <div id="setupContent">
+                        <p class="hint-text">Loading project setup...</p>
+                    </div>
                 </div>
             </section>
 

@@ -385,6 +385,97 @@ class Database(CompanyMixin, TaxonomyMixin, JobsMixin, SocialMixin, SettingsMixi
                 f"UPDATE projects SET {set_clause} WHERE id = ?", values
             )
 
+    def delete_project(self, project_id):
+        """Delete a project and ALL associated data. Irreversible.
+
+        Relies on ON DELETE CASCADE for entity/company children.
+        Manually deletes project-level rows that lack cascade.
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT id FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
+            if not row:
+                return False
+
+            # Cascading deletes: deleting entities cascades to
+            # entity_attributes, entity_relationships, evidence,
+            # extraction_jobs, extraction_results.
+            # Deleting companies cascades to company_sources,
+            # company_notes, company_versions, company_events,
+            # company_dimensions.
+            conn.execute(
+                "DELETE FROM entities WHERE project_id = ?", (project_id,)
+            )
+            conn.execute(
+                "DELETE FROM companies WHERE project_id = ?", (project_id,)
+            )
+
+            # Project-level tables (always exist in schema.sql)
+            _always_tables = [
+                "categories", "entity_type_defs",
+                "entity_relationship_defs", "entity_snapshots",
+                "canonical_features",  # cascades to feature_mappings
+                "jobs", "triage_results", "taxonomy_changes",
+                "research", "research_templates", "reports",
+                "map_layouts", "saved_views", "share_tokens",
+                "activity_log", "notification_prefs", "canvases",
+                "research_dimensions", "project_contexts",
+                "discovery_analyses",
+            ]
+            for table in _always_tables:
+                conn.execute(
+                    f"DELETE FROM {table} WHERE project_id = ?",
+                    (project_id,),
+                )
+
+            # Lazily-created tables (may not exist yet)
+            _lazy_tables = [
+                "monitor_checks", "change_feed", "monitors",
+                "workbench_reports", "insights",
+                "hypothesis_evidence", "hypotheses",
+                "playbook_runs",
+            ]
+            for table in _lazy_tables:
+                try:
+                    if table == "monitor_checks":
+                        conn.execute(
+                            "DELETE FROM monitor_checks WHERE monitor_id IN "
+                            "(SELECT id FROM monitors WHERE project_id = ?)",
+                            (project_id,),
+                        )
+                    elif table == "hypothesis_evidence":
+                        conn.execute(
+                            "DELETE FROM hypothesis_evidence WHERE "
+                            "hypothesis_id IN "
+                            "(SELECT id FROM hypotheses WHERE project_id = ?)",
+                            (project_id,),
+                        )
+                    else:
+                        conn.execute(
+                            f"DELETE FROM {table} WHERE project_id = ?",
+                            (project_id,),
+                        )
+                except Exception:
+                    pass  # table doesn't exist yet
+
+            # Cross-project: entity_links cleaned by entity cascade.
+            # cross_project_insights stores project_ids as JSON text.
+            try:
+                conn.execute(
+                    "DELETE FROM cross_project_insights "
+                    "WHERE project_ids LIKE ?",
+                    (f"%{project_id}%",),
+                )
+            except Exception:
+                pass
+
+            # Finally delete the project itself
+            conn.execute(
+                "DELETE FROM projects WHERE id = ?", (project_id,)
+            )
+            return True
+
     # --- Helpers ---
 
     @staticmethod

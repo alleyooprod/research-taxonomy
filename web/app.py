@@ -266,6 +266,44 @@ def create_app():
         app.db.update_project(project_id, fields)
         return jsonify({"status": "ok"})
 
+    @app.route("/api/projects/<int:project_id>", methods=["DELETE"])
+    def delete_project(project_id):
+        project = app.db.get_project(project_id)
+        if not project:
+            return jsonify({"error": "Project not found"}), 404
+        deleted = app.db.delete_project(project_id)
+        if not deleted:
+            return jsonify({"error": "Failed to delete project"}), 500
+        # Clean up evidence files on disk
+        import shutil
+        try:
+            evidence_dir = DATA_DIR / "evidence" / str(project_id)
+            if evidence_dir.exists():
+                shutil.rmtree(evidence_dir)
+        except Exception as e:
+            logger.warning("Failed to clean evidence files for project %d: %s", project_id, e)
+        return jsonify({"status": "ok", "deleted_project_id": project_id})
+
+    @app.route("/api/projects/<int:project_id>/has-data")
+    def project_has_data(project_id):
+        project = app.db.get_project(project_id)
+        if not project:
+            return jsonify({"error": "Not found"}), 404
+        with app.db._get_conn() as conn:
+            entity_count = conn.execute(
+                "SELECT COUNT(*) FROM entities WHERE project_id = ? AND is_deleted = 0",
+                (project_id,),
+            ).fetchone()[0]
+            company_count = conn.execute(
+                "SELECT COUNT(*) FROM companies WHERE project_id = ? AND is_deleted = 0",
+                (project_id,),
+            ).fetchone()[0]
+        return jsonify({
+            "has_data": (entity_count + company_count) > 0,
+            "entity_count": entity_count,
+            "company_count": company_count,
+        })
+
     @app.route("/api/projects/<int:project_id>/toggle-feature", methods=["POST"])
     def toggle_feature(project_id):
         import json as _json

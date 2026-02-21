@@ -13,13 +13,251 @@ function switchResearchMode(mode) {
     _currentResearchMode = mode;
     document.getElementById('researchModeReport').classList.toggle('hidden', mode !== 'report');
     document.getElementById('researchModeDeepDive').classList.toggle('hidden', mode !== 'deepdive');
+    document.getElementById('researchModeSetup').classList.toggle('hidden', mode !== 'setup');
     document.getElementById('quickReportModeBtn').classList.toggle('active', mode === 'report');
     document.getElementById('deepDiveModeBtn').classList.toggle('active', mode === 'deepdive');
+    document.getElementById('setupModeBtn').classList.toggle('active', mode === 'setup');
 
     if (mode === 'deepdive') {
         loadSavedResearch();
         loadResearchTemplates();
     }
+    if (mode === 'setup') {
+        loadProjectSetup();
+    }
+}
+
+// --- Project Setup View ---
+let _editCustomSchema = null;
+
+async function loadProjectSetup() {
+    if (!currentProjectId) return;
+    const container = document.getElementById('setupContent');
+    container.innerHTML = '<p class="hint-text">Loading project setup...</p>';
+
+    try {
+        const [projRes, dataRes] = await Promise.all([
+            safeFetch(`/api/projects/${currentProjectId}`),
+            safeFetch(`/api/projects/${currentProjectId}/has-data`),
+        ]);
+        const project = await projRes.json();
+        const dataCheck = await dataRes.json();
+
+        if (dataCheck.has_data) {
+            _renderSetupViewMode(container, project, dataCheck);
+        } else {
+            _renderSetupEditMode(container, project);
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="hint-text">Failed to load project setup.</p>';
+    }
+}
+
+function _parseJsonField(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    try { return JSON.parse(val); } catch { return []; }
+}
+
+function _renderSetupViewMode(container, project, dataCheck) {
+    const schema = project.entity_schema
+        ? (typeof project.entity_schema === 'string' ? JSON.parse(project.entity_schema) : project.entity_schema)
+        : null;
+    const categories = _parseJsonField(project.seed_categories);
+    const links = _parseJsonField(project.example_links);
+    const keywords = _parseJsonField(project.market_keywords);
+
+    const dataSummary = [];
+    if (dataCheck.entity_count > 0) dataSummary.push(`${dataCheck.entity_count} entities`);
+    if (dataCheck.company_count > 0) dataSummary.push(`${dataCheck.company_count} companies`);
+
+    let schemaHtml = '<em>Default schema</em>';
+    if (schema && schema.entity_types && schema.entity_types.length > 0) {
+        schemaHtml = _renderTypesListReadonly(schema.entity_types);
+        if (schema.relationships && schema.relationships.length > 0) {
+            schemaHtml += `<div class="setup-rels"><strong>Relationships:</strong> ${schema.relationships.map(r =>
+                `<span class="template-type-tag">${esc(r.from_type || '')} &rarr; ${esc(r.to_type || '')} (${esc(r.name || '')})</span>`
+            ).join(' ')}</div>`;
+        }
+    }
+
+    container.innerHTML = `
+        <div class="setup-readonly-notice">
+            This project has ${dataSummary.join(' and ')}. Setup fields are read-only.
+        </div>
+        <div class="setup-fields">
+            <div class="setup-field">
+                <label class="setup-label">PROJECT NAME</label>
+                <div class="setup-value">${esc(project.name)}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">PURPOSE</label>
+                <div class="setup-value">${esc(project.purpose || '(not set)')}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">EXPECTED OUTCOME</label>
+                <div class="setup-value">${esc(project.outcome || '(not set)')}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">ENTITY SCHEMA</label>
+                <div class="setup-value setup-schema">${schemaHtml}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">STARTING CATEGORIES</label>
+                <div class="setup-value">${categories.length ? categories.map(c => esc(c)).join('<br>') : '<em>None</em>'}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">EXAMPLE LINKS</label>
+                <div class="setup-value">${links.length ? links.map(l => `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('<br>') : '<em>None</em>'}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">MARKET KEYWORDS</label>
+                <div class="setup-value">${keywords.length ? keywords.map(k => esc(k)).join(', ') : '<em>None</em>'}</div>
+            </div>
+            <div class="setup-field">
+                <label class="setup-label">DESCRIPTION</label>
+                <div class="setup-value">${esc(project.description || '(not set)')}</div>
+            </div>
+        </div>
+        <div class="setup-danger-zone">
+            <button class="btn btn-danger" onclick="confirmDeleteProject()">Delete Project</button>
+        </div>
+    `;
+}
+
+function _renderTypesListReadonly(types) {
+    return `<div class="schema-types">${types.map(et => {
+        const indent = et.parent_type ? 'schema-type-child' : '';
+        const attrs = et.attributes || [];
+        const attrLabel = attrs.length > 0
+            ? `<span class="schema-attr-count">${attrs.length} attrs</span>` : '';
+        const parentLabel = et.parent_type
+            ? `<span class="schema-parent-label">&larr; ${esc(et.parent_type)}</span>` : '';
+        const attrList = attrs.length > 0
+            ? `<div class="schema-attr-list">${attrs.map(a =>
+                `<span class="schema-attr-tag">${esc(a.name || a.slug)} <span class="schema-attr-type">${esc(a.type || 'text')}</span></span>`
+            ).join(' ')}</div>` : '';
+        return `<div class="schema-type-row ${indent}">
+            <span class="template-type-tag">${esc(et.name)}</span>
+            ${parentLabel}${attrLabel}
+            ${attrList}
+        </div>`;
+    }).join('')}</div>`;
+}
+
+function _renderSetupEditMode(container, project) {
+    const schema = project.entity_schema
+        ? (typeof project.entity_schema === 'string' ? JSON.parse(project.entity_schema) : project.entity_schema)
+        : null;
+    const categories = _parseJsonField(project.seed_categories);
+    const links = _parseJsonField(project.example_links);
+    const keywords = _parseJsonField(project.market_keywords);
+    _editCustomSchema = schema;
+
+    let schemaPreviewHtml = '';
+    if (schema && schema.entity_types) {
+        schemaPreviewHtml = _renderTypesListReadonly(schema.entity_types);
+    }
+
+    container.innerHTML = `
+        <div class="setup-editable-notice">
+            No entities or companies added yet. All fields are editable.
+        </div>
+        <div class="setup-form">
+            <div class="form-group full-width">
+                <label for="epName">Project Name *</label>
+                <input type="text" id="epName" value="${escAttr(project.name)}" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="epPurpose">Purpose *</label>
+                <textarea id="epPurpose" rows="3">${esc(project.purpose || '')}</textarea>
+            </div>
+            <div class="form-group full-width">
+                <label for="epOutcome">Expected Outcome</label>
+                <textarea id="epOutcome" rows="2">${esc(project.outcome || '')}</textarea>
+            </div>
+
+            <div class="form-group full-width">
+                <label class="setup-label">ENTITY SCHEMA</label>
+                <div class="setup-schema-preview">${schemaPreviewHtml || '<em>Default schema</em>'}</div>
+                <p class="form-hint">To change the schema, switch to the Process tab and use the entity browser's schema tools.</p>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="epCategories">Starting Categories</label>
+                <textarea id="epCategories" rows="3" placeholder="One per line">${categories.join('\n')}</textarea>
+            </div>
+            <div class="form-group full-width">
+                <label for="epLinks">Example Links</label>
+                <textarea id="epLinks" rows="3" placeholder="One URL per line">${links.join('\n')}</textarea>
+            </div>
+            <div class="form-group full-width">
+                <label for="epKeywords">Market Keywords</label>
+                <input type="text" id="epKeywords" value="${escAttr(keywords.join(', '))}" placeholder="Comma-separated">
+            </div>
+            <div class="form-group full-width">
+                <label for="epDescription">Description</label>
+                <textarea id="epDescription" rows="3">${esc(project.description || '')}</textarea>
+            </div>
+            <div class="form-actions">
+                <button class="primary-btn" onclick="saveProjectSetup()">Save Changes</button>
+            </div>
+        </div>
+        <div class="setup-danger-zone">
+            <button class="btn btn-danger" onclick="confirmDeleteProject()">Delete Project</button>
+        </div>
+    `;
+}
+
+async function saveProjectSetup() {
+    const name = document.getElementById('epName')?.value?.trim();
+    if (!name) { showToast('Project name is required'); return; }
+
+    const categories = (document.getElementById('epCategories')?.value || '')
+        .split('\n').filter(s => s.trim());
+    const links = (document.getElementById('epLinks')?.value || '')
+        .split('\n').filter(s => s.trim());
+    const keywords = (document.getElementById('epKeywords')?.value || '')
+        .split(',').map(s => s.trim()).filter(Boolean);
+
+    const data = {
+        name,
+        purpose: document.getElementById('epPurpose')?.value || '',
+        outcome: document.getElementById('epOutcome')?.value || '',
+        seed_categories: JSON.stringify(categories),
+        example_links: JSON.stringify(links),
+        market_keywords: JSON.stringify(keywords),
+        description: document.getElementById('epDescription')?.value || '',
+    };
+
+    const res = await safeFetch(`/api/projects/${currentProjectId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.error) { showToast(result.error); return; }
+
+    showToast('Project setup saved');
+    document.getElementById('projectTitle').textContent = name;
+}
+
+async function confirmDeleteProject() {
+    const confirmed = await showNativeConfirm({
+        title: 'Delete Project',
+        message: 'This will permanently delete this project and ALL its data (entities, evidence, reports, everything). This cannot be undone.',
+        confirmText: 'Delete Forever',
+        cancelText: 'Cancel',
+        type: 'danger',
+    });
+    if (!confirmed) return;
+
+    const res = await safeFetch(`/api/projects/${currentProjectId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.error) { showToast(result.error); return; }
+
+    showToast('Project deleted');
+    switchProject();
 }
 
 // --- Scope selector ---

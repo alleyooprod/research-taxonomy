@@ -143,3 +143,96 @@ class TestToggleFeature:
             "feature": "test", "enabled": True,
         })
         assert r.status_code == 404
+
+
+class TestDeleteProject:
+    """PRJ-DELETE: Project deletion via DELETE /api/projects/<id>."""
+
+    def test_delete_empty_project(self, api_project):
+        client = api_project["client"]
+        pid = api_project["id"]
+        r = client.delete(f"/api/projects/{pid}")
+        assert r.status_code == 200
+        assert r.get_json()["status"] == "ok"
+        # Verify project is gone
+        r = client.get(f"/api/projects/{pid}")
+        assert r.status_code == 404
+
+    def test_delete_project_with_companies(self, api_project_with_companies):
+        client = api_project_with_companies["client"]
+        pid = api_project_with_companies["project_id"]
+        r = client.delete(f"/api/projects/{pid}")
+        assert r.status_code == 200
+
+        # Verify project is gone
+        r = client.get(f"/api/projects/{pid}")
+        assert r.status_code == 404
+
+    def test_delete_project_with_entities(self, client):
+        # Create project with entity schema
+        r = client.post("/api/projects", json={
+            "name": "Delete Entity Test",
+            "seed_categories": "Cat1",
+            "entity_schema": {
+                "entity_types": [
+                    {"slug": "company", "name": "Company", "attributes": [
+                        {"slug": "website", "name": "Website", "type": "url"},
+                    ]},
+                ],
+                "relationships": [],
+            },
+        })
+        pid = r.get_json()["id"]
+
+        # Add an entity
+        r = client.post("/api/entities", json={
+            "project_id": pid, "type": "company", "name": "Test Corp",
+        })
+        assert r.status_code == 201
+
+        # Delete project
+        r = client.delete(f"/api/projects/{pid}")
+        assert r.status_code == 200
+
+        # Verify project is gone
+        r = client.get(f"/api/projects/{pid}")
+        assert r.status_code == 404
+
+    def test_delete_nonexistent_project(self, client):
+        r = client.delete("/api/projects/99999")
+        assert r.status_code == 404
+
+    def test_delete_removes_from_listing(self, api_project):
+        client = api_project["client"]
+        pid = api_project["id"]
+        client.delete(f"/api/projects/{pid}")
+        r = client.get("/api/projects")
+        projects = r.get_json()
+        assert not any(p["id"] == pid for p in projects)
+
+
+class TestProjectHasData:
+    """PRJ-HASDATA: Check if project has data via GET /api/projects/<id>/has-data."""
+
+    def test_empty_project(self, api_project):
+        client = api_project["client"]
+        pid = api_project["id"]
+        r = client.get(f"/api/projects/{pid}/has-data")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["has_data"] is False
+        assert data["entity_count"] == 0
+        assert data["company_count"] == 0
+
+    def test_project_with_companies(self, api_project_with_companies):
+        client = api_project_with_companies["client"]
+        pid = api_project_with_companies["project_id"]
+        r = client.get(f"/api/projects/{pid}/has-data")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["has_data"] is True
+        assert data["company_count"] > 0
+
+    def test_nonexistent_project(self, client):
+        r = client.get("/api/projects/99999/has-data")
+        assert r.status_code == 404

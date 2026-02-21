@@ -410,6 +410,7 @@ textarea {
 }
 
 .project-card {
+    position: relative;
     background: transparent;
     border: 1px solid var(--border-default);
     border-radius: 0;
@@ -470,6 +471,88 @@ textarea {
 .project-card-new:hover .project-card-plus { color: var(--text-primary); }
 .project-card-new h3 { color: var(--text-muted); font-weight: 500; margin: 0; }
 .project-card-new:hover h3 { color: var(--text-primary); }
+
+/* ========== Project Card Delete ========== */
+.project-card-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0;
+    transition: opacity var(--duration-normal) var(--ease-standard), color var(--duration-normal);
+    line-height: 1;
+}
+.project-card:hover .project-card-delete { opacity: 1; }
+.project-card-delete:hover { color: #c0392b; }
+
+/* ========== Project Setup View ========== */
+.setup-readonly-notice,
+.setup-editable-notice {
+    padding: 12px 16px;
+    border: 1px solid var(--border-default);
+    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.setup-fields { display: flex; flex-direction: column; gap: 20px; max-width: 700px; }
+.setup-form { max-width: 700px; display: flex; flex-direction: column; gap: 16px; }
+.setup-form .form-group { margin-bottom: 0; }
+.setup-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.setup-value {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    user-select: text;
+    -webkit-user-select: text;
+}
+.setup-value em { color: var(--text-muted); font-style: italic; }
+.setup-value a { color: var(--text-primary); text-decoration: underline; }
+.setup-schema-preview { margin-bottom: 8px; }
+.setup-rels { margin-top: 8px; }
+.schema-attr-list { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.schema-attr-tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 6px;
+    border: 1px solid var(--border-default);
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
+.schema-attr-type { color: var(--text-muted); font-size: 10px; }
+.setup-danger-zone {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-default);
+}
+.btn-danger {
+    background: transparent;
+    color: #c0392b;
+    border: 1px solid #c0392b;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: 'JetBrains Mono', monospace;
+}
+.btn-danger:hover { background: #c0392b; color: #fff; }
 
 /* ========== New Project Form ========== */
 .new-project-form { max-width: 700px; display: flex; flex-direction: column; gap: 16px; }
