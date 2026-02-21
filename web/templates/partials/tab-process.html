@@ -1,0 +1,105 @@
+{% from 'macros.html' import model_select %}
+<!-- AI Discovery -->
+<div class="ai-discovery-section">
+    <h2>AI Company Discovery</h2>
+    <p class="hint-text">Describe a market segment and AI will search for relevant companies.</p>
+    <div class="discovery-input">
+        <input type="text" id="discoveryQuery" aria-label="Discovery search query" placeholder="e.g. gut microbiome testing companies, digital therapeutics for mental health...">
+        {{ model_select('discoveryModelSelect') }}
+        <button class="primary-btn" id="discoveryBtn" onclick="startDiscovery()">Discover</button>
+    </div>
+    <div id="discoveryResults" class="hidden">
+        <div id="discoveryStatus" class="hidden">
+            <div class="progress-bar"><div id="discoveryProgress" class="progress-fill progress-fill-indeterminate"></div></div>
+            <p>Searching for companies...</p>
+        </div>
+        <div id="discoveryList"></div>
+    </div>
+</div>
+
+<div class="process-input">
+    <h2>Submit URLs for Processing</h2>
+    <textarea id="urlInput" rows="8" aria-label="URLs to process" placeholder="Paste URLs here (one per line, or mixed with other text)..."></textarea>
+    <div class="process-options">
+        <label>Model: {{ model_select('modelSelect', include_gemini=false) }}</label>
+        <label title="Number of URLs to research simultaneously. Higher = faster but uses more API calls in parallel.">Parallel:
+            <select id="workerCount">
+                <option value="3">3 (conservative)</option>
+                <option value="5" selected>5 (balanced)</option>
+                <option value="8">8 (fast)</option>
+                <option value="10">10 (max speed)</option>
+            </select>
+        </label>
+        <button class="primary-btn" onclick="submitUrls()">Start Processing</button>
+    </div>
+</div>
+
+<!-- Triage Results -->
+<div id="triageSection" class="hidden">
+    <h2>Pre-Validation Triage <span id="triageStatus" class="triage-status-badge"></span></h2>
+    <p class="triage-info">Links are being checked for accessibility and relevance. Review flagged items below before processing.</p>
+
+    <div class="progress-bar">
+        <div id="triageProgress" class="progress-fill"></div>
+    </div>
+    <p id="triageProgressText"></p>
+
+    <div id="triageResults"></div>
+
+    <div id="triageActions" class="hidden">
+        <div class="triage-action-bar">
+            <span id="triageSummaryText"></span>
+            <button class="primary-btn" onclick="confirmAndProcess()">Confirm &amp; Process</button>
+            <button class="btn" onclick="resetTriage()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Status -->
+<div id="processingStatus" class="hidden">
+    <div class="flex-between-center">
+        <h2>Processing Batch: <span id="batchId"></span></h2>
+        <button class="btn btn-sm" onclick="cancelBatchPolling()" title="Stop watching (batch continues on server)">Cancel Watch</button>
+    </div>
+    <div class="progress-bar">
+        <div id="processProgress" class="progress-fill"></div>
+    </div>
+    <p id="processStatus"></p>
+</div>
+
+<h2>Recent Batches</h2>
+<p class="hint-text">Click a batch to see full details.</p>
+<div id="batchList"></div>
+<div id="batchDetailView" class="hidden"></div>
+
+<!-- ═══ Evidence Capture Sub-Section ═══ -->
+<div class="cap-section" id="captureDropTarget">
+    <!-- Drop Zone Overlay -->
+    <div id="captureDropZone" class="cap-drop-zone hidden">
+        <div class="cap-drop-zone-inner">
+            <div class="cap-drop-zone-icon">&#8681;</div>
+            <div class="cap-drop-zone-text">Drop files here to upload as evidence</div>
+        </div>
+    </div>
+
+    <div class="cap-section-header">
+        <h3>Evidence Capture</h3>
+    </div>
+    <p class="hint-text">Capture website screenshots, download documents, or upload files as evidence for entities. You can also drag &amp; drop files here, or paste screenshots with Ctrl/Cmd+V.</p>
+
+    <!-- Stats -->
+    <div id="captureStats"></div>
+
+    <!-- Action Bar -->
+    <div class="cap-action-bar">
+        <button class="primary-btn btn-sm" onclick="captureEntityUrl()">Capture URL</button>
+        <button class="btn btn-sm" onclick="bulkCaptureStart()">Bulk Capture</button>
+        <button class="btn btn-sm" onclick="uploadEvidence()">Upload File</button>
+    </div>
+
+    <!-- Bulk Progress -->
+    <div id="captureBulkProgress"></div>
+
+    <!-- Recent Jobs -->
+    <div id="captureJobsList"></div>
+</div>

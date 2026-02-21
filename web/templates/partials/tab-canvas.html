@@ -1,0 +1,138 @@
+{% from 'macros.html' import model_select %}
+<div class="canvas-toolbar">
+    <div class="canvas-toolbar-left">
+        <select id="canvasSelect" onchange="loadCanvasFromSelect()" aria-label="Select canvas">
+            <option value="">Select canvas...</option>
+        </select>
+        <button class="primary-btn" onclick="createNewCanvas()"><span class="material-symbols-outlined">add</span> New Canvas</button>
+        <button class="btn" id="renameCanvasBtn" onclick="renameCurrentCanvas()" disabled>Rename</button>
+        <button class="btn btn-danger-text" id="deleteCanvasBtn" onclick="deleteCurrentCanvas()" disabled>Delete</button>
+    </div>
+    <div class="canvas-toolbar-right">
+        <button class="btn" id="canvasGenDiagramBtn" onclick="openDiagramPanel()" disabled title="AI-generated diagram">
+            <span class="material-symbols-outlined">auto_awesome</span> AI Diagram
+        </button>
+        <button class="btn" id="canvasExportPngBtn" onclick="exportCanvasPng()" disabled title="Export as PNG">
+            <span class="material-symbols-outlined">image</span> PNG
+        </button>
+        <button class="btn" id="canvasExportSvgBtn" onclick="exportCanvasSvg()" disabled title="Export as SVG">
+            <span class="material-symbols-outlined">picture_as_pdf</span> SVG
+        </button>
+        <button class="btn" id="canvasExportPdfBtn" onclick="exportCanvasPdf()" disabled title="Export as PDF (vector)">
+            <span class="material-symbols-outlined">description</span> PDF
+        </button>
+    </div>
+</div>
+
+<div class="canvas-workspace">
+    <div class="canvas-sidebar" id="canvasSidebar">
+        <div class="canvas-sidebar-header">
+            <h4>Companies</h4>
+            <input type="text" id="canvasCompanySearch" placeholder="Search..." oninput="filterCanvasCompanies()" aria-label="Search companies for canvas">
+        </div>
+        <div id="canvasCompanyList" class="canvas-company-list"></div>
+    </div>
+    <!-- AI Diagram generation panel (replaces sidebar when open) -->
+    <div class="canvas-sidebar canvas-diagram-panel hidden" id="diagramPanel">
+        <div class="canvas-sidebar-header">
+            <div class="diagram-panel-header">
+                <h4><span class="material-symbols-outlined icon-inline-tight">auto_awesome</span> AI Diagram</h4>
+                <button class="btn btn-sm diagram-close-btn" onclick="closeDiagramPanel()" title="Close">&times;</button>
+            </div>
+        </div>
+        <div class="diagram-panel-body diagram-panel-scroll">
+            <!-- Quick-start templates -->
+            <label class="diagram-label">Quick start:</label>
+            <div class="diagram-templates diagram-templates-list">
+                <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('market_landscape')" title="Grid of all categories with their companies">
+                    <span class="material-symbols-outlined icon-inline-sm">grid_view</span> Market Landscape
+                </button>
+                <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('tech_stack')" title="Enterprise architecture stack view">
+                    <span class="material-symbols-outlined icon-inline-sm">stacks</span> Enterprise Tech Stack
+                </button>
+                <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('value_chain')" title="How categories relate in a value chain">
+                    <span class="material-symbols-outlined icon-inline-sm">conversion_path</span> Value Chain
+                </button>
+                <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('competitive')" title="Companies sized by funding, grouped by category">
+                    <span class="material-symbols-outlined icon-inline-sm">bubble_chart</span> Competitive Landscape
+                </button>
+                <button class="btn btn-xs diagram-template-btn" onclick="useDiagramTemplate('customer_journey')" title="Map categories to customer journey stages">
+                    <span class="material-symbols-outlined icon-inline-sm">route</span> Customer Journey Map
+                </button>
+            </div>
+
+            <label class="diagram-label">Describe your diagram:</label>
+            <textarea id="diagramPrompt" rows="3" aria-label="Diagram description" placeholder="Describe the diagram you want, or pick a template above..."></textarea>
+
+            <label class="diagram-label diagram-label-flex">
+                Categories to include:
+                <span>
+                    <button class="btn btn-xs" onclick="toggleAllDiagramCategories(true)">All</button>
+                    <button class="btn btn-xs" onclick="toggleAllDiagramCategories(false)">None</button>
+                </span>
+            </label>
+            <div id="diagramCategoryList" class="diagram-checkbox-list diagram-checkbox-scroll"></div>
+
+            <details class="diagram-details">
+                <summary class="diagram-label diagram-summary">Data fields per company</summary>
+                <div id="diagramFieldList" class="diagram-checkbox-list diagram-fields-body">
+                    <label><input type="checkbox" value="name" checked disabled> Name</label>
+                    <label><input type="checkbox" value="what"> What they do</label>
+                    <label><input type="checkbox" value="target"> Target market</label>
+                    <label><input type="checkbox" value="funding_stage"> Funding stage</label>
+                    <label><input type="checkbox" value="total_funding_usd"> Total funding</label>
+                    <label><input type="checkbox" value="employee_range"> Employees</label>
+                    <label><input type="checkbox" value="hq_country"> HQ Country</label>
+                    <label><input type="checkbox" value="business_model"> Business model</label>
+                    <label><input type="checkbox" value="founded_year"> Founded</label>
+                </div>
+            </details>
+
+            <details class="diagram-details">
+                <summary class="diagram-label diagram-summary">Layout &amp; options</summary>
+                <div class="diagram-fields-body">
+                    <select id="diagramLayoutStyle" class="draw-tool-select full-width-select mb-2">
+                        <option value="grid" selected>Grid</option>
+                        <option value="stacked_vertical">Stacked Vertical</option>
+                        <option value="stacked_horizontal">Stacked Horizontal</option>
+                        <option value="radial">Radial / Hub</option>
+                        <option value="flow">Flow / Pipeline</option>
+                    </select>
+                    <label class="diagram-label diagram-label-inline">
+                        <input type="checkbox" id="diagramClearCanvas" checked> Clear canvas first
+                    </label>
+                </div>
+            </details>
+
+            <div class="diagram-action-row">
+                {{ model_select('diagramModelSelect', default='sonnet') }}
+                <button class="primary-btn" id="diagramGenBtn" onclick="startDiagramGeneration()">
+                    <span class="material-symbols-outlined icon-inline-tight">auto_awesome</span> Generate
+                </button>
+            </div>
+
+            <div id="diagramStatus" class="hidden diagram-status">
+                <div class="progress-bar"><div class="progress-fill progress-fill-indeterminate-sm" id="diagramProgressFill"></div></div>
+                <p class="hint-text" id="diagramStatusText">Generating diagram layout...</p>
+                <button class="btn btn-xs mt-1" onclick="cancelDiagramGeneration()">Cancel</button>
+            </div>
+
+            <div id="diagramError" class="hidden diagram-error"></div>
+
+            <div id="diagramPostActions" class="hidden diagram-post-actions">
+                <button class="btn btn-sm" onclick="startDiagramGeneration()"><span class="material-symbols-outlined icon-inline-sm">refresh</span> Regenerate</button>
+                <button class="btn btn-sm" onclick="closeDiagramPanel()">Done</button>
+            </div>
+        </div>
+    </div>
+    <div class="canvas-main">
+        <div class="canvas-empty-state" id="canvasEmptyState">
+            <span class="material-symbols-outlined canvas-empty-icon">dashboard</span>
+            <p>Select or create a canvas to start arranging companies visually.</p>
+            <p class="hint-text">Drag companies from the sidebar. Use Excalidraw's built-in tools to draw shapes, lines, and text.</p>
+        </div>
+        <div id="canvasWrapper" class="hidden">
+            <div id="excalidrawRoot"></div>
+        </div>
+    </div>
+</div>

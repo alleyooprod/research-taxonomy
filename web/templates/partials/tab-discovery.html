@@ -1,0 +1,95 @@
+<div class="discovery-header">
+    <h2>Product Discovery</h2>
+    <p class="discovery-subtitle">Feature landscape analysis, gap identification, and competitive intelligence</p>
+</div>
+
+<!-- Context Files -->
+<div class="discovery-section">
+    <div class="discovery-section-header" onclick="toggleSection('discoveryContexts')" aria-expanded="false" aria-controls="discoveryContexts">
+        <h3>Context Files</h3>
+        <span id="discoveryContexts-toggle" class="section-arrow">&#9660;</span>
+    </div>
+    <div id="discoveryContexts">
+        <div class="context-upload-area" id="contextDropZone">
+            <p>Drag & drop a markdown/text file here, or</p>
+            <input type="file" id="contextFileInput" accept=".md,.txt,.markdown" class="file-input-hidden">
+            <button class="btn" onclick="document.getElementById('contextFileInput').click()">Choose File</button>
+        </div>
+        <div id="contextsList" class="contexts-list"></div>
+    </div>
+</div>
+
+<!-- Dimensions -->
+<div class="discovery-section">
+    <div class="discovery-section-header" onclick="toggleSection('discoveryDimensions')" aria-expanded="false" aria-controls="discoveryDimensions">
+        <h3>Research Dimensions</h3>
+        <span id="discoveryDimensions-toggle" class="section-arrow">&#9660;</span>
+    </div>
+    <div id="discoveryDimensions">
+        <div class="dimensions-toolbar">
+            <button class="btn btn-primary" onclick="exploreDimensions()">Explore New Dimensions</button>
+            <button class="btn" onclick="showAddDimensionModal()">Add Manual</button>
+        </div>
+        <div id="dimensionsList" class="dimensions-list"></div>
+        <div id="dimensionExploreResults" class="hidden"></div>
+    </div>
+</div>
+
+<!-- Feature Landscape -->
+<div class="discovery-section">
+    <div class="discovery-section-header" onclick="toggleSection('discoveryLandscape')" aria-expanded="false" aria-controls="discoveryLandscape">
+        <h3>Feature Landscape</h3>
+        <span id="discoveryLandscape-toggle" class="section-arrow">&#9660;</span>
+    </div>
+    <div id="discoveryLandscape">
+        <div class="landscape-toolbar">
+            <select id="landscapeCategoryFilter" class="model-select-inline">
+                <option value="">All Categories</option>
+            </select>
+            <span class="toolbar-spacer"></span>
+            <span>Model:</span>
+            <select id="landscapeModel" class="model-select-inline">
+                <option value="claude-haiku-4-5-20251001">Haiku</option>
+                <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
+                <option value="claude-opus-4-6">Opus</option>
+            </select>
+            <button class="btn btn-primary" onclick="generateFeatureLandscape()">Generate</button>
+        </div>
+        <div id="landscapeResults"></div>
+    </div>
+</div>
+
+<!-- Gap Analysis -->
+<div class="discovery-section">
+    <div class="discovery-section-header" onclick="toggleSection('discoveryGap')" aria-expanded="false" aria-controls="discoveryGap">
+        <h3>Gap Analysis</h3>
+        <span id="discoveryGap-toggle" class="section-arrow">&#9660;</span>
+    </div>
+    <div id="discoveryGap">
+        <div class="gap-toolbar">
+            <select id="gapContextSelect" class="model-select-inline">
+                <option value="">No context (best-in-class only)</option>
+            </select>
+            <span class="toolbar-spacer"></span>
+            <span>Model:</span>
+            <select id="gapModel" class="model-select-inline">
+                <option value="claude-haiku-4-5-20251001">Haiku</option>
+                <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
+                <option value="claude-opus-4-6">Opus</option>
+            </select>
+            <button class="btn btn-primary" onclick="generateGapAnalysis()">Run Analysis</button>
+        </div>
+        <div id="gapResults"></div>
+    </div>
+</div>
+
+<!-- Past Analyses -->
+<div class="discovery-section">
+    <div class="discovery-section-header" onclick="toggleSection('discoveryHistory')" aria-expanded="false" aria-controls="discoveryHistory">
+        <h3>Analysis History</h3>
+        <span id="discoveryHistory-toggle" class="section-arrow">&#9660;</span>
+    </div>
+    <div id="discoveryHistory">
+        <div id="analysisHistoryList"></div>
+    </div>
+</div>

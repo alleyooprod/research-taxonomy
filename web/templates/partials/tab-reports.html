@@ -1,0 +1,91 @@
+{% from 'macros.html' import model_select %}
+<!-- Research mode toggle -->
+<div class="research-mode-toggle">
+    <button class="view-toggle-btn active" id="quickReportModeBtn" onclick="switchResearchMode('report')">Quick Report</button>
+    <button class="view-toggle-btn" id="deepDiveModeBtn" onclick="switchResearchMode('deepdive')">Deep Dive</button>
+    <button class="view-toggle-btn" id="setupModeBtn" onclick="switchResearchMode('setup')">Setup</button>
+</div>
+
+<!-- Quick Report mode (existing) -->
+<div id="researchModeReport">
+    <div class="market-report-section">
+        <h2>Generate Category Report</h2>
+        <p class="hint-text">Generate AI-powered market analysis for a category. Reports are saved automatically.</p>
+        <div class="report-controls">
+            <select id="reportCategorySelect" aria-label="Report category">
+                <option value="">Select a category...</option>
+            </select>
+            {{ model_select('reportModelSelect', default='sonnet') }}
+            <button class="primary-btn" id="reportBtn" onclick="generateMarketReport()">Generate Report</button>
+        </div>
+        <div id="reportStatus" class="hidden">
+            <div class="progress-bar"><div id="reportProgress" class="progress-fill progress-fill-indeterminate"></div></div>
+            <p>Generating report... AI is researching the web and analyzing your data. This typically takes 2-4 minutes.</p>
+        </div>
+    </div>
+
+    <div id="reportContent" class="hidden report-viewer"></div>
+
+    <h2 class="section-heading">Saved Reports</h2>
+    <p class="hint-text">Previously generated reports are stored here.</p>
+    <div id="savedReportsList"></div>
+</div>
+
+<!-- Deep Dive mode (new) -->
+<div id="researchModeDeepDive" class="hidden">
+    <div class="research-input-section">
+        <h2>Deep Dive Research</h2>
+        <p class="hint-text">Ask any research question. AI will use your project data and web search to produce a comprehensive report.</p>
+
+        <div class="research-scope-row">
+            <label>Scope:</label>
+            <select id="researchScopeType" onchange="onResearchScopeChange()">
+                <option value="project">Entire Project</option>
+                <option value="category">Category</option>
+                <option value="company">Company</option>
+                <option value="custom">Custom (no context)</option>
+            </select>
+            <select id="researchScopeId" class="hidden">
+                <option value="">Select...</option>
+            </select>
+            <input type="text" id="researchCompanySearch" class="hidden" placeholder="Search company..." oninput="searchResearchCompany()">
+            <div id="researchCompanyResults" class="research-company-dropdown hidden"></div>
+        </div>
+
+        <div class="research-templates">
+            <span class="hint-text">Templates:</span>
+            <span id="researchTemplateButtons"><!-- loaded dynamically --></span>
+        </div>
+
+        <div class="research-prompt-row">
+            <textarea id="researchPrompt" rows="4" aria-label="Research question" placeholder="What do you want to research? Be specific for better results..."></textarea>
+        </div>
+
+        <div class="research-action-row">
+            <input type="text" id="researchTitle" aria-label="Research title" placeholder="Research title (auto-generated if blank)">
+            {{ model_select('researchModelSelect', default='sonnet') }}
+            <button class="primary-btn" id="researchBtn" onclick="startDeepDive()">
+                <span class="material-symbols-outlined">science</span> Start Research
+            </button>
+        </div>
+
+        <div id="researchStatus" class="hidden">
+            <div class="progress-bar"><div id="researchProgress" class="progress-fill progress-fill-indeterminate"></div></div>
+            <p id="researchStatusText">Researching... AI is searching the web and analyzing data. This may take 2-10 minutes.</p>
+            <button class="btn btn-sm mt-2" onclick="cancelResearchPoll()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="researchResult" class="hidden report-viewer"></div>
+
+    <h2 class="section-heading">Saved Research</h2>
+    <p class="hint-text">Previously completed deep dives are stored here.</p>
+    <div id="savedResearchList"></div>
+</div>
+
+<!-- Project Setup mode -->
+<div id="researchModeSetup" class="hidden">
+    <div id="setupContent">
+        <p class="hint-text">Loading project setup...</p>
+    </div>
+</div>

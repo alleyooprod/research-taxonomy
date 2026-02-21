@@ -1,0 +1,99 @@
+{% from 'macros.html' import model_select %}
+<!-- Analytics Dashboard -->
+<div class="analytics-dashboard">
+    <h2 class="collapsible-header" onclick="toggleSection('analyticsSection')" aria-expanded="false" aria-controls="analyticsSection">
+        Analytics Dashboard <span id="analyticsSection-toggle" class="collapse-arrow"><span class="material-symbols-outlined">expand_more</span></span>
+    </h2>
+    <div id="analyticsSection" class="collapsible-body">
+        <!-- Configurable Matrix (full width) -->
+        <div class="chart-card chart-card-wide mb-4">
+            <div class="chart-card-header">
+                <h4 class="chart-title">Company Matrix</h4>
+                <div class="filter-row gap-3">
+                    <div class="filter-row">
+                        <label class="filter-label">Rows:</label>
+                        <select id="matrixRowDimension" onchange="renderCategoryMatrix()" class="matrix-dimension-select">
+                            <option value="category">Category</option>
+                            <option value="funding_stage">Funding Stage</option>
+                            <option value="hq_country">Geography</option>
+                            <option value="business_model">Business Model</option>
+                            <option value="employee_range">Company Size</option>
+                            <option value="tags">Tags</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label class="filter-label">Columns:</label>
+                        <select id="matrixDimension" onchange="renderCategoryMatrix()" class="matrix-dimension-select">
+                            <option value="funding_stage">Funding Stage</option>
+                            <option value="hq_country">Geography</option>
+                            <option value="business_model">Business Model</option>
+                            <option value="employee_range">Company Size</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="matrixContainer" class="matrix-container"></div>
+        </div>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h4>Funding Stage Distribution</h4>
+                <canvas id="chartFundingStage" height="250"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>Geographic Distribution</h4>
+                <div id="chartGeoDist" class="chart-container"></div>
+            </div>
+            <div class="chart-card">
+                <h4>Confidence Scores</h4>
+                <canvas id="chartConfidence" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Taxonomy View Toggle -->
+<div class="taxonomy-view-toggle">
+    <button class="view-toggle-btn active" onclick="switchTaxonomyView('tree')" id="treeViewBtn">Tree View</button>
+    <button class="view-toggle-btn" onclick="switchTaxonomyView('graph')" id="graphViewBtn">Graph View</button>
+    <button class="view-toggle-btn" onclick="switchTaxonomyView('knowledge')" id="kgViewBtn">Knowledge Graph</button>
+</div>
+<div id="taxonomyTree"></div>
+<div id="taxonomyGraph" class="hidden graph-container"></div>
+<div id="knowledgeGraph" class="hidden">
+    <div class="kg-filter-panel">
+        <label><input type="checkbox" checked onchange="toggleKgNodeType('category')"> Categories</label>
+        <label><input type="checkbox" checked onchange="toggleKgNodeType('company')"> Companies</label>
+        <label><input type="checkbox" checked onchange="toggleKgNodeType('tag')"> Tags</label>
+        <label><input type="checkbox" checked onchange="toggleKgNodeType('geography')"> Geographies</label>
+    </div>
+    <div id="kgCanvas" class="kg-container"></div>
+</div>
+
+<div class="review-section">
+    <h2>Taxonomy Review</h2>
+    <p class="hint-text">Run a comprehensive AI review of all categories and company placements. Add your own observations to guide the review.</p>
+    <textarea id="reviewObservations" rows="3" aria-label="Review observations" class="review-textarea" placeholder="Add your observations to guide the review, e.g. 'Extend taxonomy with EAP section', 'Too many companies in Diagnostics', 'Consider splitting Wellness into Physical and Mental'..."></textarea>
+    <div class="flex-gap-sm">
+        {{ model_select('reviewModelSelect') }}
+        <button class="btn" id="reviewBtn" onclick="startTaxonomyReview()">Review Taxonomy with AI</button>
+    </div>
+    <div id="reviewStatus" class="hidden"></div>
+    <div id="reviewResults" class="hidden"></div>
+</div>
+
+<h2 class="collapsible-header" onclick="toggleSection('qualitySection')" aria-expanded="false" aria-controls="qualitySection">
+    Quality Dashboard <span id="qualitySection-toggle" class="collapse-arrow"><span class="material-symbols-outlined">expand_more</span></span>
+</h2>
+<div id="qualitySection" class="collapsible-body">
+    <div id="qualityDashboard" class="quality-dashboard">
+        <button class="btn" onclick="loadTaxonomyQuality()">Refresh Quality Metrics</button>
+        <div id="qualityContent" class="hidden"></div>
+    </div>
+</div>
+
+<h2 class="collapsible-header" onclick="toggleSection('historySection')" aria-expanded="false" aria-controls="historySection">
+    Change History <span id="historySection-toggle" class="collapse-arrow"><span class="material-symbols-outlined">expand_more</span></span>
+</h2>
+<div id="historySection" class="collapsible-body">
+    <div id="taxonomyHistory"></div>
+</div>

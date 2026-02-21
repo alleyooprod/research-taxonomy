@@ -225,6 +225,33 @@ function relationshipLabel(status) {
 const LEGACY_TABS = ['companies', 'taxonomy', 'map', 'canvas'];
 const ALL_TAB_NAMES = ['companies', 'taxonomy', 'map', 'reports', 'canvas', 'discovery', 'process', 'review', 'analysis', 'intelligence', 'export', 'settings'];
 
+// Tracks which tabs have had their HTML loaded (lazy rendering)
+const _tabLoaded = new Set(['reports']); // reports is pre-rendered in index.html
+
+/**
+ * Fetch and inject a tab's HTML partial on first visit.
+ * Returns a promise that resolves when the HTML is ready.
+ */
+async function _ensureTabLoaded(name) {
+    if (_tabLoaded.has(name)) return;
+    const panel = document.getElementById('tab-' + name);
+    if (!panel) return;
+    showTabLoading(name);
+    try {
+        const resp = await fetch('/api/tab/' + encodeURIComponent(name));
+        if (!resp.ok) throw new Error('Tab load failed: ' + resp.status);
+        panel.innerHTML = await resp.text();
+        _tabLoaded.add(name);
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.warn('Failed to load tab ' + name, err);
+            panel.innerHTML = '<p class="hint-text" style="padding:24px">Failed to load tab content. <button class="btn btn-sm" onclick="showTab(\'' + name + '\')">Retry</button></p>';
+        }
+    } finally {
+        hideTabLoading(name);
+    }
+}
+
 function showTab(name) {
     // Support numeric index for backward compat
     if (typeof name === 'number') {
@@ -291,6 +318,15 @@ function showTab(name) {
     if (currentProjectId) url.searchParams.set('project', currentProjectId);
     window.history.replaceState({}, '', url);
 
+    // Lazy-load tab HTML then run init
+    _ensureTabLoaded(name).then(() => _initTab(name));
+
+    // Save app state on tab change
+    if (typeof saveAppState === 'function') saveAppState();
+}
+
+/** Run tab-specific initialization after HTML is loaded. */
+function _initTab(name) {
     if (name === 'companies') loadCompanies();
     if (name === 'taxonomy') loadTaxonomy();
     if (name === 'map') loadMarketMap();
@@ -330,9 +366,6 @@ function showTab(name) {
         Promise.all(tasks).finally(() => hideTabLoading('export'));
     }
     if (name === 'settings') { if (typeof loadAiSetupStatus === 'function') loadAiSetupStatus(); if (typeof loadDefaultModel === 'function') loadDefaultModel(); if (typeof initCostDashboard === 'function') initCostDashboard(); }
-
-    // Save app state on tab change
-    if (typeof saveAppState === 'function') saveAppState();
 }
 
 // --- Tools Dropdown ---

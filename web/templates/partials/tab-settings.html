@@ -1,0 +1,163 @@
+{% from 'macros.html' import model_select %}
+<h2 class="settings-heading">Settings</h2>
+<p class="hint-text settings-subtitle">Configure AI backends, preferences, and application settings.</p>
+
+<!-- AI Backend Configuration -->
+<div class="settings-section">
+    <h3 class="section-heading">AI Backends</h3>
+    <p class="hint-text">At least one backend is required for AI features (research, discovery, chat). Status refreshes automatically.</p>
+    <span class="ai-setup-summary ai-setup-summary-block" id="aiSetupSummary"></span>
+
+    <div class="ai-setup-grid">
+        <!-- Claude API (SDK) -->
+        <div class="ai-setup-card" id="sdkCard">
+            <div class="ai-setup-card-header">
+                <span class="ai-setup-status" id="sdkStatus"></span>
+                <strong>Claude API (SDK)</strong>
+            </div>
+            <p class="hint-text">Direct API access. Fastest and most reliable option.</p>
+            <div class="ai-setup-key-row">
+                <input type="password" id="aiSetupApiKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+                <button class="btn btn-sm" onclick="saveAiApiKey()">Save Key</button>
+            </div>
+            <div class="ai-setup-key-status" id="apiKeyStatus"></div>
+            <button class="btn btn-sm" onclick="testAiBackend('claude_sdk')" id="testSdkBtn">Test Connection</button>
+            <div class="ai-setup-fix-section" id="sdkFixSection">
+                <div class="fix-header">Setup Instructions</div>
+                <ol class="fix-steps">
+                    <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com/settings/keys</a></li>
+                    <li>Click "Create Key" and copy the key</li>
+                    <li>Paste the key above (starts with <code>sk-ant-</code>)</li>
+                </ol>
+                <p class="fix-note">Requires a paid Anthropic account. Usage is billed per token.</p>
+            </div>
+        </div>
+
+        <!-- Claude CLI -->
+        <div class="ai-setup-card" id="cliCard">
+            <div class="ai-setup-card-header">
+                <span class="ai-setup-status" id="cliStatus"></span>
+                <strong>Claude CLI</strong>
+            </div>
+            <p class="hint-text">Uses your Claude Pro/Team subscription. Supports web search.</p>
+            <div class="ai-setup-key-status" id="cliPathStatus"></div>
+            <button class="btn btn-sm" onclick="testAiBackend('claude_cli')" id="testCliBtn">Test Connection</button>
+            <div class="ai-setup-fix-section" id="cliFixSection">
+                <div class="fix-header" id="cliFixHeader">Installation</div>
+                <div id="cliFixContent">
+                    <p class="fix-subtitle">Install via npm (requires Node.js):</p>
+                    <div class="fix-command" onclick="copyCommand(this)">
+                        <code>npm install -g @anthropic-ai/claude-code</code>
+                        <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
+                    </div>
+                    <p class="fix-subtitle">Then authenticate:</p>
+                    <div class="fix-command" onclick="copyCommand(this)">
+                        <code>claude login</code>
+                        <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
+                    </div>
+                    <p class="fix-note">Requires a Claude Pro ($20/mo) or Team subscription.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gemini CLI -->
+        <div class="ai-setup-card" id="geminiCard">
+            <div class="ai-setup-card-header">
+                <span class="ai-setup-status" id="geminiStatus"></span>
+                <strong>Gemini CLI</strong>
+            </div>
+            <p class="hint-text">Google AI alternative. Free tier available.</p>
+            <div class="ai-setup-key-status" id="geminiPathStatus"></div>
+            <button class="btn btn-sm" onclick="testAiBackend('gemini')" id="testGeminiBtn">Test Connection</button>
+            <div class="ai-setup-fix-section" id="geminiFixSection">
+                <div class="fix-header" id="geminiFixHeader">Installation</div>
+                <div id="geminiFixContent">
+                    <p class="fix-subtitle">1. Install Node.js (if not installed):</p>
+                    <div class="fix-command" onclick="copyCommand(this)">
+                        <code>brew install node</code>
+                        <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
+                    </div>
+                    <p class="fix-subtitle">2. Authenticate Gemini CLI:</p>
+                    <div class="fix-command" onclick="copyCommand(this)">
+                        <code>npx @google/gemini-cli</code>
+                        <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
+                    </div>
+                    <p class="fix-note">Run the command above in Terminal and follow the Google sign-in prompts.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Default Model -->
+<div class="settings-section">
+    <h3 class="section-heading">Default Model</h3>
+    <p class="hint-text">Choose which AI model to use by default for research and processing.</p>
+    <div class="settings-row">
+        <label for="defaultModelSetting">Model:</label>
+        {{ model_select('defaultModelSetting') }}
+        <button class="btn btn-sm" onclick="saveDefaultModel()">Save</button>
+        <span id="defaultModelStatus" class="hint-text hint-inline"></span>
+    </div>
+</div>
+
+<!-- Cost Tracking -->
+<div class="settings-section">
+    <h3 class="section-heading">Cost Tracking</h3>
+    <p class="hint-text">Monitor LLM API usage and costs for the current project.</p>
+
+    <div class="cost-summary-grid" id="costSummaryGrid">
+        <div class="cost-card">
+            <span class="cost-card-label">Total Spend</span>
+            <span class="cost-card-value" id="costTotalSpend">$0.00</span>
+        </div>
+        <div class="cost-card">
+            <span class="cost-card-label">Total Calls</span>
+            <span class="cost-card-value" id="costTotalCalls">0</span>
+        </div>
+        <div class="cost-card">
+            <span class="cost-card-label">Avg Cost/Call</span>
+            <span class="cost-card-value" id="costAvgPerCall">$0.00</span>
+        </div>
+        <div class="cost-card">
+            <span class="cost-card-label">Budget Used</span>
+            <span class="cost-card-value" id="costBudgetPct">--</span>
+        </div>
+    </div>
+
+    <div class="cost-budget-row" style="margin-top:12px">
+        <label for="costBudgetInput" style="font-size:13px;font-weight:500">Project Budget (USD):</label>
+        <input type="number" id="costBudgetInput" min="0" step="0.01" placeholder="0.00" style="width:120px;margin:0 8px">
+        <button class="btn btn-sm" onclick="saveCostBudget()">Set Budget</button>
+        <span id="costBudgetStatus" class="hint-text hint-inline"></span>
+    </div>
+
+    <h4 style="font-size:13px;font-weight:600;margin:16px 0 8px">Cost by Operation</h4>
+    <div id="costByOperationTable" style="font-size:13px">
+        <p class="hint-text">No cost data yet.</p>
+    </div>
+
+    <h4 style="font-size:13px;font-weight:600;margin:16px 0 8px">Last 7 Days</h4>
+    <div id="costDailyChart" class="cost-daily-chart">
+        <p class="hint-text">No daily data yet.</p>
+    </div>
+</div>
+
+<!-- App Info -->
+<div class="settings-section">
+    <h3 class="section-heading">Application</h3>
+    <div class="settings-info-grid">
+        <div class="settings-info-item">
+            <span class="settings-info-label">Version</span>
+            <span class="settings-info-value" id="appVersionDisplay">{{ app_version }}</span>
+        </div>
+        <div class="settings-info-item">
+            <span class="settings-info-label">Database</span>
+            <span class="settings-info-value" id="dbPathDisplay">SQLite (WAL mode)</span>
+        </div>
+        <div class="settings-info-item">
+            <span class="settings-info-label">LLM Backend</span>
+            <span class="settings-info-value" id="llmBackendDisplay"></span>
+        </div>
+    </div>
+</div>

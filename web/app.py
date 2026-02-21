@@ -224,6 +224,22 @@ def create_app():
     def index():
         return render_template("index.html", csrf_token=generate_csrf_token(), app_version=APP_VERSION)
 
+    # --- Lazy tab partials ---
+    _VALID_TABS = frozenset({
+        "companies", "taxonomy", "map", "reports", "canvas", "process",
+        "review", "discovery", "analysis", "intelligence", "export", "settings",
+    })
+
+    @app.route("/api/tab/<tab_name>")
+    def load_tab_partial(tab_name):
+        """Return rendered HTML partial for a tab (lazy loading)."""
+        if tab_name not in _VALID_TABS:
+            return "Not found", 404
+        return render_template(
+            f"partials/tab-{tab_name}.html",
+            app_version=APP_VERSION,
+        )
+
     # --- Projects API (small enough to keep in app.py) ---
     @app.route("/api/projects")
     def list_projects():

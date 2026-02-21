@@ -1,0 +1,30 @@
+<div class="map-controls">
+    <div class="map-view-toggle">
+        <button class="view-toggle-btn active" onclick="switchMapView('market')" id="marketMapBtn">Market Map</button>
+        <button class="view-toggle-btn" onclick="switchMapView('auto')" id="autoMapBtn">Auto-Layout</button>
+        <button class="view-toggle-btn" onclick="switchMapView('geo')" id="geoMapBtn">Geographic Map</button>
+    </div>
+    <button class="primary-btn" onclick="loadMarketMap()">Refresh Map</button>
+    <button class="btn" onclick="exportMapPng()">Export as PNG</button>
+    <button class="btn" id="heatmapToggleBtn" onclick="toggleGeoHeatmap()" title="Toggle density heatmap on geographic map"><span class="material-symbols-outlined icon-inline">thermostat</span> Heatmap</button>
+    <button class="btn" onclick="startPresentation('map')"><span class="material-symbols-outlined icon-inline">slideshow</span> Present</button>
+    <span class="hint-text hint-inline">Drag companies between categories to reclassify.</span>
+</div>
+<div id="marketMap" class="market-map"></div>
+<div id="autoLayoutMap" class="hidden auto-layout-container"></div>
+<div id="geoMap" class="hidden geo-map-container"></div>
+
+<!-- Comparison Panel -->
+<div id="compareSection" class="hidden">
+    <div class="compare-header">
+        <h2>Compare Companies</h2>
+        <button class="close-btn" onclick="clearComparison()" aria-label="Close comparison">&times;</button>
+    </div>
+    <div id="compareContent"></div>
+</div>
+
+<div class="compare-bar hidden" id="compareBar">
+    <span id="compareCount">0 selected</span>
+    <button class="primary-btn" onclick="runComparison()">Compare</button>
+    <button class="btn" onclick="clearCompareSelection()">Clear</button>
+</div>
