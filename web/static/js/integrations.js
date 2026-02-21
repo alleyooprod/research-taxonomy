@@ -295,9 +295,9 @@ function renderFuseResults(companies) {
         const compClass = (c.completeness || 0) >= 0.7 ? 'comp-high' : (c.completeness || 0) >= 0.4 ? 'comp-mid' : 'comp-low';
         const compPct = Math.round((c.completeness || 0) * 100);
         return `
-        <tr onclick="showDetail(${c.id})" style="cursor:pointer" data-company-id="${c.id}">
-            <td class="bulk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" data-company-id="${c.id}" ${bulkSelection.has(c.id) ? 'checked' : ''} onchange="toggleBulkSelect(${c.id}, this, event)"></td>
-            <td><span class="star-btn ${c.is_starred ? 'starred' : ''}" onclick="event.stopPropagation();toggleStar(${c.id},this)" title="Star"><span class="material-symbols-outlined">${c.is_starred ? 'star' : 'star_outline'}</span></span></td>
+        <tr data-action="show-detail" data-id="${c.id}" style="cursor:pointer" data-company-id="${c.id}">
+            <td class="bulk-cell"><input type="checkbox" class="bulk-checkbox" data-company-id="${c.id}" ${bulkSelection.has(c.id) ? 'checked' : ''} data-on-change="toggle-bulk-select" data-id="${c.id}"></td>
+            <td><span class="star-btn ${c.is_starred ? 'starred' : ''}" data-action="toggle-star" data-id="${c.id}" title="Star"><span class="material-symbols-outlined">${c.is_starred ? 'star' : 'star_outline'}</span></span></td>
             <td>
                 <div class="company-name-cell">
                     <img class="company-logo" src="${esc(c.logo_url || 'https://logo.clearbit.com/' + extractDomain(c.url))}" alt="${escAttr(c.name)} logo" onerror="this.style.display='none'">
@@ -306,7 +306,7 @@ function renderFuseResults(companies) {
                     ${c.relationship_status ? '<span class="relationship-dot rel-' + c.relationship_status + '" title="' + relationshipLabel(c.relationship_status) + '"></span>' : ''}
                 </div>
             </td>
-            <td>${c.category_id ? `<a class="cat-link" onclick="event.stopPropagation();navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')"><span class="cat-color-dot" style="background:${getCategoryColor(c.category_id) || 'transparent'}"></span> ${esc(c.category_name)}</a>` : 'N/A'}</td>
+            <td>${c.category_id ? `<a class="cat-link" data-action="navigate-category" data-id="${c.category_id}" data-name="${escAttr(c.category_name)}"><span class="cat-color-dot" style="background:${getCategoryColor(c.category_id) || 'transparent'}"></span> ${esc(c.category_name)}</a>` : 'N/A'}</td>
             <td><div class="cell-clamp">${esc(c.what || '')}</div></td>
             <td><div class="cell-clamp">${esc(c.target || '')}</div></td>
             <td><div class="cell-clamp">${esc(c.geography || '')}</div></td>
@@ -570,3 +570,24 @@ function splitPanes(ids, options) {
     if (!window.Split) return null;
     return Split(ids, Object.assign({ gutterSize: 6, minSize: 200 }, options || {}));
 }
+
+// --- Action Delegation ---
+registerActions({
+    'show-detail': (el, e) => {
+        // Don't trigger if click was inside a nested action element
+        if (e.target.closest('[data-action]:not([data-action="show-detail"])') || e.target.closest('[data-on-change]') || e.target.closest('input')) return;
+        showDetail(Number(el.dataset.id));
+    },
+    'toggle-bulk-select': (el, e) => {
+        e.stopPropagation();
+        toggleBulkSelect(Number(el.dataset.id), el, e);
+    },
+    'toggle-star': (el, e) => {
+        e.stopPropagation();
+        toggleStar(Number(el.dataset.id), el);
+    },
+    'navigate-category': (el, e) => {
+        e.stopPropagation();
+        navigateTo('category', Number(el.dataset.id), el.dataset.name);
+    },
+});

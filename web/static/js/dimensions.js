@@ -28,9 +28,9 @@ function renderDimensionsList() {
             </div>
             ${d.description ? `<p class="dimension-desc">${esc(d.description)}</p>` : ''}
             <div class="dimension-actions">
-                <button class="btn btn-sm" onclick="populateDimension(${d.id})">Populate All</button>
-                <button class="btn btn-sm" onclick="viewDimensionValues(${d.id})">View Values</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteDimension(${d.id})">Delete</button>
+                <button class="btn btn-sm" data-action="populate-dimension" data-id="${d.id}">Populate All</button>
+                <button class="btn btn-sm" data-action="view-dimension-values" data-id="${d.id}">View Values</button>
+                <button class="btn btn-sm btn-danger" data-action="delete-dimension" data-id="${d.id}">Delete</button>
             </div>
         </div>
     `).join('');
@@ -85,7 +85,7 @@ function renderExploreResults(dimensions) {
             </div>
             <p>${esc(d.description || '')}</p>
             ${d.rationale ? `<p class="dim-rationale"><em>${esc(d.rationale)}</em></p>` : ''}
-            <button class="btn btn-sm btn-primary" onclick="acceptDimension(${i})">Accept</button>
+            <button class="btn btn-sm btn-primary" data-action="accept-dimension" data-id="${i}">Accept</button>
         </div>
     `).join('');
     el._proposedDimensions = dimensions;
@@ -185,7 +185,7 @@ async function viewDimensionValues(dimId) {
                 <td>${v.confidence != null ? (v.confidence * 100).toFixed(0) + '%' : '—'}</td>
             </tr>`).join('')}
         </table>
-        <button class="btn" onclick="this.closest('.dimension-values-modal').remove()">Close</button>
+        <button class="btn" data-action="close-modal-overlay">Close</button>
     </div>`;
 
     const overlay = document.createElement('div');
@@ -223,3 +223,20 @@ function renderCompanyDimensions(dimensions) {
         </div>
     </div>`;
 }
+
+// ── Action Delegation ─────────────────────────────────────────
+
+registerActions({
+    'populate-dimension': (el) => populateDimension(Number(el.dataset.id)),
+    'view-dimension-values': (el) => viewDimensionValues(Number(el.dataset.id)),
+    'delete-dimension': (el) => deleteDimension(Number(el.dataset.id)),
+    'accept-dimension': (el) => acceptDimension(Number(el.dataset.id)),
+    'explore-dimensions': () => exploreDimensions(),
+    'add-dimension-manual': () => showAddDimensionModal(),
+});
+
+// ── Expose on window (for external callers) ──────────────────
+
+window.loadDimensions = loadDimensions;
+window.loadCompanyDimensions = loadCompanyDimensions;
+window.renderCompanyDimensions = renderCompanyDimensions;

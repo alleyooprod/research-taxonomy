@@ -12,7 +12,7 @@ async function openTagManager() {
         ? tags.map(t => `<div class="tag-manager-item">
             <span class="tag">${esc(t.tag)}</span>
             <span class="tag-count">${t.count} companies</span>
-            <button class="tag-delete-btn" onclick="deleteTag('${escAttr(t.tag)}')" title="Delete tag">&times;</button>
+            <button class="tag-delete-btn" data-action="delete-tag" data-tag="${escAttr(t.tag)}" title="Delete tag">&times;</button>
           </div>`).join('')
         : '<p style="color:var(--text-muted);font-size:13px">No tags yet.</p>';
 }
@@ -86,3 +86,8 @@ async function deleteTag(tagName) {
     loadCompanies();
     loadFilterOptions();
 }
+
+// --- Action Delegation ---
+registerActions({
+    'delete-tag': (el) => deleteTag(el.dataset.tag),
+});

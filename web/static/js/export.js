@@ -26,8 +26,8 @@ async function loadTrash() {
                 <span style="color:var(--text-muted);font-size:12px;margin-left:8px">Deleted ${new Date(c.deleted_at).toLocaleDateString()}</span>
             </div>
             <div style="display:flex;gap:6px">
-                <button class="btn" onclick="restoreFromTrash(${c.id})">Restore</button>
-                <button class="danger-btn" onclick="permanentDelete(${c.id})">Delete forever</button>
+                <button class="btn" data-action="restore-from-trash" data-id="${c.id}">Restore</button>
+                <button class="danger-btn" data-action="permanent-delete" data-id="${c.id}">Delete forever</button>
             </div>
         </div>
     `).join('');
@@ -99,7 +99,7 @@ async function findDuplicates() {
                 </div>
             `).join('')}
             ${d.companies.length === 2 ? `
-                <button class="filter-action-btn" onclick="mergeCompanies(${d.companies[0].id},${d.companies[1].id})">
+                <button class="filter-action-btn" data-action="merge-companies" data-target-id="${d.companies[0].id}" data-source-id="${d.companies[1].id}">
                     Merge "${esc(d.companies[1].name)}" into "${esc(d.companies[0].name)}"
                 </button>
             ` : ''}
@@ -648,3 +648,10 @@ function renderMarkdown(text) {
     // Fallback: return plain text (escaped)
     return esc(text);
 }
+
+// --- Action Delegation ---
+registerActions({
+    'restore-from-trash': (el) => restoreFromTrash(Number(el.dataset.id)),
+    'permanent-delete': (el) => permanentDelete(Number(el.dataset.id)),
+    'merge-companies': (el) => mergeCompanies(Number(el.dataset.targetId), Number(el.dataset.sourceId)),
+});

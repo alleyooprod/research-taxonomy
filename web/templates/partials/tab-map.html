@@ -1,13 +1,13 @@
 <div class="map-controls">
     <div class="map-view-toggle">
-        <button class="view-toggle-btn active" onclick="switchMapView('market')" id="marketMapBtn">Market Map</button>
-        <button class="view-toggle-btn" onclick="switchMapView('auto')" id="autoMapBtn">Auto-Layout</button>
-        <button class="view-toggle-btn" onclick="switchMapView('geo')" id="geoMapBtn">Geographic Map</button>
+        <button class="view-toggle-btn active" data-action="switch-map-view" data-view="market" id="marketMapBtn">Market Map</button>
+        <button class="view-toggle-btn" data-action="switch-map-view" data-view="auto" id="autoMapBtn">Auto-Layout</button>
+        <button class="view-toggle-btn" data-action="switch-map-view" data-view="geo" id="geoMapBtn">Geographic Map</button>
     </div>
-    <button class="primary-btn" onclick="loadMarketMap()">Refresh Map</button>
-    <button class="btn" onclick="exportMapPng()">Export as PNG</button>
-    <button class="btn" id="heatmapToggleBtn" onclick="toggleGeoHeatmap()" title="Toggle density heatmap on geographic map"><span class="material-symbols-outlined icon-inline">thermostat</span> Heatmap</button>
-    <button class="btn" onclick="startPresentation('map')"><span class="material-symbols-outlined icon-inline">slideshow</span> Present</button>
+    <button class="primary-btn" data-action="load-market-map">Refresh Map</button>
+    <button class="btn" data-action="export-map-png">Export as PNG</button>
+    <button class="btn" id="heatmapToggleBtn" data-action="toggle-geo-heatmap" title="Toggle density heatmap on geographic map"><span class="material-symbols-outlined icon-inline">thermostat</span> Heatmap</button>
+    <button class="btn" data-action="start-presentation" data-value="map"><span class="material-symbols-outlined icon-inline">slideshow</span> Present</button>
     <span class="hint-text hint-inline">Drag companies between categories to reclassify.</span>
 </div>
 <div id="marketMap" class="market-map"></div>
@@ -18,13 +18,13 @@
 <div id="compareSection" class="hidden">
     <div class="compare-header">
         <h2>Compare Companies</h2>
-        <button class="close-btn" onclick="clearComparison()" aria-label="Close comparison">&times;</button>
+        <button class="close-btn" data-action="clear-comparison" aria-label="Close comparison">&times;</button>
     </div>
     <div id="compareContent"></div>
 </div>
 
 <div class="compare-bar hidden" id="compareBar">
     <span id="compareCount">0 selected</span>
-    <button class="primary-btn" onclick="runComparison()">Compare</button>
-    <button class="btn" onclick="clearCompareSelection()">Clear</button>
+    <button class="primary-btn" data-action="run-comparison">Compare</button>
+    <button class="btn" data-action="clear-compare-selection">Clear</button>
 </div>

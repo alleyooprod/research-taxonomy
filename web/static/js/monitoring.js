@@ -189,7 +189,7 @@ function _renderChangeFeed() {
         return `
             <div class="feed-item ${isUnread ? 'feed-item--unread' : ''}"
                  data-feed-id="${item.id}" style="--i:${idx}"
-                 onclick="_onFeedItemClick(${item.id})">
+                 data-action="feed-item-click" data-id="${item.id}">
                 <div class="feed-item__left">
                     ${_severityBadge(severity)}
                     <div class="feed-item__content">
@@ -206,8 +206,8 @@ function _renderChangeFeed() {
                     </div>
                 </div>
                 <div class="feed-item__actions">
-                    ${isUnread ? `<button class="mon-btn mon-btn-sm" onclick="event.stopPropagation(); _markFeedRead(${item.id})" title="Mark as read">Read</button>` : ''}
-                    <button class="mon-btn mon-btn-sm mon-btn-ghost" onclick="event.stopPropagation(); _dismissFeedItem(${item.id})" title="Dismiss">Dismiss</button>
+                    ${isUnread ? `<button class="mon-btn mon-btn-sm" data-action="mark-feed-read" data-id="${item.id}" title="Mark as read">Read</button>` : ''}
+                    <button class="mon-btn mon-btn-sm mon-btn-ghost" data-action="dismiss-feed-item" data-id="${item.id}" title="Dismiss">Dismiss</button>
                 </div>
             </div>
         `;
@@ -217,7 +217,7 @@ function _renderChangeFeed() {
     if (_monitoringFeedHasMore) {
         container.insertAdjacentHTML('beforeend', `
             <div class="feed-load-more">
-                <button class="mon-btn" onclick="_loadMoreFeed()">Load more</button>
+                <button class="mon-btn" data-action="load-more-feed">Load more</button>
             </div>
         `);
     }
@@ -254,13 +254,13 @@ function _renderFeedFilterBar() {
 
     el.innerHTML = `
         <div class="feed-filter-group">
-            <button class="mon-btn mon-btn-sm" onclick="_markAllFeedRead()">Mark All Read</button>
+            <button class="mon-btn mon-btn-sm" data-action="mark-all-feed-read">Mark All Read</button>
         </div>
         <div class="feed-filter-group">
-            <select class="mon-filter-select" onchange="_setFeedFilter('change_type', this.value)" aria-label="Filter by type">
+            <select class="mon-filter-select" data-on-change="set-feed-filter" data-key="change_type" aria-label="Filter by type">
                 ${typeOptions.map(o => `<option value="${o.value}" ${o.value === currentType ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
-            <select class="mon-filter-select" onchange="_setFeedFilter('severity', this.value)" aria-label="Filter by severity">
+            <select class="mon-filter-select" data-on-change="set-feed-filter" data-key="severity" aria-label="Filter by severity">
                 ${severityOptions.map(o => `<option value="${o.value}" ${o.value === currentSeverity ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
         </div>
@@ -466,11 +466,11 @@ function _renderMonitorRow(monitor) {
             </span>
             <span class="monitor-col monitor-col-status">${statusHtml}</span>
             <span class="monitor-col monitor-col-actions">
-                <button class="mon-btn mon-btn-sm" onclick="_checkMonitor(${monitor.id})" title="Check now">Check</button>
-                <button class="mon-btn mon-btn-sm mon-btn-ghost" onclick="_toggleMonitorActive(${monitor.id}, ${!isActive})" title="${isActive ? 'Pause' : 'Resume'}">
+                <button class="mon-btn mon-btn-sm" data-action="check-monitor" data-id="${monitor.id}" title="Check now">Check</button>
+                <button class="mon-btn mon-btn-sm mon-btn-ghost" data-action="toggle-monitor" data-id="${monitor.id}" data-activate="${!isActive}" title="${isActive ? 'Pause' : 'Resume'}">
                     ${isActive ? 'Pause' : 'Resume'}
                 </button>
-                <button class="mon-btn mon-btn-sm mon-btn-danger" onclick="_deleteMonitor(${monitor.id})" title="Delete monitor">Delete</button>
+                <button class="mon-btn mon-btn-sm mon-btn-danger" data-action="delete-monitor" data-id="${monitor.id}" title="Delete monitor">Delete</button>
             </span>
         </div>
     `;
@@ -917,20 +917,24 @@ function _renderMonitoringSkeleton(container) {
     }
 }
 
-// ── Expose on window ─────────────────────────────────────────────
+// ── Action Delegation ─────────────────────────────────────────────
+
+registerActions({
+    'feed-item-click': (el) => _onFeedItemClick(Number(el.dataset.id)),
+    'mark-feed-read': (el, e) => { e.stopPropagation(); _markFeedRead(Number(el.dataset.id)); },
+    'dismiss-feed-item': (el, e) => { e.stopPropagation(); _dismissFeedItem(Number(el.dataset.id)); },
+    'mark-all-feed-read': () => _markAllFeedRead(),
+    'load-more-feed': () => _loadMoreFeed(),
+    'set-feed-filter': (el) => _setFeedFilter(el.dataset.key, el.value),
+    'check-monitor': (el) => _checkMonitor(Number(el.dataset.id)),
+    'toggle-monitor': (el) => _toggleMonitorActive(Number(el.dataset.id), el.dataset.activate === 'true'),
+    'delete-monitor': (el) => _deleteMonitor(Number(el.dataset.id)),
+    'check-all-monitors': () => _checkAllMonitors(),
+    'create-monitor': () => _createMonitor(),
+    'auto-setup-monitors': () => _autoSetupMonitors(),
+});
+
+// ── Expose on window (for external callers) ──────────────────────
 
 window.initMonitoring = initMonitoring;
-window._loadChangeFeed = _loadChangeFeed;
-window._loadMonitors = _loadMonitors;
-window._createMonitor = _createMonitor;
-window._autoSetupMonitors = _autoSetupMonitors;
 window._checkAllMonitors = _checkAllMonitors;
-window._checkMonitor = _checkMonitor;
-window._markFeedRead = _markFeedRead;
-window._dismissFeedItem = _dismissFeedItem;
-window._markAllFeedRead = _markAllFeedRead;
-window._deleteMonitor = _deleteMonitor;
-window._toggleMonitorActive = _toggleMonitorActive;
-window._setFeedFilter = _setFeedFilter;
-window._loadMoreFeed = _loadMoreFeed;
-window._onFeedItemClick = _onFeedItemClick;

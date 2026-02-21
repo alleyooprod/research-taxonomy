@@ -59,7 +59,7 @@ function _detectTagsAttributes() {
     if (selectorEl && tagAttrs.length > 1) {
         selectorEl.innerHTML = tagAttrs.map(slug =>
             `<button class="feat-attr-btn ${slug === _featureAttrSlug ? 'feat-attr-btn-active' : ''}"
-                     onclick="setFeatureAttrSlug('${slug}')">${slug}</button>`
+                     data-action="set-feature-attr-slug" data-value="${slug}">${slug}</button>`
         ).join('');
         selectorEl.classList.remove('hidden');
     } else if (selectorEl) {
@@ -180,10 +180,10 @@ function _renderCategoryFilter() {
 
     el.innerHTML = `
         <button class="feat-cat-btn ${!_featureCategoryFilter ? 'feat-cat-btn-active' : ''}"
-                onclick="setFeatureCategoryFilter(null)">All</button>
+                data-action="set-feature-category-filter" data-value="">All</button>
         ${_featureCategories.map(c => `
             <button class="feat-cat-btn ${_featureCategoryFilter === c ? 'feat-cat-btn-active' : ''}"
-                    onclick="setFeatureCategoryFilter('${esc(c)}')">${esc(c)}</button>
+                    data-action="set-feature-category-filter" data-value="${escAttr(c)}">${esc(c)}</button>
         `).join('')}
     `;
 }
@@ -218,15 +218,15 @@ function _renderFeatureList() {
         const expanded = _featureExpanded.has(f.id);
         return `
             <div class="feat-card ${expanded ? 'feat-card-expanded' : ''}" data-feature-id="${f.id}">
-                <div class="feat-card-header" onclick="toggleFeatureExpand(${f.id})">
+                <div class="feat-card-header" data-action="toggle-feature-expand" data-id="${f.id}">
                     <div class="feat-card-info">
                         <span class="feat-card-name">${esc(f.canonical_name)}</span>
                         ${f.category ? `<span class="feat-card-category">${esc(f.category)}</span>` : ''}
                         <span class="feat-card-count">${f.mapping_count || 0} mapping${(f.mapping_count || 0) !== 1 ? 's' : ''}</span>
                     </div>
                     <div class="feat-card-actions">
-                        <button class="btn btn-sm" onclick="event.stopPropagation(); editFeature(${f.id})" title="Edit">Edit</button>
-                        <button class="btn btn-sm" onclick="event.stopPropagation(); deleteFeature(${f.id})" title="Delete">Delete</button>
+                        <button class="btn btn-sm" data-action="edit-feature" data-id="${f.id}" title="Edit">Edit</button>
+                        <button class="btn btn-sm" data-action="delete-feature" data-id="${f.id}" title="Delete">Delete</button>
                     </div>
                 </div>
                 ${expanded ? `<div class="feat-card-body" id="featBody_${f.id}">Loading...</div>` : ''}
@@ -264,13 +264,13 @@ function _renderFeatureDetail(container, feature) {
         ${feature.description ? `<div class="feat-description">${esc(feature.description)}</div>` : ''}
         <div class="feat-mappings-header">
             <span class="feat-mappings-title">Mappings (${mappings.length})</span>
-            <button class="btn btn-sm" onclick="addMapping(${feature.id})" title="Add mapping">+ Add</button>
+            <button class="btn btn-sm" data-action="add-mapping" data-id="${feature.id}" title="Add mapping">+ Add</button>
         </div>
         <div class="feat-mappings-list">
             ${mappings.map(m => `
                 <div class="feat-mapping-row">
                     <span class="feat-mapping-value">${esc(m.raw_value)}</span>
-                    <button class="btn btn-sm feat-mapping-remove" onclick="removeMapping(${m.id}, ${feature.id})"
+                    <button class="btn btn-sm feat-mapping-remove" data-action="remove-mapping" data-id="${m.id}" data-feature-id="${feature.id}"
                             title="Remove mapping">&times;</button>
                 </div>
             `).join('')}
@@ -532,14 +532,14 @@ function _renderUnmapped() {
     container.innerHTML = `
         <div class="feat-unmapped-header">
             <span class="feat-unmapped-title">Unmapped Values (${_unmappedValues.length})</span>
-            <button class="btn btn-sm" onclick="suggestCanonicalNames()" title="AI suggest canonical names">AI Suggest</button>
+            <button class="btn btn-sm" data-action="suggest-canonical-names" title="AI suggest canonical names">AI Suggest</button>
         </div>
         <div class="feat-unmapped-values">
             ${_unmappedValues.map(v => `
                 <div class="feat-unmapped-row">
                     <span class="feat-unmapped-value">${esc(v)}</span>
-                    <button class="btn btn-sm" onclick="mapUnmappedValue('${escAttr(v)}')" title="Map to a feature">Map</button>
-                    <button class="btn btn-sm" onclick="createFeatureFromUnmapped('${escAttr(v)}')" title="Create new feature">New</button>
+                    <button class="btn btn-sm" data-action="map-unmapped-value" data-value="${escAttr(v)}" title="Map to a feature">Map</button>
+                    <button class="btn btn-sm" data-action="create-feature-from-unmapped" data-value="${escAttr(v)}" title="Create new feature">New</button>
                 </div>
             `).join('')}
         </div>
@@ -625,7 +625,7 @@ async function createFeatureFromUnmapped(rawValue) {
 async function suggestCanonicalNames() {
     if (!_unmappedValues.length) return;
 
-    const btn = document.querySelector('[onclick="suggestCanonicalNames()"]');
+    const btn = document.querySelector('[data-action="suggest-canonical-names"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Thinking...'; }
 
     try {
@@ -670,7 +670,7 @@ function _renderSuggestions(suggestions) {
     container.innerHTML = `
         <div class="feat-suggestions-header">
             <span class="feat-suggestions-title">AI Suggestions</span>
-            <button class="btn btn-sm" onclick="applyAllSuggestions()" title="Apply all suggestions">Apply All</button>
+            <button class="btn btn-sm" data-action="apply-all-suggestions" title="Apply all suggestions">Apply All</button>
         </div>
         <div class="feat-suggestions-list">
             ${suggestions.map((s, i) => `
@@ -680,7 +680,7 @@ function _renderSuggestions(suggestions) {
                     <span class="feat-suggestion-canonical">${esc(s.canonical_name)}</span>
                     ${s.category ? `<span class="feat-suggestion-cat">${esc(s.category)}</span>` : ''}
                     <span class="feat-suggestion-badge ${s.is_new ? 'feat-badge-new' : 'feat-badge-existing'}">${s.is_new ? 'new' : 'existing'}</span>
-                    <button class="btn btn-sm" onclick="applySuggestion(${i})">Apply</button>
+                    <button class="btn btn-sm" data-action="apply-suggestion" data-id="${i}">Apply</button>
                 </div>
             `).join('')}
         </div>
@@ -789,20 +789,26 @@ async function applyAllSuggestions() {
     await initFeatures();
 }
 
-// Make functions globally accessible
+// ── Action Delegation ─────────────────────────────────────────
+
+registerActions({
+    'set-feature-attr-slug': (el) => setFeatureAttrSlug(el.dataset.value),
+    'set-feature-category-filter': (el) => setFeatureCategoryFilter(el.dataset.value || null),
+    'toggle-feature-expand': (el) => toggleFeatureExpand(Number(el.dataset.id)),
+    'edit-feature': (el, e) => { e.stopPropagation(); editFeature(Number(el.dataset.id)); },
+    'delete-feature': (el, e) => { e.stopPropagation(); deleteFeature(Number(el.dataset.id)); },
+    'add-mapping': (el) => addMapping(Number(el.dataset.id)),
+    'remove-mapping': (el) => removeMapping(Number(el.dataset.id), Number(el.dataset.featureId)),
+    'suggest-canonical-names': () => suggestCanonicalNames(),
+    'map-unmapped-value': (el) => mapUnmappedValue(el.dataset.value),
+    'create-feature-from-unmapped': (el) => createFeatureFromUnmapped(el.dataset.value),
+    'apply-suggestion': (el) => applySuggestion(Number(el.dataset.id)),
+    'apply-all-suggestions': () => applyAllSuggestions(),
+    'create-feature': () => createFeature(),
+    'merge-features': () => mergeFeatures(),
+    'feature-search-input': (el) => featureSearchInput(el.value),
+});
+
+// ── Expose on window (for external callers) ──────────────────
+
 window.initFeatures = initFeatures;
-window.setFeatureAttrSlug = setFeatureAttrSlug;
-window.setFeatureCategoryFilter = setFeatureCategoryFilter;
-window.featureSearchInput = featureSearchInput;
-window.toggleFeatureExpand = toggleFeatureExpand;
-window.createFeature = createFeature;
-window.editFeature = editFeature;
-window.deleteFeature = deleteFeature;
-window.addMapping = addMapping;
-window.removeMapping = removeMapping;
-window.mergeFeatures = mergeFeatures;
-window.mapUnmappedValue = mapUnmappedValue;
-window.createFeatureFromUnmapped = createFeatureFromUnmapped;
-window.suggestCanonicalNames = suggestCanonicalNames;
-window.applySuggestion = applySuggestion;
-window.applyAllSuggestions = applyAllSuggestions;

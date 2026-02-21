@@ -67,16 +67,16 @@ function _ensurePlaybooksDashboard() {
         <div class="pb-header">
             <h2>Research Playbooks</h2>
             <div class="pb-header-actions">
-                <button class="ins-btn ins-btn-ghost" onclick="_seedTemplates()" id="pbSeedBtn">Seed Templates</button>
-                <button class="ins-btn" onclick="_createPlaybook()">+ New Playbook</button>
+                <button class="ins-btn ins-btn-ghost" data-action="seed-templates" id="pbSeedBtn">Seed Templates</button>
+                <button class="ins-btn" data-action="create-playbook">+ New Playbook</button>
             </div>
         </div>
 
         <div class="pb-inner-nav">
             <button class="pb-inner-btn pb-inner-btn--active" data-pb-view="library"
-                    onclick="_switchPlaybookView('library')">Library</button>
+                    data-action="switch-playbook-view" data-view="library">Library</button>
             <button class="pb-inner-btn" data-pb-view="runs"
-                    onclick="_switchPlaybookView('runs')">Active Runs</button>
+                    data-action="switch-playbook-view" data-view="runs">Active Runs</button>
         </div>
 
         <div id="pbLibrary" class="pb-library"></div>
@@ -84,8 +84,8 @@ function _ensurePlaybooksDashboard() {
             <div class="pb-empty__title">No playbooks yet</div>
             <div class="pb-empty__desc">Create a playbook or seed the built-in templates to get started.</div>
             <div class="pb-empty__actions">
-                <button class="ins-btn" onclick="_seedTemplates()">Seed Templates</button>
-                <button class="ins-btn ins-btn-ghost" onclick="_createPlaybook()">+ New Playbook</button>
+                <button class="ins-btn" data-action="seed-templates">Seed Templates</button>
+                <button class="ins-btn ins-btn-ghost" data-action="create-playbook">+ New Playbook</button>
             </div>
         </div>
 
@@ -218,17 +218,17 @@ function _renderPlaybookCard(pb, idx) {
                     <span class="pb-card__meta-item">${runCount} run${runCount !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="pb-card__actions">
-                    <button class="ins-btn ins-btn-sm" onclick="event.stopPropagation(); _startRun(${pb.id})"
+                    <button class="ins-btn ins-btn-sm" data-action="start-run" data-id="${pb.id}"
                             title="Start Run">Run</button>
-                    <button class="ins-btn ins-btn-sm ins-btn-ghost" onclick="event.stopPropagation(); _duplicatePlaybook(${pb.id})"
+                    <button class="ins-btn ins-btn-sm ins-btn-ghost" data-action="duplicate-playbook" data-id="${pb.id}"
                             title="Duplicate">Duplicate</button>
                     ${!isTemplate ? `
-                        <button class="ins-btn ins-btn-sm ins-btn-ghost" onclick="event.stopPropagation(); _editPlaybook(${pb.id})"
+                        <button class="ins-btn ins-btn-sm ins-btn-ghost" data-action="edit-playbook" data-id="${pb.id}"
                                 title="Edit">Edit</button>
-                        <button class="ins-btn ins-btn-sm ins-btn-danger" onclick="event.stopPropagation(); _deletePlaybook(${pb.id})"
+                        <button class="ins-btn ins-btn-sm ins-btn-danger" data-action="delete-playbook" data-id="${pb.id}"
                                 title="Delete">Delete</button>
                     ` : ''}
-                    <button class="ins-btn ins-btn-sm ins-btn-ghost" onclick="event.stopPropagation(); _improvePlaybook(${pb.id})"
+                    <button class="ins-btn ins-btn-sm ins-btn-ghost" data-action="improve-playbook" data-id="${pb.id}"
                             title="AI Suggestions">Improve</button>
                 </div>
             </div>
@@ -294,7 +294,7 @@ function _renderRunItem(run, idx) {
 
     return `
         <div class="pb-run-item" data-run-id="${run.id}" style="--i:${idx}"
-             onclick="_viewRunDetail(${run.id})">
+             data-action="view-run-detail" data-id="${run.id}">
             <div class="pb-run-item__left">
                 <span class="pb-status-badge pb-status--${esc(status)}">${esc(_formatRunStatus(status))}</span>
                 <div class="pb-run-item__content">
@@ -377,11 +377,11 @@ function _renderRunDetail(run) {
 
     detailEl.innerHTML = `
         <div class="pb-run-detail__header">
-            <button class="ins-btn ins-btn-ghost" onclick="_backToRunsList()">Back</button>
+            <button class="ins-btn ins-btn-ghost" data-action="back-to-runs">Back</button>
             <div class="pb-run-detail__header-right">
                 ${status === 'in_progress' ? `
-                    <button class="ins-btn ins-btn-sm ins-btn-danger" onclick="_updateRunStatus(${run.id}, 'abandoned')">Abandon</button>
-                    <button class="ins-btn ins-btn-sm" onclick="_updateRunStatus(${run.id}, 'completed')">Complete</button>
+                    <button class="ins-btn ins-btn-sm ins-btn-danger" data-action="update-run-status" data-id="${run.id}" data-status="abandoned">Abandon</button>
+                    <button class="ins-btn ins-btn-sm" data-action="update-run-status" data-id="${run.id}" data-status="completed">Complete</button>
                 ` : ''}
             </div>
         </div>
@@ -432,7 +432,7 @@ function _renderStepItem(runId, step, idx, runStatus) {
                     <input type="checkbox" class="pb-step__checkbox"
                            ${completed ? 'checked' : ''}
                            ${!isEditable ? 'disabled' : ''}
-                           onchange="_onStepCheckChange(${runId}, ${idx}, this.checked)">
+                           data-on-change="step-check-change" data-run-id="${runId}" data-step-index="${idx}">
                     <span class="pb-step__index">${idx + 1}</span>
                 </label>
                 <div class="pb-step__title-area">
@@ -447,7 +447,7 @@ function _renderStepItem(runId, step, idx, runStatus) {
             ${guidance ? `
                 <div class="pb-step__guidance-section">
                     <button class="pb-step__guidance-toggle ins-btn ins-btn-sm ins-btn-ghost"
-                            onclick="_toggleGuidance('${guidanceId}', this)">Show Guidance</button>
+                            data-action="toggle-guidance" data-guidance-id="${guidanceId}">Show Guidance</button>
                     <div id="${guidanceId}" class="pb-step__guidance hidden">${esc(guidance)}</div>
                 </div>
             ` : ''}
@@ -456,7 +456,7 @@ function _renderStepItem(runId, step, idx, runStatus) {
                 <div class="pb-step__notes-section">
                     <textarea id="${notesId}" class="pb-step__notes"
                               placeholder="Add notes for this step..."
-                              onblur="_saveStepNotes(${runId}, ${idx}, this.value)">${esc(notes)}</textarea>
+                              data-on-blur="save-step-notes" data-run-id="${runId}" data-step-index="${idx}">${esc(notes)}</textarea>
                 </div>
             ` : (notes ? `
                 <div class="pb-step__notes-section">
@@ -723,7 +723,7 @@ function _renderStepFormRow(index, step) {
             <div class="pb-form-step__header">
                 <span class="pb-form-step__num">${index + 1}</span>
                 <button type="button" class="ins-btn ins-btn-sm ins-btn-danger"
-                        onclick="_removeStepFormRow(this)" title="Remove step">Remove</button>
+                        data-action="remove-step-form-row" title="Remove step">Remove</button>
             </div>
             <div class="pb-form-step__fields">
                 <input type="text" class="ins-form-input pb-form-step__title"
@@ -1041,7 +1041,7 @@ function _renderSuggestions(playbookId, data) {
         suggestionsEl.innerHTML = `
             <div class="pb-suggestions__header">
                 <span class="pb-suggestions__title">AI Suggestions</span>
-                <button class="ins-btn ins-btn-sm ins-btn-ghost" onclick="_closeSuggestions()">Close</button>
+                <button class="ins-btn ins-btn-sm ins-btn-ghost" data-action="close-suggestions">Close</button>
             </div>
             <div class="pb-suggestions__empty">No suggestions available for this playbook.</div>
         `;
@@ -1051,7 +1051,7 @@ function _renderSuggestions(playbookId, data) {
     suggestionsEl.innerHTML = `
         <div class="pb-suggestions__header">
             <span class="pb-suggestions__title">AI Suggestions</span>
-            <button class="ins-btn ins-btn-sm ins-btn-ghost" onclick="_closeSuggestions()">Close</button>
+            <button class="ins-btn ins-btn-sm ins-btn-ghost" data-action="close-suggestions">Close</button>
         </div>
         ${summary ? `<div class="pb-suggestions__summary">${esc(summary)}</div>` : ''}
         ${suggestions.length > 0 ? `
@@ -1106,14 +1106,14 @@ function _ensurePlaybookFormModal() {
                         <label class="ins-form-label">Steps</label>
                         <div id="pbFormSteps" class="pb-form-steps"></div>
                         <button type="button" class="ins-btn ins-btn-sm ins-btn-ghost"
-                                onclick="_addStepFormRow()" style="margin-top:var(--space-2);">+ Add Step</button>
+                                data-action="add-step-form-row" style="margin-top:var(--space-2);">+ Add Step</button>
                     </div>
                 </div>
                 <div class="confirm-sheet-actions" style="margin-top:var(--space-4);">
                     <button id="pbFormSubmit" class="confirm-btn-primary" style="border-radius:0;"
-                            onclick="_submitPlaybookForm()">Create</button>
+                            data-action="submit-playbook-form">Create</button>
                     <button class="confirm-btn-cancel" style="border-radius:0;"
-                            onclick="_closePlaybookForm()">Cancel</button>
+                            data-action="close-playbook-form">Cancel</button>
                 </div>
             </div>
         </div>
@@ -1162,27 +1162,26 @@ function _formatRunStatus(status) {
     return labels[status] || (status || '').replace(/_/g, ' ');
 }
 
-// ── Expose on window ──────────────────────────────────────────
+// ── Action Delegation ─────────────────────────────────────────
 
-window._switchPlaybookView = _switchPlaybookView;
-window._loadPlaybooks = _loadPlaybooks;
-window._loadActiveRuns = _loadActiveRuns;
-window._viewRunDetail = _viewRunDetail;
-window._backToRunsList = _backToRunsList;
-window._completeStep = _completeStep;
-window._onStepCheckChange = _onStepCheckChange;
-window._saveStepNotes = _saveStepNotes;
-window._updateRunStatus = _updateRunStatus;
-window._startRun = _startRun;
-window._createPlaybook = _createPlaybook;
-window._editPlaybook = _editPlaybook;
-window._submitPlaybookForm = _submitPlaybookForm;
-window._closePlaybookForm = _closePlaybookForm;
-window._seedTemplates = _seedTemplates;
-window._duplicatePlaybook = _duplicatePlaybook;
-window._deletePlaybook = _deletePlaybook;
-window._improvePlaybook = _improvePlaybook;
-window._closeSuggestions = _closeSuggestions;
-window._toggleGuidance = _toggleGuidance;
-window._addStepFormRow = _addStepFormRow;
-window._removeStepFormRow = _removeStepFormRow;
+registerActions({
+    'seed-templates':       () => _seedTemplates(),
+    'create-playbook':      () => _createPlaybook(),
+    'switch-playbook-view': (el) => _switchPlaybookView(el.dataset.view),
+    'start-run':            (el, e) => { e.stopPropagation(); _startRun(Number(el.dataset.id)); },
+    'duplicate-playbook':   (el, e) => { e.stopPropagation(); _duplicatePlaybook(Number(el.dataset.id)); },
+    'edit-playbook':        (el, e) => { e.stopPropagation(); _editPlaybook(Number(el.dataset.id)); },
+    'delete-playbook':      (el, e) => { e.stopPropagation(); _deletePlaybook(Number(el.dataset.id)); },
+    'improve-playbook':     (el, e) => { e.stopPropagation(); _improvePlaybook(Number(el.dataset.id)); },
+    'view-run-detail':      (el) => _viewRunDetail(Number(el.dataset.id)),
+    'back-to-runs':         () => _backToRunsList(),
+    'update-run-status':    (el) => _updateRunStatus(Number(el.dataset.id), el.dataset.status),
+    'step-check-change':    (el) => _onStepCheckChange(Number(el.dataset.runId), Number(el.dataset.stepIndex), el.checked),
+    'toggle-guidance':      (el) => _toggleGuidance(el.dataset.guidanceId, el),
+    'save-step-notes':      (el) => _saveStepNotes(Number(el.dataset.runId), Number(el.dataset.stepIndex), el.value),
+    'remove-step-form-row': (el) => _removeStepFormRow(el),
+    'add-step-form-row':    () => _addStepFormRow(),
+    'submit-playbook-form': () => _submitPlaybookForm(),
+    'close-playbook-form':  () => _closePlaybookForm(),
+    'close-suggestions':    () => _closeSuggestions(),
+});

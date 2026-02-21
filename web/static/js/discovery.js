@@ -50,8 +50,8 @@ function renderContextsList(contexts) {
                 <span class="context-date">${new Date(c.created_at).toLocaleDateString()}</span>
             </div>
             <div class="context-actions">
-                <button class="btn btn-sm" onclick="previewContext(${c.id})">Preview</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteContext(${c.id})">Delete</button>
+                <button class="btn btn-sm" data-action="preview-context" data-id="${c.id}">Preview</button>
+                <button class="btn btn-sm btn-danger" data-action="delete-context" data-id="${c.id}">Delete</button>
             </div>
         </div>
     `).join('');
@@ -117,7 +117,7 @@ async function previewContext(ctxId) {
     overlay.innerHTML = `<div class="context-preview-modal">
         <h3>${esc(ctx.name)}</h3>
         <div class="context-preview-content">${typeof marked !== 'undefined' ? sanitize(marked.parse(ctx.content)) : '<pre>' + esc(ctx.content) + '</pre>'}</div>
-        <button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="btn" data-action="close-modal-overlay">Close</button>
     </div>`;
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     document.body.appendChild(overlay);
@@ -315,7 +315,7 @@ async function loadAnalysisHistory() {
         return;
     }
     el.innerHTML = analyses.map(a => `
-        <div class="analysis-history-card" onclick="showAnalysisDetail(${a.id})">
+        <div class="analysis-history-card" data-action="show-analysis-detail" data-id="${a.id}">
             <div class="analysis-history-info">
                 <strong>${esc(a.title || a.analysis_type)}</strong>
                 <span class="analysis-type-badge">${esc(a.analysis_type.replace('_', ' '))}</span>
@@ -324,7 +324,7 @@ async function loadAnalysisHistory() {
             </div>
             <div class="analysis-history-meta">
                 <span>${new Date(a.created_at).toLocaleDateString()}</span>
-                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteAnalysis(${a.id})">Delete</button>
+                <button class="btn btn-sm btn-danger" data-action="delete-analysis" data-id="${a.id}">Delete</button>
             </div>
         </div>
     `).join('');
@@ -354,7 +354,7 @@ async function showAnalysisDetail(analysisId) {
     overlay.querySelector('.analysis-detail-modal').innerHTML = `
         <h3>${esc(analysis.title || analysis.analysis_type)}</h3>
         <div class="analysis-detail-content">${content}</div>
-        <button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="btn" data-action="close-modal-overlay">Close</button>
     `;
 }
 
@@ -368,3 +368,19 @@ async function deleteAnalysis(analysisId) {
 document.addEventListener('DOMContentLoaded', () => {
     initContextUpload();
 });
+
+// ── Action Delegation ─────────────────────────────────────────
+
+registerActions({
+    'preview-context': (el) => previewContext(Number(el.dataset.id)),
+    'delete-context': (el) => deleteContext(Number(el.dataset.id)),
+    'show-analysis-detail': (el) => showAnalysisDetail(Number(el.dataset.id)),
+    'delete-analysis': (el, e) => { e.stopPropagation(); deleteAnalysis(Number(el.dataset.id)); },
+    'generate-feature-landscape': () => generateFeatureLandscape(),
+    'generate-gap-analysis': () => generateGapAnalysis(),
+    'close-modal-overlay': (el) => el.closest('.modal-overlay').remove(),
+});
+
+// ── Expose on window (for external callers) ──────────────────
+
+window.loadDiscoveryTab = loadDiscoveryTab;

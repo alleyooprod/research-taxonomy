@@ -122,7 +122,7 @@ function _getTabulatorColumns() {
             formatter: function(cell) {
                 const c = cell.getRow().getData();
                 if (!c.category_id) return 'N/A';
-                return `<a class="cat-link" onclick="event.stopPropagation();navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')">${esc(c.category_name || '')}</a>`;
+                return `<a class="cat-link" data-action="navigate-category" data-id="${c.category_id}" data-name="${escAttr(c.category_name)}">${esc(c.category_name || '')}</a>`;
             },
         },
         {
@@ -568,8 +568,8 @@ async function loadCompanies() {
                 <span class="empty-state-icon"><span class="material-symbols-outlined">search</span></span>
                 <p class="empty-state-title">${hasFilters ? 'No companies match your filters' : 'No companies yet'}</p>
                 <p class="empty-state-desc">${hasFilters
-                    ? 'Try adjusting your search or <button class="empty-state-link" onclick="clearAllFilters()">clearing all filters</button>'
-                    : 'Go to the <button class="empty-state-link" onclick="showTab(\'process\')">Process tab</button> to add companies'}</p>
+                    ? 'Try adjusting your search or <button class="empty-state-link" data-action="clear-all-filters">clearing all filters</button>'
+                    : 'Go to the <button class="empty-state-link" data-action="show-tab" data-tab="process">Process tab</button> to add companies'}</p>
             </div>
         </td></tr>`;
     } else {
@@ -577,9 +577,9 @@ async function loadCompanies() {
             const compClass = c.completeness >= 0.7 ? 'comp-high' : c.completeness >= 0.4 ? 'comp-mid' : 'comp-low';
             const compPct = Math.round(c.completeness * 100);
             return `
-            <tr onclick="showDetail(${c.id})" style="cursor:pointer" data-company-id="${c.id}">
-                <td class="bulk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" data-company-id="${c.id}" ${bulkSelection.has(c.id) ? 'checked' : ''} onchange="toggleBulkSelect(${c.id}, this, event)"></td>
-                <td><span class="star-btn ${c.is_starred ? 'starred' : ''}" onclick="event.stopPropagation();toggleStar(${c.id},this)" title="Star"><span class="material-symbols-outlined">${c.is_starred ? 'star' : 'star_outline'}</span></span></td>
+            <tr data-action="show-detail" data-id="${c.id}" style="cursor:pointer" data-company-id="${c.id}">
+                <td class="bulk-cell"><input type="checkbox" class="bulk-checkbox" data-company-id="${c.id}" ${bulkSelection.has(c.id) ? 'checked' : ''} data-on-change="toggle-bulk-select" data-id="${c.id}"></td>
+                <td><span class="star-btn ${c.is_starred ? 'starred' : ''}" data-action="toggle-star" data-id="${c.id}" title="Star"><span class="material-symbols-outlined">${c.is_starred ? 'star' : 'star_outline'}</span></span></td>
                 <td>
                     <div class="company-name-cell">
                         <img class="company-logo" src="${esc(c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`)}" alt="${escAttr(c.name)} logo" onerror="this.style.display='none'">
@@ -588,7 +588,7 @@ async function loadCompanies() {
                         ${c.relationship_status ? `<span class="relationship-dot rel-${c.relationship_status}" title="${relationshipLabel(c.relationship_status)}"></span>` : ''}
                     </div>
                 </td>
-                <td>${c.category_id ? `<a class="cat-link" onclick="event.stopPropagation();navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')"><span class="cat-color-dot" style="background:${getCategoryColor(c.category_id) || 'transparent'}"></span> ${esc(c.category_name)}</a>` : 'N/A'}</td>
+                <td>${c.category_id ? `<a class="cat-link" data-action="navigate-category" data-id="${c.category_id}" data-name="${escAttr(c.category_name)}"><span class="cat-color-dot" style="background:${getCategoryColor(c.category_id) || 'transparent'}"></span> ${esc(c.category_name)}</a>` : 'N/A'}</td>
                 <td><div class="cell-clamp">${esc(c.what || '')}</div></td>
                 <td><div class="cell-clamp">${esc(c.target || '')}</div></td>
                 <td><div class="cell-clamp">${esc(c.geography || '')}</div></td>
@@ -647,7 +647,7 @@ async function showDetail(id) {
             <img class="detail-logo" src="${esc(logoUrl)}" alt="${escAttr(c.name)} logo" onerror="this.style.display='none'">
             <a href="${safeHref(c.url)}" target="_blank">${esc(c.url)}</a>
             ${c.linkedin_url ? `<a href="${safeHref(c.linkedin_url)}" target="_blank" class="linkedin-link" title="LinkedIn">in</a>` : ''}
-            ${c.url && typeof generateQrCode === 'function' ? `<button class="btn" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();showCompanyQr('${escAttr(c.url)}','${escAttr(c.name)}')" title="Show QR code">QR</button>` : ''}
+            ${c.url && typeof generateQrCode === 'function' ? `<button class="btn" style="padding:2px 6px;font-size:11px" data-action="show-qr" data-url="${escAttr(c.url)}" data-name="${escAttr(c.name)}" title="Show QR code">QR</button>` : ''}
         </div>
         <div class="detail-field"><label>What</label><p>${esc(c.what || 'N/A')}</p></div>
         <div class="detail-field"><label>Target</label><p>${esc(c.target || 'N/A')}</p></div>
@@ -663,7 +663,7 @@ async function showDetail(id) {
         ${_renderPricingSection(c)}
         <div class="detail-field"><label>Geography</label><p>${esc(c.geography || 'N/A')}</p></div>
         <div class="detail-field"><label>TAM</label><p>${esc(c.tam || 'N/A')}</p></div>
-        <div class="detail-field"><label>Category</label><p>${c.category_id ? `<a class="cat-link" onclick="navigateTo('category',${c.category_id},'${escAttr(c.category_name)}')">${esc(c.category_name)}</a>` : 'N/A'} / ${esc(c.subcategory_name || 'N/A')}</p></div>
+        <div class="detail-field"><label>Category</label><p>${c.category_id ? `<a class="cat-link" data-action="navigate-category" data-id="${c.category_id}" data-name="${escAttr(c.category_name)}">${esc(c.category_name)}</a>` : 'N/A'} / ${esc(c.subcategory_name || 'N/A')}</p></div>
         <div class="detail-field"><label>Tags</label><p>${(c.tags || []).map(t => esc(t)).join(', ') || 'None'}</p></div>
         <div class="detail-field"><label>Confidence</label><p>${c.confidence_score != null ? (c.confidence_score * 100).toFixed(0) + '%' : 'N/A'}</p></div>
         <div class="detail-field"><label>Processed</label><p>${c.processed_at || 'N/A'}</p></div>
@@ -676,13 +676,13 @@ async function showDetail(id) {
             ${c.primary_focus ? `<span class="facet-badge facet-focus">${esc(c.primary_focus)}</span>` : ''}
         </div>` : ''}
         <div class="detail-actions">
-            <button class="btn" onclick="openEditModal(${c.id})">Edit</button>
-            <button class="btn" onclick="openReResearch(${c.id})">Re-research</button>
-            <button class="btn" onclick="startEnrichment(${c.id})">Enrich</button>
-            <button class="btn" onclick="startCompanyResearch(${c.id}, '${escAttr(c.name)}')">Deep Dive</button>
-            <button class="btn" onclick="findSimilar(${c.id})">Find Similar</button>
-            <button class="btn" onclick="showVersionHistory(${c.id})">History</button>
-            <button class="danger-btn" onclick="deleteCompany(${c.id})">Delete</button>
+            <button class="btn" data-action="open-edit-modal" data-id="${c.id}">Edit</button>
+            <button class="btn" data-action="open-re-research" data-id="${c.id}">Re-research</button>
+            <button class="btn" data-action="start-enrichment" data-id="${c.id}">Enrich</button>
+            <button class="btn" data-action="start-company-research" data-id="${c.id}" data-name="${escAttr(c.name)}">Deep Dive</button>
+            <button class="btn" data-action="find-similar" data-id="${c.id}">Find Similar</button>
+            <button class="btn" data-action="show-version-history" data-id="${c.id}">History</button>
+            <button class="danger-btn" data-action="delete-company" data-id="${c.id}">Delete</button>
         </div>
         <div id="similarResults-${c.id}" class="hidden similar-results"></div>
 
@@ -690,7 +690,7 @@ async function showDetail(id) {
         <div class="relationship-section">
             <label>Relationship</label>
             <div class="relationship-controls">
-                <select id="relStatus-${c.id}" class="relationship-select" onchange="saveRelationship(${c.id})">
+                <select id="relStatus-${c.id}" class="relationship-select" data-on-change="save-relationship" data-id="${c.id}">
                     <option value="">-- None --</option>
                     <option value="watching" ${c.relationship_status === 'watching' ? 'selected' : ''}>Watching</option>
                     <option value="to_reach_out" ${c.relationship_status === 'to_reach_out' ? 'selected' : ''}>To Reach Out</option>
@@ -702,20 +702,20 @@ async function showDetail(id) {
                 ${c.relationship_status ? `<span class="relationship-dot rel-${c.relationship_status}" style="width:10px;height:10px"></span>` : ''}
             </div>
             <textarea id="relNote-${c.id}" class="relationship-note" rows="2" placeholder="Notes about this relationship..."
-                onblur="saveRelationship(${c.id})">${esc(c.relationship_note || '')}</textarea>
+                data-on-blur="save-relationship" data-id="${c.id}">${esc(c.relationship_note || '')}</textarea>
         </div>
 
         <!-- Notes Section -->
         <div class="detail-notes">
             <div class="detail-notes-header">
                 <label>Notes</label>
-                <button class="filter-action-btn" onclick="showAddNote(${c.id})">+ Add note</button>
+                <button class="filter-action-btn" data-action="show-add-note" data-id="${c.id}">+ Add note</button>
             </div>
             <div id="addNoteForm-${c.id}" class="hidden" style="margin-bottom:8px">
                 <textarea id="newNoteText-${c.id}" rows="2" placeholder="Add a note..."></textarea>
                 <div style="display:flex;gap:6px;margin-top:4px">
-                    <button class="primary-btn" onclick="addNote(${c.id})">Save</button>
-                    <button class="btn" onclick="document.getElementById('addNoteForm-${c.id}').classList.add('hidden')">Cancel</button>
+                    <button class="primary-btn" data-action="add-note" data-id="${c.id}">Save</button>
+                    <button class="btn" data-action="cancel-add-note" data-id="${c.id}">Cancel</button>
                 </div>
             </div>
             <div id="notesList-${c.id}">
@@ -724,8 +724,8 @@ async function showDetail(id) {
                         <div class="note-content">${esc(n.content)}</div>
                         <div class="note-meta">
                             <span>${new Date(n.created_at).toLocaleDateString()}</span>
-                            <span class="note-action" onclick="togglePinNote(${n.id},${c.id})">${n.is_pinned ? 'Unpin' : 'Pin'}</span>
-                            <span class="note-action note-delete" onclick="deleteNote(${n.id},${c.id})">Delete</span>
+                            <span class="note-action" data-action="toggle-pin-note" data-id="${n.id}" data-company-id="${c.id}">${n.is_pinned ? 'Unpin' : 'Pin'}</span>
+                            <span class="note-action note-delete" data-action="delete-note" data-id="${n.id}" data-company-id="${c.id}">Delete</span>
                         </div>
                     </div>
                 `).join('') || '<p style="font-size:12px;color:var(--text-muted)">No notes yet.</p>'}
@@ -736,7 +736,7 @@ async function showDetail(id) {
         <div class="detail-events">
             <div class="detail-notes-header">
                 <label>Events</label>
-                <button class="filter-action-btn" onclick="showAddEvent(${c.id})">+ Add event</button>
+                <button class="filter-action-btn" data-action="show-add-event" data-id="${c.id}">+ Add event</button>
             </div>
             <div id="addEventForm-${c.id}" class="hidden" style="margin-bottom:8px">
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -752,8 +752,8 @@ async function showDetail(id) {
                 </div>
                 <textarea id="newEventDesc-${c.id}" rows="1" placeholder="Description..." style="margin-top:4px"></textarea>
                 <div style="display:flex;gap:6px;margin-top:4px">
-                    <button class="primary-btn" onclick="addEvent(${c.id})">Save</button>
-                    <button class="btn" onclick="document.getElementById('addEventForm-${c.id}').classList.add('hidden')">Cancel</button>
+                    <button class="primary-btn" data-action="add-event" data-id="${c.id}">Save</button>
+                    <button class="btn" data-action="cancel-add-event" data-id="${c.id}">Cancel</button>
                 </div>
             </div>
             <div id="eventsList-${c.id}">
@@ -762,7 +762,7 @@ async function showDetail(id) {
                         <span class="event-type-badge">${esc(ev.event_type)}</span>
                         <span>${esc(ev.description || '')}</span>
                         <span class="event-date">${ev.event_date || ''}</span>
-                        <span class="note-action note-delete" onclick="deleteEvent(${ev.id},${c.id})">Delete</span>
+                        <span class="note-action note-delete" data-action="delete-event" data-id="${ev.id}" data-company-id="${c.id}">Delete</span>
                     </div>
                 `).join('') || '<p style="font-size:12px;color:var(--text-muted)">No events yet.</p>'}
             </div>
@@ -772,8 +772,8 @@ async function showDetail(id) {
             <label>Additional source URLs (one per line):</label>
             <textarea id="reResearchUrls-${c.id}" rows="3" placeholder="https://example.com/about&#10;https://crunchbase.com/organization/..."></textarea>
             <div class="re-research-actions">
-                <button class="primary-btn" onclick="startReResearch(${c.id})">Run Re-research</button>
-                <button class="btn" onclick="closeReResearch(${c.id})">Cancel</button>
+                <button class="primary-btn" data-action="start-re-research" data-id="${c.id}">Run Re-research</button>
+                <button class="btn" data-action="close-re-research" data-id="${c.id}">Cancel</button>
             </div>
             <div id="reResearchStatus-${c.id}" class="hidden"></div>
         </div>
@@ -1099,13 +1099,13 @@ async function showVersionHistory(companyId) {
                     <span class="version-date">${new Date(v.created_at).toLocaleString()}</span>
                 </div>
                 <div style="display:flex;gap:4px">
-                    ${i < versions.length - 1 ? `<button class="filter-action-btn" onclick="showVersionDiff(${companyId},${v.id},${versions[i+1].id})">Diff</button>` : ''}
-                    <button class="filter-action-btn" onclick="restoreVersion(${v.id},${companyId})">Restore</button>
+                    ${i < versions.length - 1 ? `<button class="filter-action-btn" data-action="show-version-diff" data-company-id="${companyId}" data-new-version="${v.id}" data-old-version="${versions[i+1].id}">Diff</button>` : ''}
+                    <button class="filter-action-btn" data-action="restore-version" data-id="${v.id}" data-company-id="${companyId}">Restore</button>
                 </div>
             </div>
         `).join('');
     }
-    html += '<button class="btn" onclick="showDetail(' + companyId + ')" style="margin-top:10px">Back</button></div>';
+    html += `<button class="btn" data-action="show-detail" data-id="${companyId}" style="margin-top:10px">Back</button></div>`;
     document.getElementById('detailContent').innerHTML = html;
 }
 
@@ -1133,7 +1133,7 @@ async function showVersionDiff(companyId, newVersionId, oldVersionId) {
         document.getElementById('detailContent').innerHTML = `
             <div class="version-history"><h3>Version Diff</h3>
             ${diffHtml}
-            <button class="btn" onclick="showVersionHistory(${companyId})" style="margin-top:10px">Back to History</button></div>`;
+            <button class="btn" data-action="show-version-history" data-id="${companyId}" style="margin-top:10px">Back to History</button></div>`;
     } else {
         // Fallback: simple text diff
         let html = '<div class="version-history"><h3>Version Diff</h3><table class="compare-table"><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>';
@@ -1144,7 +1144,7 @@ async function showVersionDiff(companyId, newVersionId, oldVersionId) {
                 html += `<tr><td><strong>${esc(f)}</strong></td><td style="color:var(--accent-danger)">${esc(String(oldVal))}</td><td style="color:var(--accent-green)">${esc(String(newVal))}</td></tr>`;
             }
         });
-        html += '</tbody></table><button class="btn" onclick="showVersionHistory(' + companyId + ')" style="margin-top:10px">Back to History</button></div>';
+        html += `</tbody></table><button class="btn" data-action="show-version-history" data-id="${companyId}" style="margin-top:10px">Back to History</button></div>`;
         document.getElementById('detailContent').innerHTML = html;
     }
 }
@@ -1173,7 +1173,7 @@ function showCompanyQr(url, name) {
         <h3 style="margin:0 0 12px">${esc(name)}</h3>
         <div style="display:inline-block;padding:12px;background:#fff;border-radius:8px">${qrHtml}</div>
         <p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">${esc(url)}</p>
-        <button class="btn" onclick="this.closest('.modal-overlay').remove()" style="margin-top:12px">Close</button>
+        <button class="btn" data-action="close-qr-modal" style="margin-top:12px">Close</button>
     </div>`;
     document.body.appendChild(modal);
 }
@@ -1298,7 +1298,7 @@ function renderGalleryView(companies, container) {
     }
     container.innerHTML = `<div class="gallery-grid">${companies.map(c => {
         const logoUrl = c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`;
-        return `<div class="gallery-card" onclick="showDetail(${c.id})">
+        return `<div class="gallery-card" data-action="show-detail" data-id="${c.id}">
             <div class="gallery-card-header">
                 <img class="gallery-logo" src="${esc(logoUrl)}" alt="${escAttr(c.name)} logo" onerror="this.style.display='none'">
                 <div>
@@ -1338,7 +1338,7 @@ function renderTimelineView(companies, container) {
                 <div class="timeline-year-label">${y}</div>
                 <div class="timeline-year-dots">
                     ${byYear[y].map(c => {
-                        return `<div class="timeline-dot" style="background:var(--text-primary)" onclick="showDetail(${c.id})" title="${esc(c.name)} — ${esc(c.category_name || '')}"></div>`;
+                        return `<div class="timeline-dot" style="background:var(--text-primary)" data-action="show-detail" data-id="${c.id}" title="${esc(c.name)} — ${esc(c.category_name || '')}"></div>`;
                     }).join('')}
                 </div>
             </div>`).join('')}
@@ -1373,7 +1373,7 @@ function renderMatrixView(companies, container) {
             return `<tr><td><strong>${esc(cat)}</strong></td>
                 ${geoList.map(g => {
                     const count = cats[cat][g] ? cats[cat][g].length : 0;
-                    return `<td class="matrix-cell ${count ? 'matrix-filled' : ''}" ${count ? `onclick="showMatrixDetail('${escAttr(cat)}','${escAttr(g)}')" style="cursor:pointer"` : ''}>${count || ''}</td>`;
+                    return `<td class="matrix-cell ${count ? 'matrix-filled' : ''}" ${count ? `data-action="show-matrix-detail" data-cat="${escAttr(cat)}" data-geo="${escAttr(g)}" style="cursor:pointer"` : ''}>${count || ''}</td>`;
                 }).join('')}
                 <td><strong>${total}</strong></td>
             </tr>`;
@@ -1396,13 +1396,13 @@ function showMatrixDetail(catName, geoKey) {
         <p>${matches.length} companies</p>
         <div class="category-company-list">
             ${matches.map(c => `
-                <div class="cat-company-item" onclick="showDetail(${c.id})">
+                <div class="cat-company-item" data-action="show-detail" data-id="${c.id}">
                     <strong>${esc(c.name)}</strong>
                     <span class="text-muted" style="font-size:11px;margin-left:auto">${esc(c.what || '').substring(0, 60)}</span>
                 </div>
             `).join('')}
         </div>
-        <button class="btn" onclick="closeDetail()" style="margin-top:12px">Close</button>
+        <button class="btn" data-action="close-detail" style="margin-top:12px">Close</button>
     `;
     panel.classList.remove('hidden');
 }
@@ -1420,3 +1420,132 @@ document.addEventListener('click', (e) => {
     }
     loadCompanies();
 });
+
+// --- Edit Form submit listener (replaces onsubmit="saveEdit(event)") ---
+document.addEventListener('submit', (e) => {
+    if (e.target.id === 'editForm') {
+        saveEdit(e);
+    }
+});
+
+// --- Search input listener (replaces oninput="debounceSearch()") ---
+const _searchInput = document.getElementById('searchInput');
+if (_searchInput && !_searchInput._boundInput) {
+    _searchInput._boundInput = true;
+    _searchInput.addEventListener('input', debounceSearch);
+}
+
+// ── Action Delegation ─────────────────────────────────────────
+registerActions({
+    // --- Table row / detail navigation ---
+    'show-detail': (el, e) => {
+        // Don't trigger on checkbox, star, or link clicks
+        if (e.target.closest('.bulk-cell') || e.target.closest('.star-btn') ||
+            e.target.closest('[data-action="toggle-star"]') ||
+            e.target.tagName === 'INPUT' || e.target.tagName === 'A') return;
+        showDetail(Number(el.dataset.id));
+    },
+    'close-detail': () => closeDetail(),
+    'navigate-category': (el, e) => {
+        e.stopPropagation();
+        navigateTo('category', Number(el.dataset.id), el.dataset.name);
+    },
+    'show-tab': (el) => showTab(el.dataset.tab),
+
+    // --- Starring ---
+    'toggle-star': (el, e) => {
+        e.stopPropagation();
+        toggleStar(Number(el.dataset.id), el);
+    },
+
+    // --- Bulk selection ---
+    'toggle-select-all': (el) => toggleSelectAll(el),
+    'clear-bulk-selection': () => clearBulkSelection(),
+    'bulk-action': (el) => bulkAction(el.dataset.bulkType),
+    'start-batch-enrichment': () => startBatchEnrichment(),
+
+    // --- View switching ---
+    'switch-company-view': (el) => switchCompanyView(el.dataset.view),
+    'export-tabulator-csv': () => exportTabulatorCsv(),
+
+    // --- Filters ---
+    'load-companies': () => loadCompanies(),
+    'clear-all-filters': () => clearAllFilters(),
+    'debounce-search': () => debounceSearch(),
+
+    // --- Detail panel actions ---
+    'open-edit-modal': (el) => openEditModal(Number(el.dataset.id)),
+    'close-edit-modal': () => closeEditModal(),
+    'load-subcategories': () => loadSubcategories(),
+    'delete-company': (el) => deleteCompany(Number(el.dataset.id)),
+    'open-re-research': (el) => openReResearch(Number(el.dataset.id)),
+    'start-re-research': (el) => startReResearch(Number(el.dataset.id)),
+    'close-re-research': (el) => closeReResearch(Number(el.dataset.id)),
+    'start-enrichment': (el) => startEnrichment(Number(el.dataset.id)),
+    'start-company-research': (el) => startCompanyResearch(Number(el.dataset.id), el.dataset.name),
+    'find-similar': (el) => findSimilar(Number(el.dataset.id)),
+    'show-version-history': (el) => showVersionHistory(Number(el.dataset.id)),
+    'show-version-diff': (el) => showVersionDiff(
+        Number(el.dataset.companyId),
+        Number(el.dataset.newVersion),
+        Number(el.dataset.oldVersion)
+    ),
+    'restore-version': (el) => restoreVersion(Number(el.dataset.id), Number(el.dataset.companyId)),
+    'show-qr': (el, e) => {
+        e.stopPropagation();
+        showCompanyQr(el.dataset.url, el.dataset.name);
+    },
+    'close-qr-modal': (el) => el.closest('.modal-overlay').remove(),
+
+    // --- Relationship ---
+    'save-relationship': (el) => saveRelationship(Number(el.dataset.id)),
+
+    // --- Notes ---
+    'show-add-note': (el) => showAddNote(Number(el.dataset.id)),
+    'add-note': (el) => addNote(Number(el.dataset.id)),
+    'cancel-add-note': (el) => {
+        document.getElementById(`addNoteForm-${el.dataset.id}`).classList.add('hidden');
+    },
+    'toggle-pin-note': (el) => togglePinNote(Number(el.dataset.id), Number(el.dataset.companyId)),
+    'delete-note': (el) => deleteNote(Number(el.dataset.id), Number(el.dataset.companyId)),
+
+    // --- Events ---
+    'show-add-event': (el) => showAddEvent(Number(el.dataset.id)),
+    'add-event': (el) => addEvent(Number(el.dataset.id)),
+    'cancel-add-event': (el) => {
+        document.getElementById(`addEventForm-${el.dataset.id}`).classList.add('hidden');
+    },
+    'delete-event': (el) => deleteEvent(Number(el.dataset.id), Number(el.dataset.companyId)),
+
+    // --- Matrix view ---
+    'show-matrix-detail': (el) => showMatrixDetail(el.dataset.cat, el.dataset.geo),
+});
+
+// --- Bulk select via change delegation ---
+registerActions({
+    'toggle-bulk-select': (el, e) => {
+        e.stopPropagation();
+        toggleBulkSelect(Number(el.dataset.id), el, e);
+    },
+});
+
+// ── Window exports (called from other modules) ───────────────
+window.loadCompanies = loadCompanies;
+window.showDetail = showDetail;
+window.closeDetail = closeDetail;
+window.switchCompanyView = switchCompanyView;
+window.toggleStar = toggleStar;
+window.openEditModal = openEditModal;
+window.closeEditModal = closeEditModal;
+window.debounceSearch = debounceSearch;
+window.loadSubcategories = loadSubcategories;
+window.toggleBulkSelect = toggleBulkSelect;
+window.toggleSelectAll = toggleSelectAll;
+window.bulkAction = bulkAction;
+window.clearBulkSelection = clearBulkSelection;
+window.updateBulkBar = updateBulkBar;
+window.saveRelationship = saveRelationship;
+window.startBatchEnrichment = startBatchEnrichment;
+window.exportTabulatorCsv = exportTabulatorCsv;
+window.showMatrixDetail = showMatrixDetail;
+window.saveEdit = saveEdit;

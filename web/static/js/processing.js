@@ -83,8 +83,8 @@ function renderTriageResults(results) {
             statusLabel = 'Error';
             actionHtml = `
                 <div class="triage-item-actions">
-                    <label><input type="radio" name="action_${r.id}" value="skip" checked onchange="updateTriageSummary()"> Skip</label>
-                    <label><input type="radio" name="action_${r.id}" value="replace" onchange="showReplacementInput(${r.id})"> Replace URL</label>
+                    <label><input type="radio" name="action_${r.id}" value="skip" checked data-on-change="update-triage-summary"> Skip</label>
+                    <label><input type="radio" name="action_${r.id}" value="replace" data-on-change="show-replacement-input" data-id="${r.id}"> Replace URL</label>
                     <input type="text" id="replacement_${r.id}" class="replacement-input hidden" placeholder="Replacement URL...">
                 </div>`;
         } else if (r.status === 'suspect') {
@@ -92,16 +92,16 @@ function renderTriageResults(results) {
             statusLabel = 'Suspect';
             actionHtml = `
                 <div class="triage-item-actions">
-                    <label><input type="radio" name="action_${r.id}" value="include" onchange="updateTriageSummary()"> Include anyway</label>
-                    <label><input type="radio" name="action_${r.id}" value="skip" checked onchange="updateTriageSummary()"> Skip</label>
-                    <label><input type="radio" name="action_${r.id}" value="replace" onchange="showReplacementInput(${r.id})"> Replace URL</label>
+                    <label><input type="radio" name="action_${r.id}" value="include" data-on-change="update-triage-summary"> Include anyway</label>
+                    <label><input type="radio" name="action_${r.id}" value="skip" checked data-on-change="update-triage-summary"> Skip</label>
+                    <label><input type="radio" name="action_${r.id}" value="replace" data-on-change="show-replacement-input" data-id="${r.id}"> Replace URL</label>
                     <input type="text" id="replacement_${r.id}" class="replacement-input hidden" placeholder="Replacement URL...">
                 </div>`;
         } else {
             actionHtml = `
                 <div class="triage-item-actions">
-                    <label><input type="radio" name="action_${r.id}" value="include" checked onchange="updateTriageSummary()"> Include</label>
-                    <label><input type="radio" name="action_${r.id}" value="skip" onchange="updateTriageSummary()"> Skip</label>
+                    <label><input type="radio" name="action_${r.id}" value="include" checked data-on-change="update-triage-summary"> Include</label>
+                    <label><input type="radio" name="action_${r.id}" value="skip" data-on-change="update-triage-summary"> Skip</label>
                 </div>`;
         }
 
@@ -262,7 +262,7 @@ async function loadBatches() {
             if (otherErrors > 0) errorParts.push(`${otherErrors} errors`);
             const errorText = errorParts.length ? errorParts.join(', ') : '0 errors';
             const pendingText = (b.pending || 0) > 0 ? `, ${b.pending} pending` : '';
-            return `<div class="batch-entry" onclick="showBatchDetail('${esc(b.batch_id)}')" style="cursor:pointer">
+            return `<div class="batch-entry" data-action="show-batch-detail" data-id="${esc(b.batch_id)}" style="cursor:pointer">
             <strong>${esc(b.batch_id)}</strong>:
             ${b.done}/${b.total} done, ${errorText}${pendingText}
             <span class="batch-date">${new Date(b.started).toLocaleDateString()}</span>
@@ -284,7 +284,7 @@ async function showBatchDetail(batchId) {
     let html = `<div class="batch-detail-panel">
         <div class="detail-header">
             <h2>Batch ${esc(batchId)}</h2>
-            <button class="close-btn" onclick="closeBatchDetail()">&times;</button>
+            <button class="close-btn" data-action="close-batch-detail">&times;</button>
         </div>`;
 
     if (triage.length) {
@@ -342,8 +342,8 @@ async function showBatchDetail(batchId) {
     html += `<div class="batch-results-header">
         <h3>Processing Results</h3>
         <span class="batch-results-summary">${summaryParts.join(' / ')}</span>
-        ${timeoutJobs.length ? `<button class="btn retry-timeouts-btn" onclick="retryTimeouts('${esc(batchId)}')">Retry ${timeoutJobs.length} Timeouts</button>` : ''}
-        ${allErrors.length ? `<button class="btn retry-errors-btn" onclick="retryAllErrors('${esc(batchId)}')">Retry All ${allErrors.length} Errors</button>` : ''}
+        ${timeoutJobs.length ? `<button class="btn retry-timeouts-btn" data-action="retry-timeouts" data-id="${esc(batchId)}">Retry ${timeoutJobs.length} Timeouts</button>` : ''}
+        ${allErrors.length ? `<button class="btn retry-errors-btn" data-action="retry-all-errors" data-id="${esc(batchId)}">Retry All ${allErrors.length} Errors</button>` : ''}
     </div>`;
     html += `<div class="batch-detail-list">`;
     if (jobs.length) {
@@ -418,6 +418,16 @@ async function retryTimeouts(batchId) {
         btn.textContent = 'Retry Timeouts';
     }
 }
+
+// --- Action Delegation ---
+registerActions({
+    'update-triage-summary': () => updateTriageSummary(),
+    'show-replacement-input': (el) => showReplacementInput(Number(el.dataset.id)),
+    'show-batch-detail': (el) => showBatchDetail(el.dataset.id),
+    'close-batch-detail': () => closeBatchDetail(),
+    'retry-timeouts': (el) => retryTimeouts(el.dataset.id),
+    'retry-all-errors': (el) => retryAllErrors(el.dataset.id),
+});
 
 async function retryAllErrors(batchId) {
     const confirmed = await _confirmProcessing({

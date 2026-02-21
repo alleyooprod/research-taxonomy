@@ -77,13 +77,13 @@ function _renderReviewStats() {
         </div>
         <div class="review-confidence-bar">
             <button class="review-conf-btn ${!_reviewConfidenceFilter ? 'review-conf-btn-active' : ''}"
-                    onclick="_setReviewConfidenceFilter(null)">All</button>
+                    data-action="set-review-confidence-filter" data-value="">All</button>
             <button class="review-conf-btn ${_reviewConfidenceFilter === 'high' ? 'review-conf-btn-active' : ''}"
-                    onclick="_setReviewConfidenceFilter('high')">High (${conf.high || 0})</button>
+                    data-action="set-review-confidence-filter" data-value="high">High (${conf.high || 0})</button>
             <button class="review-conf-btn ${_reviewConfidenceFilter === 'medium' ? 'review-conf-btn-active' : ''}"
-                    onclick="_setReviewConfidenceFilter('medium')">Medium (${conf.medium || 0})</button>
+                    data-action="set-review-confidence-filter" data-value="medium">Medium (${conf.medium || 0})</button>
             <button class="review-conf-btn ${_reviewConfidenceFilter === 'low' ? 'review-conf-btn-active' : ''}"
-                    onclick="_setReviewConfidenceFilter('low')">Low (${conf.low || 0})</button>
+                    data-action="set-review-confidence-filter" data-value="low">Low (${conf.low || 0})</button>
         </div>
     `;
 }
@@ -147,7 +147,7 @@ function _renderReviewQueue() {
 
         return `
             <div class="review-entity-card ${expanded ? 'review-entity-expanded' : ''}" data-entity-id="${eid}">
-                <div class="review-entity-header" onclick="_toggleReviewEntity(${eid})">
+                <div class="review-entity-header" data-action="toggle-review-entity" data-id="${eid}">
                     <div class="review-entity-info">
                         <span class="review-entity-type">${esc(group.entity_type || '')}</span>
                         <span class="review-entity-name">${esc(group.entity_name || 'Unknown')}</span>
@@ -155,8 +155,8 @@ function _renderReviewQueue() {
                     </div>
                     <div class="review-entity-actions">
                         ${_renderConfidenceIndicator(avgConf)}
-                        <button class="btn btn-sm" onclick="event.stopPropagation(); _bulkReviewEntity(${eid}, 'accept')" title="Accept all for this entity">Accept All</button>
-                        <button class="btn btn-sm" onclick="event.stopPropagation(); _bulkReviewEntity(${eid}, 'reject')" title="Reject all for this entity">Reject All</button>
+                        <button class="btn btn-sm" data-action="bulk-review-entity-accept" data-id="${eid}" title="Accept all for this entity">Accept All</button>
+                        <button class="btn btn-sm" data-action="bulk-review-entity-reject" data-id="${eid}" title="Reject all for this entity">Reject All</button>
                     </div>
                 </div>
                 ${expanded ? _renderReviewResults(group.results) : ''}
@@ -216,11 +216,11 @@ function _renderSingleResult(r) {
                 <span class="review-reasoning-text">${esc(r.reasoning || '')}</span>
             </div>
             <div class="review-result-actions">
-                <button class="btn btn-sm review-btn-accept" onclick="_reviewSingle(${r.id}, 'accept')" title="Accept this value">Accept</button>
-                <button class="btn btn-sm" onclick="_startEditResult(${r.id}, ${escAttr(JSON.stringify(r.extracted_value || ''))})" title="Edit then accept">Edit</button>
-                <button class="btn btn-sm review-btn-reject" onclick="_reviewSingle(${r.id}, 'reject')" title="Reject this value">Reject</button>
+                <button class="btn btn-sm review-btn-accept" data-action="review-accept" data-id="${r.id}" title="Accept this value">Accept</button>
+                <button class="btn btn-sm" data-action="review-edit" data-id="${r.id}" data-value="${escAttr(JSON.stringify(r.extracted_value || ''))}" title="Edit then accept">Edit</button>
+                <button class="btn btn-sm review-btn-reject" data-action="review-reject" data-id="${r.id}" title="Reject this value">Reject</button>
                 <button class="btn btn-sm review-btn-flag ${r.needs_evidence ? 'review-btn-flag-active' : ''}"
-                        onclick="_toggleNeedsEvidence(${r.id}, ${r.needs_evidence ? 'false' : 'true'})"
+                        data-action="toggle-needs-evidence" data-id="${r.id}" data-needs="${r.needs_evidence ? 'false' : 'true'}"
                         title="${r.needs_evidence ? 'Unflag' : 'Flag as needs more evidence'}">
                     ${r.needs_evidence ? 'Unflag' : 'Flag'}
                 </button>
@@ -408,12 +408,21 @@ async function reviewBulkAll(action) {
     }
 }
 
-// Make functions globally accessible
+// ── Action Delegation ─────────────────────────────────────────
+
+registerActions({
+    'set-review-confidence-filter': (el) => _setReviewConfidenceFilter(el.dataset.value || null),
+    'toggle-review-entity': (el) => _toggleReviewEntity(Number(el.dataset.id)),
+    'bulk-review-entity-accept': (el, e) => { e.stopPropagation(); _bulkReviewEntity(Number(el.dataset.id), 'accept'); },
+    'bulk-review-entity-reject': (el, e) => { e.stopPropagation(); _bulkReviewEntity(Number(el.dataset.id), 'reject'); },
+    'review-accept': (el) => _reviewSingle(Number(el.dataset.id), 'accept'),
+    'review-edit': (el) => { try { _startEditResult(Number(el.dataset.id), JSON.parse(el.dataset.value)); } catch { _startEditResult(Number(el.dataset.id), el.dataset.value); } },
+    'review-reject': (el) => _reviewSingle(Number(el.dataset.id), 'reject'),
+    'toggle-needs-evidence': (el) => _toggleNeedsEvidence(Number(el.dataset.id), el.dataset.needs === 'true'),
+    'review-bulk-all-accept': () => reviewBulkAll('accept'),
+    'review-bulk-all-reject': () => reviewBulkAll('reject'),
+});
+
+// ── Expose on window (for external callers) ──────────────────
+
 window.initReviewQueue = initReviewQueue;
-window._toggleReviewEntity = _toggleReviewEntity;
-window._reviewSingle = _reviewSingle;
-window._startEditResult = _startEditResult;
-window._toggleNeedsEvidence = _toggleNeedsEvidence;
-window._bulkReviewEntity = _bulkReviewEntity;
-window.reviewBulkAll = reviewBulkAll;
-window._setReviewConfidenceFilter = _setReviewConfidenceFilter;

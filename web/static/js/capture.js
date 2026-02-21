@@ -669,11 +669,10 @@ function _getDetailPanelEntityId() {
     // Try data attribute first (set by entity detail rendering)
     if (panel.dataset.entityId) return panel.dataset.entityId;
 
-    // Fallback: parse from the edit button onclick
-    const editBtn = panel.querySelector('button[onclick*="openEntityEditModal"]');
-    if (editBtn) {
-        const match = editBtn.getAttribute('onclick').match(/openEntityEditModal\((\d+)\)/);
-        if (match) return match[1];
+    // Fallback: parse from the edit button data-action
+    const editBtn = panel.querySelector('button[data-action="open-entity-edit-modal"]');
+    if (editBtn && editBtn.dataset.id) {
+        return editBtn.dataset.id;
     }
     return null;
 }

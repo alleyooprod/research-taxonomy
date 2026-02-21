@@ -82,7 +82,7 @@ function _renderTemplateCards(templates) {
 
                 return `
                     <div class="report-template-card ${available ? 'report-template-available' : 'report-template-unavailable'} ${_reportTemplate === tpl.slug ? 'report-template-selected' : ''}"
-                         ${available ? `onclick="_selectTemplate('${esc(tpl.slug)}')"` : ''}
+                         ${available ? `data-action="select-report-template" data-value="${esc(tpl.slug)}"` : ''}
                          title="${available ? escAttr(desc) : escAttr(hint)}">
                         <div class="report-template-name">${esc(tpl.name || tpl.slug)}</div>
                         <div class="report-template-desc">
@@ -92,7 +92,7 @@ function _renderTemplateCards(templates) {
                             }
                         </div>
                         ${available
-                            ? `<button class="btn btn-sm report-template-gen-btn" onclick="event.stopPropagation(); _selectTemplate('${esc(tpl.slug)}')">Generate</button>`
+                            ? `<button class="btn btn-sm report-template-gen-btn" data-action="select-report-template" data-value="${esc(tpl.slug)}">Generate</button>`
                             : ''
                         }
                     </div>
@@ -114,7 +114,7 @@ function _selectTemplate(slug) {
     // Update card selection state
     const cards = document.querySelectorAll('.report-template-card');
     cards.forEach(card => card.classList.remove('report-template-selected'));
-    const selected = document.querySelector(`.report-template-available[onclick*="'${slug}'"]`);
+    const selected = document.querySelector(`.report-template-available[data-value="${slug}"]`);
     if (selected) selected.classList.add('report-template-selected');
 
     const formArea = document.getElementById('reportGenForm');
@@ -147,8 +147,8 @@ function _selectTemplate(slug) {
                 </div>
             </div>
             <div class="report-gen-actions">
-                <button class="btn btn-sm" onclick="_runGeneration()">Generate Report</button>
-                <button class="btn btn-sm report-gen-cancel" onclick="_cancelGeneration()">Cancel</button>
+                <button class="btn btn-sm" data-action="run-report-generation">Generate Report</button>
+                <button class="btn btn-sm report-gen-cancel" data-action="cancel-report-generation">Cancel</button>
             </div>
         </div>
     `;
@@ -343,9 +343,9 @@ function _renderReportView(report) {
                     ${isAi ? '<span class="report-ai-badge">AI Generated</span>' : ''}
                 </div>
                 <div class="report-title-actions">
-                    <button class="btn btn-sm" onclick="_editReportTitle(${report.id})" title="Rename report">Rename</button>
-                    <button class="btn btn-sm" onclick="_showExportBar(${report.id})" title="Export report">Export</button>
-                    <button class="btn btn-sm report-btn-delete" onclick="_deleteReport(${report.id})" title="Delete report">Delete</button>
+                    <button class="btn btn-sm" data-action="edit-report-title" data-id="${report.id}" title="Rename report">Rename</button>
+                    <button class="btn btn-sm" data-action="show-export-bar" data-id="${report.id}" title="Export report">Export</button>
+                    <button class="btn btn-sm report-btn-delete" data-action="delete-report" data-id="${report.id}" title="Delete report">Delete</button>
                 </div>
             </div>
             ${report.template ? '<div class="report-template-label">Template: ' + esc(report.template) + '</div>' : ''}
@@ -355,11 +355,11 @@ function _renderReportView(report) {
             </div>
             <div class="report-export-bar hidden" id="reportExportBar_${report.id}">
                 <span class="report-export-label">Export as:</span>
-                <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'html')">HTML</button>
-                <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'markdown')">Markdown</button>
-                <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'json')">JSON</button>
-                <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'pdf')">PDF</button>
-                <button class="btn btn-sm" onclick="_exportReportToCanvas(${report.id})">Canvas</button>
+                <button class="btn btn-sm" data-action="export-report" data-id="${report.id}" data-value="html">HTML</button>
+                <button class="btn btn-sm" data-action="export-report" data-id="${report.id}" data-value="markdown">Markdown</button>
+                <button class="btn btn-sm" data-action="export-report" data-id="${report.id}" data-value="json">JSON</button>
+                <button class="btn btn-sm" data-action="export-report" data-id="${report.id}" data-value="pdf">PDF</button>
+                <button class="btn btn-sm" data-action="export-report-canvas" data-id="${report.id}">Canvas</button>
             </div>
             <div class="report-footer">
                 ${createdAt ? '<span class="report-footer-item">Created: ' + esc(createdAt) + '</span>' : ''}
@@ -505,16 +505,16 @@ function _renderReportList(reports) {
 
         return `
             <div class="report-list-row ${isActive ? 'report-list-row-active' : ''}" data-report-id="${report.id}">
-                <div class="report-list-title" onclick="_loadReport(${report.id})">
+                <div class="report-list-title" data-action="load-report" data-id="${report.id}">
                     ${esc(report.title || 'Untitled Report')}
                     ${isAi ? '<span class="report-ai-badge report-ai-badge-sm">AI</span>' : ''}
                 </div>
                 <div class="report-list-template">${esc(report.template || '')}</div>
                 <div class="report-list-date">${esc(date)}</div>
                 <div class="report-list-actions">
-                    <button class="btn btn-sm" onclick="_loadReport(${report.id})" title="View report">View</button>
-                    <button class="btn btn-sm" onclick="_exportReport(${report.id}, 'html')" title="Export as HTML">Export</button>
-                    <button class="btn btn-sm report-btn-delete" onclick="_deleteReport(${report.id})" title="Delete report">Del</button>
+                    <button class="btn btn-sm" data-action="load-report" data-id="${report.id}" title="View report">View</button>
+                    <button class="btn btn-sm" data-action="export-report" data-id="${report.id}" data-value="html" title="Export as HTML">Export</button>
+                    <button class="btn btn-sm report-btn-delete" data-action="delete-report" data-id="${report.id}" title="Delete report">Del</button>
                 </div>
             </div>
         `;
@@ -748,16 +748,20 @@ async function _exportReportToCanvas(reportId) {
     }
 }
 
-// ── Global Exposure ───────────────────────────────────────────
+// ── Action Delegation ─────────────────────────────────────────
 
-window.initReports             = initReports;
-window._selectTemplate         = _selectTemplate;
-window._generateReport         = _generateReport;
-window._loadReport             = _loadReport;
-window._exportReport           = _exportReport;
-window._exportReportToCanvas   = _exportReportToCanvas;
-window._editReportTitle        = _editReportTitle;
-window._deleteReport           = _deleteReport;
-window._showExportBar          = _showExportBar;
-window._runGeneration          = _runGeneration;
-window._cancelGeneration       = _cancelGeneration;
+registerActions({
+    'select-report-template':   (el) => _selectTemplate(el.dataset.value),
+    'run-report-generation':    () => _runGeneration(),
+    'cancel-report-generation': () => _cancelGeneration(),
+    'load-report':              (el) => _loadReport(Number(el.dataset.id)),
+    'edit-report-title':        (el) => _editReportTitle(Number(el.dataset.id)),
+    'show-export-bar':          (el) => _showExportBar(Number(el.dataset.id)),
+    'delete-report':            (el) => _deleteReport(Number(el.dataset.id)),
+    'export-report':            (el) => _exportReport(Number(el.dataset.id), el.dataset.value),
+    'export-report-canvas':     (el) => _exportReportToCanvas(Number(el.dataset.id)),
+});
+
+// ── Global Exposure (cross-module calls only) ─────────────────
+
+window.initReports = initReports;

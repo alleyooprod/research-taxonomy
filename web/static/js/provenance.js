@@ -41,11 +41,11 @@ function _ensureProvenanceDashboard() {
         </div>
         <div class="prov-sub-nav" id="provSubNav">
             <button class="prov-sub-btn prov-sub-btn--active" data-view="coverage"
-                    onclick="_switchProvenanceView('coverage')">Coverage</button>
+                    data-action="switch-provenance-view">Coverage</button>
             <button class="prov-sub-btn" data-view="sources"
-                    onclick="_switchProvenanceView('sources')">Sources</button>
+                    data-action="switch-provenance-view">Sources</button>
             <button class="prov-sub-btn" data-view="search"
-                    onclick="_switchProvenanceView('search')">Search</button>
+                    data-action="switch-provenance-view">Search</button>
         </div>
         <div class="prov-stats-bar" id="provStatsBar"></div>
         <div class="prov-content" id="provContent">
@@ -164,7 +164,7 @@ function _renderCoverageView(data) {
         else if (pct >= 40) barClass = 'prov-bar-medium';
 
         return `
-            <div class="prov-cov-row" onclick="_showEntityProvenance(${e.id})" title="View provenance details">
+            <div class="prov-cov-row" data-action="show-entity-provenance" data-id="${e.id}" title="View provenance details">
                 <div class="prov-cov-name">${esc(e.name)}</div>
                 <div class="prov-cov-bar-wrap">
                     <div class="prov-cov-bar ${barClass}" style="width: ${pct}%"></div>
@@ -253,7 +253,7 @@ function _renderEntityProvenance(data, previousHtml) {
     return `
         <div class="prov-entity-detail">
             <div class="prov-entity-header">
-                <button class="prov-back-btn" onclick="_closeEntityProvenance()">&larr; Back</button>
+                <button class="prov-back-btn" data-action="close-entity-provenance">&larr; Back</button>
                 <h3>${esc(data.entity_name || '')}</h3>
                 <span class="prov-entity-cov">${cov.with_evidence || 0}/${cov.total || 0} evidence-backed (${cov.coverage_pct || 0}%)</span>
             </div>
@@ -348,10 +348,10 @@ function _renderProvenanceSearch() {
         <div class="prov-search-form">
             <input type="text" id="provSearchInput" class="prov-search-input"
                    placeholder="Search attribute values..." autocomplete="off"
-                   onkeydown="if(event.key==='Enter') _runProvenanceSearch()">
+                   data-on-keyenter="run-provenance-search">
             <input type="text" id="provSearchSlug" class="prov-search-slug"
                    placeholder="Attribute slug (optional)" autocomplete="off">
-            <button class="prov-search-btn" onclick="_runProvenanceSearch()">Search</button>
+            <button class="prov-search-btn" data-action="run-provenance-search">Search</button>
         </div>
         <div class="prov-search-results" id="provSearchResults">
             <div class="prov-search-hint">Enter a search term to find attributes and their provenance chains.</div>
@@ -444,3 +444,20 @@ function _extractDomain(url) {
         return url.substring(0, 40);
     }
 }
+
+// --- Action Delegation ---
+registerActions({
+    'switch-provenance-view': (el) => _switchProvenanceView(el.dataset.view),
+    'show-entity-provenance': (el) => _showEntityProvenance(Number(el.dataset.id)),
+    'close-entity-provenance': () => _closeEntityProvenance(),
+    'run-provenance-search': () => _runProvenanceSearch(),
+});
+
+// Handle Enter key on search input via delegation
+document.addEventListener('keydown', (e) => {
+    const el = e.target.closest('[data-on-keyenter]');
+    if (!el || e.key !== 'Enter') return;
+    const action = el.dataset.onKeyenter;
+    const handler = _actionHandlers[action];
+    if (handler) handler(el, e);
+});

@@ -29,9 +29,9 @@ async function loadShareTokens() {
             <div>
                 <strong>${esc(t.label)}</strong>
                 <code class="share-url">${location.origin}/shared/${esc(t.token)}</code>
-                <button class="copy-btn" onclick="navigator.clipboard.writeText('${location.origin}/shared/${esc(t.token)}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+                <button class="copy-btn" data-action="copy-share-url" data-url="${location.origin}/shared/${esc(t.token)}">Copy</button>
             </div>
-            ${t.is_active ? `<button class="danger-btn" onclick="revokeShareToken(${t.id})" style="font-size:11px;padding:2px 8px">Revoke</button>` : '<span class="share-revoked-label">Revoked</span>'}
+            ${t.is_active ? `<button class="danger-btn" data-action="revoke-share-token" data-id="${t.id}" style="font-size:11px;padding:2px 8px">Revoke</button>` : '<span class="share-revoked-label">Revoked</span>'}
         </div>
     `).join('');
 }
@@ -201,3 +201,13 @@ async function loadActivity() {
         </div>
     `).join('');
 }
+
+// --- Action Delegation ---
+registerActions({
+    'copy-share-url': (el) => {
+        navigator.clipboard.writeText(el.dataset.url);
+        el.textContent = 'Copied!';
+        setTimeout(() => el.textContent = 'Copy', 1500);
+    },
+    'revoke-share-token': (el) => revokeShareToken(Number(el.dataset.id)),
+});

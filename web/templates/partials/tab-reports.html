@@ -1,9 +1,9 @@
 {% from 'macros.html' import model_select %}
 <!-- Research mode toggle -->
 <div class="research-mode-toggle">
-    <button class="view-toggle-btn active" id="quickReportModeBtn" onclick="switchResearchMode('report')">Quick Report</button>
-    <button class="view-toggle-btn" id="deepDiveModeBtn" onclick="switchResearchMode('deepdive')">Deep Dive</button>
-    <button class="view-toggle-btn" id="setupModeBtn" onclick="switchResearchMode('setup')">Setup</button>
+    <button class="view-toggle-btn active" id="quickReportModeBtn" data-action="switch-research-mode" data-value="report">Quick Report</button>
+    <button class="view-toggle-btn" id="deepDiveModeBtn" data-action="switch-research-mode" data-value="deepdive">Deep Dive</button>
+    <button class="view-toggle-btn" id="setupModeBtn" data-action="switch-research-mode" data-value="setup">Setup</button>
 </div>
 
 <!-- Quick Report mode (existing) -->
@@ -16,7 +16,7 @@
                 <option value="">Select a category...</option>
             </select>
             {{ model_select('reportModelSelect', default='sonnet') }}
-            <button class="primary-btn" id="reportBtn" onclick="generateMarketReport()">Generate Report</button>
+            <button class="primary-btn" id="reportBtn" data-action="generate-market-report">Generate Report</button>
         </div>
         <div id="reportStatus" class="hidden">
             <div class="progress-bar"><div id="reportProgress" class="progress-fill progress-fill-indeterminate"></div></div>
@@ -39,7 +39,7 @@
 
         <div class="research-scope-row">
             <label>Scope:</label>
-            <select id="researchScopeType" onchange="onResearchScopeChange()">
+            <select id="researchScopeType" data-on-change="research-scope-change">
                 <option value="project">Entire Project</option>
                 <option value="category">Category</option>
                 <option value="company">Company</option>
@@ -48,7 +48,7 @@
             <select id="researchScopeId" class="hidden">
                 <option value="">Select...</option>
             </select>
-            <input type="text" id="researchCompanySearch" class="hidden" placeholder="Search company..." oninput="searchResearchCompany()">
+            <input type="text" id="researchCompanySearch" class="hidden" placeholder="Search company..." data-on-input="search-research-company">
             <div id="researchCompanyResults" class="research-company-dropdown hidden"></div>
         </div>
 
@@ -64,7 +64,7 @@
         <div class="research-action-row">
             <input type="text" id="researchTitle" aria-label="Research title" placeholder="Research title (auto-generated if blank)">
             {{ model_select('researchModelSelect', default='sonnet') }}
-            <button class="primary-btn" id="researchBtn" onclick="startDeepDive()">
+            <button class="primary-btn" id="researchBtn" data-action="start-deep-dive">
                 <span class="material-symbols-outlined">science</span> Start Research
             </button>
         </div>
@@ -72,7 +72,7 @@
         <div id="researchStatus" class="hidden">
             <div class="progress-bar"><div id="researchProgress" class="progress-fill progress-fill-indeterminate"></div></div>
             <p id="researchStatusText">Researching... AI is searching the web and analyzing data. This may take 2-10 minutes.</p>
-            <button class="btn btn-sm mt-2" onclick="cancelResearchPoll()">Cancel</button>
+            <button class="btn btn-sm mt-2" data-action="cancel-research-poll">Cancel</button>
         </div>
     </div>
 

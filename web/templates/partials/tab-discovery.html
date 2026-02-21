@@ -5,7 +5,7 @@
 
 <!-- Context Files -->
 <div class="discovery-section">
-    <div class="discovery-section-header" onclick="toggleSection('discoveryContexts')" aria-expanded="false" aria-controls="discoveryContexts">
+    <div class="discovery-section-header" data-action="toggle-section" data-section="discoveryContexts" aria-expanded="false" aria-controls="discoveryContexts">
         <h3>Context Files</h3>
         <span id="discoveryContexts-toggle" class="section-arrow">&#9660;</span>
     </div>
@@ -13,7 +13,7 @@
         <div class="context-upload-area" id="contextDropZone">
             <p>Drag & drop a markdown/text file here, or</p>
             <input type="file" id="contextFileInput" accept=".md,.txt,.markdown" class="file-input-hidden">
-            <button class="btn" onclick="document.getElementById('contextFileInput').click()">Choose File</button>
+            <button class="btn" data-action="choose-context-file">Choose File</button>
         </div>
         <div id="contextsList" class="contexts-list"></div>
     </div>
@@ -21,14 +21,14 @@
 
 <!-- Dimensions -->
 <div class="discovery-section">
-    <div class="discovery-section-header" onclick="toggleSection('discoveryDimensions')" aria-expanded="false" aria-controls="discoveryDimensions">
+    <div class="discovery-section-header" data-action="toggle-section" data-section="discoveryDimensions" aria-expanded="false" aria-controls="discoveryDimensions">
         <h3>Research Dimensions</h3>
         <span id="discoveryDimensions-toggle" class="section-arrow">&#9660;</span>
     </div>
     <div id="discoveryDimensions">
         <div class="dimensions-toolbar">
-            <button class="btn btn-primary" onclick="exploreDimensions()">Explore New Dimensions</button>
-            <button class="btn" onclick="showAddDimensionModal()">Add Manual</button>
+            <button class="btn btn-primary" data-action="explore-dimensions">Explore New Dimensions</button>
+            <button class="btn" data-action="add-dimension-manual">Add Manual</button>
         </div>
         <div id="dimensionsList" class="dimensions-list"></div>
         <div id="dimensionExploreResults" class="hidden"></div>
@@ -37,7 +37,7 @@
 
 <!-- Feature Landscape -->
 <div class="discovery-section">
-    <div class="discovery-section-header" onclick="toggleSection('discoveryLandscape')" aria-expanded="false" aria-controls="discoveryLandscape">
+    <div class="discovery-section-header" data-action="toggle-section" data-section="discoveryLandscape" aria-expanded="false" aria-controls="discoveryLandscape">
         <h3>Feature Landscape</h3>
         <span id="discoveryLandscape-toggle" class="section-arrow">&#9660;</span>
     </div>
@@ -53,7 +53,7 @@
                 <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
                 <option value="claude-opus-4-6">Opus</option>
             </select>
-            <button class="btn btn-primary" onclick="generateFeatureLandscape()">Generate</button>
+            <button class="btn btn-primary" data-action="generate-feature-landscape">Generate</button>
         </div>
         <div id="landscapeResults"></div>
     </div>
@@ -61,7 +61,7 @@
 
 <!-- Gap Analysis -->
 <div class="discovery-section">
-    <div class="discovery-section-header" onclick="toggleSection('discoveryGap')" aria-expanded="false" aria-controls="discoveryGap">
+    <div class="discovery-section-header" data-action="toggle-section" data-section="discoveryGap" aria-expanded="false" aria-controls="discoveryGap">
         <h3>Gap Analysis</h3>
         <span id="discoveryGap-toggle" class="section-arrow">&#9660;</span>
     </div>
@@ -77,7 +77,7 @@
                 <option value="claude-sonnet-4-5-20250929" selected>Sonnet</option>
                 <option value="claude-opus-4-6">Opus</option>
             </select>
-            <button class="btn btn-primary" onclick="generateGapAnalysis()">Run Analysis</button>
+            <button class="btn btn-primary" data-action="generate-gap-analysis">Run Analysis</button>
         </div>
         <div id="gapResults"></div>
     </div>
@@ -85,7 +85,7 @@
 
 <!-- Past Analyses -->
 <div class="discovery-section">
-    <div class="discovery-section-header" onclick="toggleSection('discoveryHistory')" aria-expanded="false" aria-controls="discoveryHistory">
+    <div class="discovery-section-header" data-action="toggle-section" data-section="discoveryHistory" aria-expanded="false" aria-controls="discoveryHistory">
         <h3>Analysis History</h3>
         <span id="discoveryHistory-toggle" class="section-arrow">&#9660;</span>
     </div>

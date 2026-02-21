@@ -34,6 +34,13 @@ function initEntityBrowser() {
     _renderEntityTypeBar();
     _renderEntityBreadcrumbs();
 
+    // Bind search input (oninput cannot use data-action delegation)
+    const searchInput = document.getElementById('entitySearchInput');
+    if (searchInput && !searchInput._boundSearch) {
+        searchInput.addEventListener('input', debounceEntitySearch);
+        searchInput._boundSearch = true;
+    }
+
     // Default to first root type
     const rootTypes = schema.entity_types.filter(t => !t.parent_type);
     if (rootTypes.length > 0) {
@@ -68,7 +75,7 @@ function _renderEntityTypeBar() {
         const active = t.slug === _entityTypeFilter ? 'entity-type-btn-active' : '';
         const count = ''; // Will be updated by stats
         return `<button class="entity-type-btn ${active}" data-type="${escAttr(t.slug)}"
-                    onclick="_setEntityTypeFilter('${escAttr(t.slug)}')">${esc(t.name)}${count}</button>`;
+                    data-action="set-entity-type-filter" data-value="${escAttr(t.slug)}">${esc(t.name)}${count}</button>`;
     }).join('');
 
     // Load stats to show counts on type buttons
@@ -151,14 +158,14 @@ function _renderEntityBreadcrumbs() {
         return;
     }
 
-    let html = `<span class="entity-bc-item entity-bc-link" onclick="entityBreadcrumbNav(-1)">Root</span>`;
+    let html = `<span class="entity-bc-item entity-bc-link" data-action="entity-breadcrumb-nav" data-id="-1">Root</span>`;
     _entityParentStack.forEach((entry, i) => {
         const isLast = i === _entityParentStack.length - 1;
         html += `<span class="entity-bc-sep">/</span>`;
         if (isLast) {
             html += `<span class="entity-bc-item entity-bc-current">${esc(entry.name)}</span>`;
         } else {
-            html += `<span class="entity-bc-item entity-bc-link" onclick="entityBreadcrumbNav(${i})">${esc(entry.name)}</span>`;
+            html += `<span class="entity-bc-item entity-bc-link" data-action="entity-breadcrumb-nav" data-id="${i}">${esc(entry.name)}</span>`;
         }
     });
 
@@ -221,7 +228,7 @@ function _renderEntityList(entities) {
     const thead = document.getElementById('entityTableHead');
     if (thead) {
         let headerHtml = `<tr>
-            <th class="col-bulk"><input type="checkbox" onchange="_toggleEntitySelectAll(this)" aria-label="Select all"></th>
+            <th class="col-bulk"><input type="checkbox" data-on-change="toggle-entity-select-all" aria-label="Select all"></th>
             <th class="col-starred"></th>
             <th>Name</th>`;
         attrs.forEach(a => {
@@ -256,13 +263,13 @@ function _renderEntityList(entities) {
         const drillable = hasChildren && e.child_count > 0;
 
         let row = `<tr class="${isSelected ? 'selected-row' : ''}" data-entity-id="${e.id}">
-            <td class="col-bulk"><input type="checkbox" ${isSelected ? 'checked' : ''} onchange="_toggleEntitySelect(${e.id}, this)"></td>
-            <td class="col-starred"><span class="star ${starred}" onclick="toggleEntityStar(${e.id})">&#9733;</span></td>
+            <td class="col-bulk"><input type="checkbox" ${isSelected ? 'checked' : ''} data-on-change="toggle-entity-select" data-id="${e.id}"></td>
+            <td class="col-starred"><span class="star ${starred}" data-action="toggle-entity-star" data-id="${e.id}">&#9733;</span></td>
             <td class="entity-name-cell">
-                <span class="entity-name" onclick="showEntityDetail(${e.id})">${esc(e.name)}</span>`;
+                <span class="entity-name" data-action="show-entity-detail" data-id="${e.id}">${esc(e.name)}</span>`;
 
         if (drillable) {
-            row += ` <button class="entity-drill-btn" onclick="entityDrillDown(${e.id}, '${escAttr(e.name)}', '${escAttr(e.type_slug)}')"
+            row += ` <button class="entity-drill-btn" data-action="entity-drill-down" data-id="${e.id}" data-name="${escAttr(e.name)}" data-type="${escAttr(e.type_slug)}"
                         title="View ${childTypes[0].name}s">${e.child_count} &rarr;</button>`;
         }
 
@@ -324,7 +331,7 @@ function _renderEntityDetail(entity) {
                 <span class="entity-type-badge">${esc(typeDef?.name || entity.type_slug)}</span>
                 <h2>${esc(entity.name)}</h2>
             </div>
-            <button class="close-btn" onclick="closeEntityDetail()">&times;</button>
+            <button class="close-btn" data-action="close-entity-detail">&times;</button>
         </div>
         <div class="entity-detail-body">`;
 
@@ -351,8 +358,8 @@ function _renderEntityDetail(entity) {
     html += `<div class="entity-detail-section">
         <h3 class="section-label">ENRICHMENT</h3>
         <div class="enrichment-controls" id="enrichmentControls_${entity.id}">
-            <button class="btn" onclick="startEnrichment(${entity.id})">Enrich</button>
-            <button class="btn btn-sm" onclick="showEnrichmentSources(${entity.id})">Select sources...</button>
+            <button class="btn" data-action="start-enrichment" data-id="${entity.id}">Enrich</button>
+            <button class="btn btn-sm" data-action="show-enrichment-sources" data-id="${entity.id}">Select sources...</button>
         </div>
         <div id="enrichmentProgress_${entity.id}" class="enrichment-progress hidden">
             <div class="enrichment-progress-bar" id="enrichmentProgressBar_${entity.id}"></div>
@@ -367,7 +374,7 @@ function _renderEntityDetail(entity) {
         html += `<div class="entity-detail-section">
             <h3 class="section-label">CHILDREN</h3>
             <p>${entity.child_count} ${childTypes[0].name}(s)
-            <button class="btn btn-sm" onclick="entityDrillDown(${entity.id}, '${escAttr(entity.name)}', '${escAttr(entity.type_slug)}'); closeEntityDetail()">
+            <button class="btn btn-sm" data-action="entity-drill-down-close" data-id="${entity.id}" data-name="${escAttr(entity.name)}" data-type="${escAttr(entity.type_slug)}">
                 View &rarr;
             </button></p>
         </div>`;
@@ -382,8 +389,8 @@ function _renderEntityDetail(entity) {
 
     // Actions
     html += `<div class="entity-detail-actions">
-        <button class="btn" onclick="openEntityEditModal(${entity.id})">Edit</button>
-        <button class="danger-btn" onclick="deleteEntity(${entity.id})">Delete</button>
+        <button class="btn" data-action="open-entity-edit-modal" data-id="${entity.id}">Edit</button>
+        <button class="danger-btn" data-action="delete-entity" data-id="${entity.id}">Delete</button>
     </div>`;
 
     html += `</div>`;
@@ -427,8 +434,8 @@ async function openEntityCreateModal() {
     });
 
     html += `<div class="form-actions">
-        <button class="primary-btn" onclick="_saveNewEntity()">Create</button>
-        <button class="btn" onclick="closeEntityModal()">Cancel</button>
+        <button class="primary-btn" data-action="save-new-entity">Create</button>
+        <button class="btn" data-action="close-entity-modal">Cancel</button>
     </div></div>`;
 
     body.innerHTML = html;
@@ -567,8 +574,8 @@ async function openEntityEditModal(entityId) {
         });
 
         html += `<div class="form-actions">
-            <button class="primary-btn" onclick="_saveEditEntity()">Save</button>
-            <button class="btn" onclick="closeEntityModal()">Cancel</button>
+            <button class="primary-btn" data-action="save-edit-entity">Save</button>
+            <button class="btn" data-action="close-entity-modal">Cancel</button>
         </div></div>`;
 
         body.innerHTML = html;
@@ -904,7 +911,7 @@ function _renderRefineResults(result, researchGoal) {
 
     let html = `<div class="refine-header">
         <h3 class="section-label">SCHEMA REFINEMENT</h3>
-        <button class="close-btn" onclick="_closeRefinePanel()">&times;</button>
+        <button class="close-btn" data-action="close-refine-panel">&times;</button>
     </div>`;
 
     // Completeness score bar
@@ -959,7 +966,7 @@ function _renderRefineResults(result, researchGoal) {
     // Feedback / iterate
     html += `<div class="refine-feedback">
         <textarea id="refineFeedbackInput" rows="2" placeholder="Give feedback on these suggestions to refine further..."></textarea>
-        <button class="btn" onclick="_iterateRefine('${escAttr(researchGoal)}')">Refine Again</button>
+        <button class="btn" data-action="iterate-refine" data-value="${escAttr(researchGoal)}">Refine Again</button>
     </div>`;
 
     panel.innerHTML = html;
@@ -982,7 +989,7 @@ function _renderSuggestionCard(suggestion, index) {
         </div>
         <div class="refine-suggestion-reasoning">${esc(suggestion.reasoning)}</div>
         <div class="refine-suggestion-actions">
-            <button class="primary-btn btn-sm" onclick="_applyRefineSuggestion(${index})">Apply</button>
+            <button class="primary-btn btn-sm" data-action="apply-refine-suggestion" data-id="${index}">Apply</button>
         </div>
     </div>`;
 }
@@ -1259,7 +1266,7 @@ async function showEnrichmentSources(entityId) {
     });
     html += `</div>
         <div class="enrichment-source-actions">
-            <button class="btn" onclick="_enrichFromSelected(${entityId})">Enrich Selected</button>
+            <button class="btn" data-action="enrich-from-selected" data-id="${entityId}">Enrich Selected</button>
         </div>
     </div>`;
 
@@ -1420,4 +1427,93 @@ function _resetEnrichmentUI(entityId) {
     if (progressEl) progressEl.classList.add('hidden');
     if (controlsEl) controlsEl.classList.remove('hidden');
 }
+
+// ── Action Delegation Registration ──────────────────────────
+
+registerActions({
+    'set-entity-type-filter': (el) => {
+        _setEntityTypeFilter(el.dataset.value);
+    },
+    'entity-breadcrumb-nav': (el) => {
+        entityBreadcrumbNav(Number(el.dataset.id));
+    },
+    'toggle-entity-star': (el) => {
+        toggleEntityStar(Number(el.dataset.id));
+    },
+    'show-entity-detail': (el) => {
+        showEntityDetail(Number(el.dataset.id));
+    },
+    'entity-drill-down': (el) => {
+        entityDrillDown(Number(el.dataset.id), el.dataset.name, el.dataset.type);
+    },
+    'entity-drill-down-close': (el) => {
+        entityDrillDown(Number(el.dataset.id), el.dataset.name, el.dataset.type);
+        closeEntityDetail();
+    },
+    'close-entity-detail': () => {
+        closeEntityDetail();
+    },
+    'start-enrichment': (el) => {
+        startEnrichment(Number(el.dataset.id));
+    },
+    'show-enrichment-sources': (el) => {
+        showEnrichmentSources(Number(el.dataset.id));
+    },
+    'open-entity-edit-modal': (el) => {
+        openEntityEditModal(Number(el.dataset.id));
+    },
+    'delete-entity': (el) => {
+        deleteEntity(Number(el.dataset.id));
+    },
+    'save-new-entity': () => {
+        _saveNewEntity();
+    },
+    'close-entity-modal': () => {
+        closeEntityModal();
+    },
+    'save-edit-entity': () => {
+        _saveEditEntity();
+    },
+    'close-refine-panel': () => {
+        _closeRefinePanel();
+    },
+    'iterate-refine': (el) => {
+        _iterateRefine(el.dataset.value);
+    },
+    'apply-refine-suggestion': (el) => {
+        _applyRefineSuggestion(Number(el.dataset.id));
+    },
+    'enrich-from-selected': (el) => {
+        _enrichFromSelected(Number(el.dataset.id));
+    },
+    'open-entity-create-modal': () => {
+        openEntityCreateModal();
+    },
+    'refine-schema': () => {
+        refineSchema();
+    },
+    'entity-bulk-action': (el) => {
+        entityBulkAction(el.dataset.value);
+    },
+    'clear-entity-bulk-selection': () => {
+        clearEntityBulkSelection();
+    },
+    'toggle-entity-select-all': (el) => {
+        _toggleEntitySelectAll(el);
+    },
+    'toggle-entity-select': (el) => {
+        _toggleEntitySelect(Number(el.dataset.id), el);
+    },
+});
+
+// ── Window Exports (cross-module references only) ───────────
+// initEntityBrowser: called from projects.js
+// showEntityDetail / deleteEntity: called from core.js context menu
+// loadEntities: called from other modules after mutations
+// startEnrichment: called from companies.js (shared enrichment)
+window.initEntityBrowser = initEntityBrowser;
+window.showEntityDetail = showEntityDetail;
+window.deleteEntity = deleteEntity;
+window.loadEntities = loadEntities;
+window.startEnrichment = startEnrichment;
 

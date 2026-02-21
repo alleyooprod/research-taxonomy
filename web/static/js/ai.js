@@ -55,12 +55,12 @@ async function loadAiSetupStatus() {
         if (cliFixHeader) cliFixHeader.textContent = 'Troubleshooting';
         if (cliFixContent) cliFixContent.innerHTML = `
             <p class="fix-subtitle">If tests fail, try re-authenticating:</p>
-            <div class="fix-command" onclick="copyCommand(this)">
+            <div class="fix-command" data-action="copy-command">
                 <code>claude login</code>
                 <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
             </div>
             <p class="fix-subtitle">Check subscription status:</p>
-            <div class="fix-command" onclick="copyCommand(this)">
+            <div class="fix-command" data-action="copy-command">
                 <code>claude --version</code>
                 <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
             </div>
@@ -86,7 +86,7 @@ async function loadAiSetupStatus() {
         if (geminiFixHeader) geminiFixHeader.textContent = 'Troubleshooting';
         if (geminiFixContent) geminiFixContent.innerHTML = `
             <p class="fix-subtitle">If tests fail, re-authenticate:</p>
-            <div class="fix-command" onclick="copyCommand(this)">
+            <div class="fix-command" data-action="copy-command">
                 <code>npx @google/gemini-cli</code>
                 <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
             </div>
@@ -100,12 +100,12 @@ async function loadAiSetupStatus() {
         if (geminiFixHeader) geminiFixHeader.textContent = 'Fix npx';
         if (geminiFixContent) geminiFixContent.innerHTML = `
             <p class="fix-subtitle">npx should come with Node.js. Try reinstalling:</p>
-            <div class="fix-command" onclick="copyCommand(this)">
+            <div class="fix-command" data-action="copy-command">
                 <code>brew reinstall node</code>
                 <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
             </div>
             <p class="fix-subtitle">Or install npm separately:</p>
-            <div class="fix-command" onclick="copyCommand(this)">
+            <div class="fix-command" data-action="copy-command">
                 <code>brew install npm</code>
                 <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
             </div>
@@ -309,7 +309,7 @@ async function pollDiscovery(discoverId) {
                 <p class="discovery-desc">${esc(c.description || '')}</p>
             </div>
         `).join('')}
-        <button class="primary-btn" onclick="addDiscoveredUrls()" style="margin-top:10px">Add selected to URL input</button>
+        <button class="primary-btn" data-action="add-discovered-urls" style="margin-top:10px">Add selected to URL input</button>
     `;
 }
 
@@ -382,7 +382,7 @@ async function pollSimilar(similarId, companyId) {
                 ${c.similarity ? `<p class="similar-reason">${esc(c.similarity)}</p>` : ''}
             </div>
         `).join('')}
-        <button class="btn" onclick="addSimilarToQueue()" style="margin-top:8px">Add all to URL queue</button>
+        <button class="btn" data-action="add-similar-to-queue" style="margin-top:8px">Add all to URL queue</button>
     `;
 
     container.dataset.urls = JSON.stringify(companies.map(c => c.url));
@@ -473,3 +473,10 @@ async function sendChatMessage() {
     releaseAiLock();
     body.scrollTop = body.scrollHeight;
 }
+
+// --- Action Delegation ---
+registerActions({
+    'copy-command': (el) => copyCommand(el),
+    'add-discovered-urls': () => addDiscoveredUrls(),
+    'add-similar-to-queue': () => addSimilarToQueue(),
+});

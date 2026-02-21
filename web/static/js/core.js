@@ -67,7 +67,7 @@ function renderBreadcrumbs() {
     bar.innerHTML = navHistory.map((item, i) => {
         const isLast = i === navHistory.length - 1;
         if (isLast) return `<span class="breadcrumb-current">${esc(item.label)}</span>`;
-        return `<a class="breadcrumb-link" onclick="navJumpTo(${i})">${esc(item.label)}</a><span class="breadcrumb-sep">/</span>`;
+        return `<a class="breadcrumb-link" data-action="nav-jump-to" data-id="${i}">${esc(item.label)}</a><span class="breadcrumb-sep">/</span>`;
     }).join('');
 }
 
@@ -195,6 +195,59 @@ function extractDomain(url) {
     try { return new URL(url).hostname.replace('www.', ''); } catch { return ''; }
 }
 
+// --- Action Delegation ---
+// Central event delegation: elements use data-action="name" + data-* attributes
+// instead of inline onclick handlers. Modules register handlers via registerActions().
+const _actionHandlers = {};
+
+function registerActions(handlers) {
+    Object.assign(_actionHandlers, handlers);
+}
+
+document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    const handler = _actionHandlers[action];
+    if (!handler) return;
+    handler(el, e);
+});
+
+document.addEventListener('change', (e) => {
+    const el = e.target.closest('[data-on-change]');
+    if (!el) return;
+    const action = el.dataset.onChange;
+    const handler = _actionHandlers[action];
+    if (!handler) return;
+    handler(el, e);
+});
+
+document.addEventListener('input', (e) => {
+    const el = e.target.closest('[data-on-input]');
+    if (!el) return;
+    const action = el.dataset.onInput;
+    const handler = _actionHandlers[action];
+    if (!handler) return;
+    handler(el, e);
+});
+
+document.addEventListener('focusout', (e) => {
+    const el = e.target.closest('[data-on-blur]');
+    if (!el) return;
+    const action = el.dataset.onBlur;
+    const handler = _actionHandlers[action];
+    if (!handler) return;
+    handler(el, e);
+});
+
+// --- Core Action Registrations ---
+registerActions({
+    'nav-jump-to': (el) => navJumpTo(Number(el.dataset.id)),
+    'retry-tab-load': (el) => showTab(el.dataset.id),
+    'dismiss-toast': () => dismissToast(),
+    'execute-undo': () => executeUndo(),
+});
+
 // --- Reusable Model Select HTML ---
 function modelSelectHtml(id, defaultModel = 'claude-haiku-4-5-20251001') {
     return `<select id="${id}" class="model-select-inline">
@@ -245,7 +298,7 @@ async function _ensureTabLoaded(name) {
     } catch (err) {
         if (err.name !== 'AbortError') {
             console.warn('Failed to load tab ' + name, err);
-            panel.innerHTML = '<p class="hint-text" style="padding:24px">Failed to load tab content. <button class="btn btn-sm" onclick="showTab(\'' + name + '\')">Retry</button></p>';
+            panel.innerHTML = '<p class="hint-text" style="padding:24px">Failed to load tab content. <button class="btn btn-sm" data-action="retry-tab-load" data-id="' + name + '">Retry</button></p>';
         }
     } finally {
         hideTabLoading(name);
@@ -584,7 +637,7 @@ function showToast(message, duration = 5000) {
     toast.id = 'undoToast';
     toast.innerHTML = `
         <span>${esc(message)}</span>
-        <span class="toast-dismiss" onclick="dismissToast()">&times;</span>
+        <span class="toast-dismiss" data-action="dismiss-toast">&times;</span>
     `;
     document.body.appendChild(toast);
     setTimeout(() => dismissToast(), duration);
@@ -597,8 +650,8 @@ function showUndoToast(message, undoFn) {
     toast.id = 'undoToast';
     toast.innerHTML = `
         <span>${esc(message)}</span>
-        <button onclick="executeUndo()">Undo</button>
-        <span class="toast-dismiss" onclick="dismissToast()">&times;</span>
+        <button data-action="execute-undo">Undo</button>
+        <span class="toast-dismiss" data-action="dismiss-toast">&times;</span>
     `;
     document.body.appendChild(toast);
     undoState = undoFn;

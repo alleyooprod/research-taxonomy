@@ -81,36 +81,36 @@ function renderFilterChips() {
     if (activeFilters.category_id) {
         chips.push(`<span class="filter-chip" data-type="category">
             Category: ${esc(activeFilters.category_name)}
-            <span class="chip-remove" onclick="removeFilter('category')">&times;</span>
+            <span class="chip-remove" data-action="remove-filter" data-filter-type="category">&times;</span>
         </span>`);
     }
     for (const tag of activeFilters.tags) {
         chips.push(`<span class="filter-chip filter-chip-tag" data-type="tag">
             Tag: ${esc(tag)}
-            <span class="chip-remove" onclick="removeFilter('tag','${escAttr(tag)}')">&times;</span>
+            <span class="chip-remove" data-action="remove-filter" data-filter-type="tag" data-filter-value="${escAttr(tag)}">&times;</span>
         </span>`);
     }
     if (activeFilters.geography) {
         chips.push(`<span class="filter-chip" data-type="geography">
             Geo: ${esc(activeFilters.geography)}
-            <span class="chip-remove" onclick="removeFilter('geography')">&times;</span>
+            <span class="chip-remove" data-action="remove-filter" data-filter-type="geography">&times;</span>
         </span>`);
     }
     if (activeFilters.funding_stage) {
         chips.push(`<span class="filter-chip" data-type="funding_stage">
             Stage: ${esc(activeFilters.funding_stage)}
-            <span class="chip-remove" onclick="removeFilter('funding_stage')">&times;</span>
+            <span class="chip-remove" data-action="remove-filter" data-filter-type="funding_stage">&times;</span>
         </span>`);
     }
     if (activeFilters.founded_from && activeFilters.founded_to) {
         chips.push(`<span class="filter-chip" data-type="founded_year">
             Founded: ${activeFilters.founded_from}–${activeFilters.founded_to}
-            <span class="chip-remove" onclick="removeFilter('founded_year')">&times;</span>
+            <span class="chip-remove" data-action="remove-filter" data-filter-type="founded_year">&times;</span>
         </span>`);
     }
 
     if (chips.length) {
-        chips.push(`<span class="filter-chip filter-chip-clear" onclick="clearAllFilters()">Clear all</span>`);
+        chips.push(`<span class="filter-chip filter-chip-clear" data-action="clear-all-filters">Clear all</span>`);
         container.innerHTML = chips.join('');
         container.classList.remove('hidden');
     } else {
@@ -171,3 +171,9 @@ async function saveCurrentView() {
     });
     loadSavedViews();
 }
+
+// --- Action Delegation ---
+registerActions({
+    'remove-filter': (el) => removeFilter(el.dataset.filterType, el.dataset.filterValue),
+    'clear-all-filters': () => clearAllFilters(),
+});

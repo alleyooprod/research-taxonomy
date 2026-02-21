@@ -32,9 +32,6 @@ async function loadMarketMap() {
         const catColor = getCategoryColor(cat.id);
         return `
         <div class="map-column"
-             ondragover="event.preventDefault();this.classList.add('drag-over')"
-             ondragleave="this.classList.remove('drag-over')"
-             ondrop="handleMapDrop(event, ${cat.id})"
              data-category-id="${cat.id}"
              style="${catColor ? `border-top: 3px solid ${catColor}` : ''}">
             <div class="map-column-header"><span class="cat-color-dot" style="background:${catColor || 'transparent'}"></span> ${esc(cat.name)} <span class="count">(${(byCategory[cat.id] || []).length})</span></div>
@@ -42,8 +39,8 @@ async function loadMarketMap() {
                 ${(byCategory[cat.id] || []).sort((a,b) => a.name.localeCompare(b.name)).map(c => `
                     <div class="map-tile ${compareSelection.has(c.id) ? 'tile-selected' : ''}"
                          draggable="true"
-                         ondragstart="event.dataTransfer.setData('text/plain', '${c.id}')"
-                         onclick="toggleCompareSelect(${c.id}, this)"
+                         data-action="toggle-compare-select" data-id="${c.id}"
+                         data-draggable-id="${c.id}"
                          title="${esc(c.what || '')}">
                         <img class="map-tile-logo" src="${c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`}" alt="${escAttr(c.name)} logo" onerror="this.style.display='none'">
                         <span class="map-tile-name">${esc(c.name)}</span>
@@ -886,3 +883,33 @@ async function renderAutoLayoutMap() {
         if (companyId) navigateTo('company', companyId, e.target.data('label'));
     });
 }
+
+// --- Action Delegation ---
+registerActions({
+    'toggle-compare-select': (el) => toggleCompareSelect(Number(el.dataset.id), el),
+});
+
+// Drag-drop delegation for map columns
+document.addEventListener('dragover', (e) => {
+    const col = e.target.closest('.map-column');
+    if (!col) return;
+    e.preventDefault();
+    col.classList.add('drag-over');
+});
+document.addEventListener('dragleave', (e) => {
+    const col = e.target.closest('.map-column');
+    if (!col) return;
+    col.classList.remove('drag-over');
+});
+document.addEventListener('drop', (e) => {
+    const col = e.target.closest('.map-column');
+    if (!col || !col.dataset.categoryId) return;
+    e.preventDefault();
+    col.classList.remove('drag-over');
+    handleMapDrop(e, Number(col.dataset.categoryId));
+});
+document.addEventListener('dragstart', (e) => {
+    const tile = e.target.closest('[data-draggable-id]');
+    if (!tile) return;
+    e.dataTransfer.setData('text/plain', tile.dataset.draggableId);
+});

@@ -26,32 +26,32 @@
     <div class="export-card">
         <h3>Excel (.xlsx)</h3>
         <p>Formatted workbook with sheets per category</p>
-        <button class="btn" onclick="exportXlsx()">Download Excel</button>
+        <button class="btn" data-action="export-xlsx">Download Excel</button>
     </div>
     <div class="export-card">
         <h3>PDF Report</h3>
         <p>Professional PDF with charts and data tables</p>
-        <button class="btn" onclick="exportFullPdf()">Download PDF</button>
+        <button class="btn" data-action="export-full-pdf">Download PDF</button>
     </div>
     <div class="export-card">
         <h3>PDF (Full Report)</h3>
         <p>Detailed taxonomy report with categories and company table</p>
-        <button class="btn" onclick="exportProjectPdfFromTab()">Download Report PDF</button>
+        <button class="btn" data-action="export-project-pdf">Download Report PDF</button>
     </div>
     <div class="export-card">
         <h3>Excel (Styled)</h3>
         <p>Styled workbook with formatted headers and data</p>
-        <button class="btn" onclick="exportProjectExcelFromTab()">Download Styled Excel</button>
+        <button class="btn" data-action="export-project-excel">Download Styled Excel</button>
     </div>
     <div class="export-card">
         <h3>Word (.docx)</h3>
         <p>Editable Word document with categories and companies</p>
-        <button class="btn" onclick="exportProjectWordFromTab()">Download Word</button>
+        <button class="btn" data-action="export-project-word">Download Word</button>
     </div>
     <div class="export-card">
         <h3>ZIP Bundle</h3>
         <p>All formats bundled: JSON, CSV, and more in one download</p>
-        <button class="btn" onclick="exportProjectZipFromTab()">Download ZIP</button>
+        <button class="btn" data-action="export-project-zip">Download ZIP</button>
     </div>
 </div>
 
@@ -60,7 +60,7 @@
     <p class="hint-text">Generate a read-only share link for external stakeholders.</p>
     <div class="share-controls">
         <input type="text" id="shareLinkLabel" aria-label="Share link label" placeholder="Link label (e.g. 'For investors')">
-        <button class="primary-btn" onclick="createShareLink()">Generate Link</button>
+        <button class="primary-btn" data-action="create-share-link">Generate Link</button>
     </div>
     <div id="shareTokensList"></div>
 </div>
@@ -72,7 +72,7 @@
         <label for="slackWebhook">Slack Webhook URL</label>
         <div class="flex-gap-xs">
             <input type="url" id="slackWebhook" placeholder="https://hooks.slack.com/services/...">
-            <button class="btn" onclick="testSlack()">Test</button>
+            <button class="btn" data-action="test-slack">Test</button>
         </div>
     </div>
     <div class="notif-checkboxes">
@@ -80,14 +80,14 @@
         <label><input type="checkbox" id="notifTaxonomyChange" checked> Notify on taxonomy changes</label>
         <label><input type="checkbox" id="notifNewCompany"> Notify on new companies</label>
     </div>
-    <button class="primary-btn" onclick="saveNotifPrefs()">Save Preferences</button>
+    <button class="primary-btn" data-action="save-notif-prefs">Save Preferences</button>
     <div id="notifSaveResult" class="hidden"></div>
 </div>
 
 <h2 class="section-heading">Import CSV</h2>
 <div class="import-section">
     <p class="hint-text">Upload a CSV file with columns: name, url, what, target, products, funding, geography, tam, tags, etc.</p>
-    <form id="csvImportForm" onsubmit="importCsv(event)">
+    <form id="csvImportForm" data-on-submit="import-csv">
         <input type="file" id="csvFile" accept=".csv" required aria-label="CSV file to import">
         <button type="submit" class="primary-btn">Import</button>
     </form>
@@ -96,15 +96,15 @@
 
 <h2 class="section-heading">Trash</h2>
 <p class="hint-text">Deleted companies can be restored or permanently removed.</p>
-<button class="btn" onclick="loadTrash()">View Trash</button>
+<button class="btn" data-action="load-trash">View Trash</button>
 <div id="trashList" class="hidden"></div>
 
 <h2 class="section-heading">Duplicates</h2>
 <p class="hint-text">Find potential duplicate companies by URL.</p>
-<button class="btn" onclick="findDuplicates()">Scan for Duplicates</button>
+<button class="btn" data-action="find-duplicates">Scan for Duplicates</button>
 <div id="duplicatesList" class="hidden"></div>
 
 <h2 class="section-heading">Activity Log</h2>
 <p class="hint-text">Recent project activity and changes.</p>
-<button class="btn" onclick="loadActivity()">Load Activity</button>
+<button class="btn" data-action="load-activity">Load Activity</button>
 <div id="activityFeed" class="hidden"></div>

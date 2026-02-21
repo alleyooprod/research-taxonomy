@@ -58,7 +58,7 @@ async function loadTaxonomy() {
         const childHtml = children.length
             ? `<div class="sub-categories">${children.map(s => {
                 const subColor = categoryColorMap[s.id];
-                return `<div class="sub-cat" onclick="toggleCategoryCompanies(${s.id}, this); event.stopPropagation();">
+                return `<div class="sub-cat" data-action="toggle-category-companies" data-id="${s.id}">
                     <span class="cat-color-dot" style="background:${subColor}"></span>
                     <span class="sub-cat-name">${esc(s.name)}</span> <span class="count">(${s.company_count})</span>
                     <span class="material-symbols-outlined sub-cat-arrow" style="font-size:16px;margin-left:auto;color:var(--text-muted)">chevron_right</span>
@@ -66,8 +66,8 @@ async function loadTaxonomy() {
             }).join('')}</div>`
             : '';
         const hasMetadata = cat.scope_note || cat.inclusion_criteria || cat.exclusion_criteria;
-        const metaHtml = `<div class="cat-metadata" id="catMeta-${cat.id}" onclick="event.stopPropagation()">
-            <button class="cat-metadata-toggle" onclick="toggleCatMetadata(${cat.id})">
+        const metaHtml = `<div class="cat-metadata" id="catMeta-${cat.id}" data-action="stop-propagation">
+            <button class="cat-metadata-toggle" data-action="toggle-cat-metadata" data-id="${cat.id}">
                 ${hasMetadata ? 'Scope Notes' : 'Add Scope Notes'}
                 <span class="collapse-arrow"><span class="material-symbols-outlined">${hasMetadata ? 'expand_more' : 'add'}</span></span>
             </button>
@@ -78,13 +78,13 @@ async function loadTaxonomy() {
                 <textarea id="catInclude-${cat.id}" rows="2" placeholder="Companies that belong here if...">${esc(cat.inclusion_criteria || '')}</textarea>
                 <label>Exclusion Criteria</label>
                 <textarea id="catExclude-${cat.id}" rows="2" placeholder="Companies that do NOT belong here if...">${esc(cat.exclusion_criteria || '')}</textarea>
-                <button class="btn btn-sm" onclick="saveCategoryMetadata(${cat.id})">Save</button>
+                <button class="btn btn-sm" data-action="save-category-metadata" data-id="${cat.id}">Save</button>
             </div>
         </div>`;
         return `<div class="category-card" style="border-left: 4px solid ${color}">
-            <div class="cat-header" onclick="toggleCategoryCompanies(${cat.id}, this)" style="cursor:pointer">
+            <div class="cat-header" data-action="toggle-category-companies" data-id="${cat.id}" style="cursor:pointer">
                 <input type="color" class="cat-color-picker" value="${color}" title="Category color"
-                    onchange="updateCategoryColor(${cat.id}, this.value)" onclick="event.stopPropagation()">
+                    data-on-change="update-category-color" data-id="${cat.id}" data-action="stop-propagation">
                 <span class="cat-name-link">${esc(cat.name)} <span class="count">(${cat.company_count})</span></span>
                 <span class="material-symbols-outlined cat-expand-arrow" style="font-size:16px;margin-left:auto;color:var(--text-muted);transition:transform 0.2s">chevron_right</span>
             </div>
@@ -156,7 +156,7 @@ async function toggleCategoryCompanies(catId, clickedEl) {
     const color = categoryColorMap[catId] || '#888';
     const html = `<div class="cat-companies-inline" id="catCompanies-${catId}">
         ${companies.length ? companies.map(c => `
-            <div class="cat-company-row" onclick="event.stopPropagation(); navigateTo('company', ${c.id}, '${escAttr(c.name)}')">
+            <div class="cat-company-row" data-action="navigate-to-company" data-id="${c.id}" data-name="${escAttr(c.name)}">
                 <span class="cat-color-dot" style="background:${color}"></span>
                 <span class="cat-company-row-name">${esc(c.name)}</span>
                 <span class="cat-company-row-desc">${esc((c.what || '').substring(0, 80))}</span>
@@ -195,7 +195,7 @@ async function showCategoryDetail(categoryId) {
         <div class="category-detail-header">
             <span class="cat-color-dot" style="background:${color};width:14px;height:14px"></span>
             <input type="color" class="cat-color-picker" value="${color}" title="Category color"
-                onchange="updateCategoryColor(${cat.id}, this.value)">
+                data-on-change="update-category-color" data-id="${cat.id}">
             <span class="detail-cat-name">${esc(cat.name)}</span>
         </div>
         ${cat.description ? `<div class="detail-field"><label>Description</label><p>${esc(cat.description)}</p></div>` : ''}
@@ -205,7 +205,7 @@ async function showCategoryDetail(categoryId) {
         <div class="detail-field"><label>Companies (${companies.length})</label></div>
         <div class="category-company-list">
             ${companies.length ? companies.map(c => `
-                <div class="cat-company-item" onclick="navigateTo('company', ${c.id}, '${escAttr(c.name)}')">
+                <div class="cat-company-item" data-action="navigate-to-company" data-id="${c.id}" data-name="${escAttr(c.name)}">
                     <img class="company-logo" src="${esc(c.logo_url || `https://logo.clearbit.com/${extractDomain(c.url)}`)}" alt="${escAttr(c.name)} logo" onerror="this.style.display='none'">
                     <span>${esc(c.name)}</span>
                     <span class="text-muted" style="font-size:11px;margin-left:auto">${esc(c.what || '').substring(0, 60)}</span>
@@ -213,10 +213,10 @@ async function showCategoryDetail(categoryId) {
             `).join('') : '<p style="font-size:12px;color:var(--text-muted)">No companies in this category yet.</p>'}
         </div>
         <div class="detail-actions" style="margin-top:16px">
-            <button class="btn" onclick="activeFilters.category_id=${cat.id};activeFilters.category_name='${escAttr(cat.name)}';renderFilterChips();loadCompanies();closeDetail()">
+            <button class="btn" data-action="filter-by-category" data-id="${cat.id}" data-name="${escAttr(cat.name)}">
                 Filter by this category
             </button>
-            <button class="btn" onclick="closeDetail()">Close</button>
+            <button class="btn" data-action="close-detail">Close</button>
         </div>
     `;
     panel.classList.remove('hidden');
@@ -305,8 +305,8 @@ async function pollReview(reviewId) {
         }).join('');
 
         html += `<div class="review-actions">
-            <button class="primary-btn" onclick="applyReviewChanges()">Apply Selected</button>
-            <button class="btn" onclick="dismissReview()">Dismiss</button>
+            <button class="primary-btn" data-action="apply-review-changes">Apply Selected</button>
+            <button class="btn" data-action="dismiss-review">Dismiss</button>
         </div>`;
     }
 
@@ -375,7 +375,7 @@ async function loadTaxonomyQuality() {
             <p class="quality-issue-desc">These categories have no companies. Either add companies or consider removing them.</p>
             <div class="quality-issue-items">${q.empty_categories.map(c =>
                 `<span class="quality-chip">${esc(c.name)}
-                    <button class="quality-chip-action" onclick="prefillReviewObservation('Remove empty category: ${esc(c.name)}')" title="Suggest removal in review">review</button>
+                    <button class="quality-chip-action" data-action="prefill-review-observation" data-text="Remove empty category: ${escAttr(c.name)}" title="Suggest removal in review">review</button>
                 </span>`
             ).join('')}</div>
         </div>`;
@@ -386,7 +386,7 @@ async function loadTaxonomyQuality() {
             <p class="quality-issue-desc">These categories are too broad. Consider splitting them into subcategories for clearer segmentation.</p>
             <div class="quality-issue-items">${q.overcrowded_categories.map(c =>
                 `<span class="quality-chip">${esc(c.name)} <strong>(${c.count})</strong>
-                    <button class="quality-chip-action" onclick="prefillReviewObservation('Split overcrowded category ${esc(c.name)} (${c.count} companies) into subcategories')" title="Suggest split in review">split</button>
+                    <button class="quality-chip-action" data-action="prefill-review-observation" data-text="Split overcrowded category ${escAttr(c.name)} (${c.count} companies) into subcategories" title="Suggest split in review">split</button>
                 </span>`
             ).join('')}</div>
         </div>`;
@@ -397,7 +397,7 @@ async function loadTaxonomyQuality() {
             <p class="quality-issue-desc">Companies in these categories may be misclassified. Re-research or manually review placements.</p>
             <div class="quality-issue-items">${q.low_confidence_categories.map(c =>
                 `<span class="quality-chip">${esc(c.name)} <strong>(${Math.round(c.avg_confidence * 100)}%)</strong>
-                    <button class="quality-chip-action" onclick="prefillReviewObservation('Review misclassified companies in ${esc(c.name)} (low confidence ${Math.round(c.avg_confidence * 100)}%)')" title="Suggest review">review</button>
+                    <button class="quality-chip-action" data-action="prefill-review-observation" data-text="Review misclassified companies in ${escAttr(c.name)} (low confidence ${Math.round(c.avg_confidence * 100)}%)" title="Suggest review">review</button>
                 </span>`
             ).join('')}</div>
         </div>`;
@@ -436,7 +436,7 @@ function _waitForLib(libName, checkFn, callback, containerEl, maxWait = 10000) {
         } else if (Date.now() - start > maxWait) {
             clearInterval(poll);
             containerEl.innerHTML = `<div class="graph-loading">
-                <p style="color:var(--accent-danger)">Failed to load ${libName}. <a href="#" onclick="location.reload();return false">Reload page</a></p>
+                <p style="color:var(--accent-danger)">Failed to load ${libName}. <a href="#" data-action="reload-page">Reload page</a></p>
             </div>`;
         }
     }, 200);
@@ -624,7 +624,7 @@ function renderTaxonomyGraph(categories, companies) {
                 cyInstance = cytoscape({ container, elements, style: cyStyle, layout: fallbackLayout });
             } catch (e2) {
                 console.error('Cytoscape graph init error:', e2);
-                container.innerHTML = `<div class="graph-loading"><p style="color:var(--accent-danger)">Graph rendering failed: ${e2.message}. <a href="#" onclick="location.reload();return false">Reload page</a></p></div>`;
+                container.innerHTML = `<div class="graph-loading"><p style="color:var(--accent-danger)">Graph rendering failed: ${e2.message}. <a href="#" data-action="reload-page">Reload page</a></p></div>`;
                 return;
             }
         }
@@ -880,7 +880,7 @@ async function renderKnowledgeGraph() {
             });
         } catch (e) {
             console.error('Knowledge graph init error:', e);
-            container.innerHTML = `<div class="graph-loading"><p style="color:var(--accent-danger)">Knowledge graph failed: ${e.message}. <a href="#" onclick="location.reload();return false">Reload page</a></p></div>`;
+            container.innerHTML = `<div class="graph-loading"><p style="color:var(--accent-danger)">Knowledge graph failed: ${e.message}. <a href="#" data-action="reload-page">Reload page</a></p></div>`;
             return;
         }
 
@@ -923,3 +923,39 @@ function toggleKgNodeType(type) {
     kgNodeTypes[type] = !kgNodeTypes[type];
     renderKnowledgeGraph();
 }
+
+// ── Action Delegation ─────────────────────────────────────────
+
+registerActions({
+    'toggle-category-companies': (el, e) => {
+        e.stopPropagation();
+        toggleCategoryCompanies(Number(el.dataset.id), el);
+    },
+    'toggle-cat-metadata': (el, e) => {
+        e.stopPropagation();
+        toggleCatMetadata(Number(el.dataset.id));
+    },
+    'save-category-metadata': (el) => saveCategoryMetadata(Number(el.dataset.id)),
+    'stop-propagation': (_el, e) => e.stopPropagation(),
+    'update-category-color': (el) => updateCategoryColor(Number(el.dataset.id), el.value),
+    'navigate-to-company': (el, e) => {
+        e.stopPropagation();
+        navigateTo('company', Number(el.dataset.id), el.dataset.name);
+    },
+    'filter-by-category': (el) => {
+        activeFilters.category_id = Number(el.dataset.id);
+        activeFilters.category_name = el.dataset.name;
+        renderFilterChips();
+        loadCompanies();
+        closeDetail();
+    },
+    'close-detail': () => closeDetail(),
+    'apply-review-changes': () => applyReviewChanges(),
+    'dismiss-review': () => dismissReview(),
+    'prefill-review-observation': (el) => prefillReviewObservation(el.dataset.text),
+    'reload-page': (_el, e) => { e.preventDefault(); location.reload(); },
+    'switch-taxonomy-view': (el) => switchTaxonomyView(el.dataset.view),
+    'start-taxonomy-review': () => startTaxonomyReview(),
+    'load-taxonomy-quality': () => loadTaxonomyQuality(),
+    'toggle-kg-node-type': (el) => toggleKgNodeType(el.dataset.nodeType),
+});

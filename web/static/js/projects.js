@@ -10,7 +10,7 @@ let _schemaTemplates = [];
 
 async function loadProjects() {
     const newProjectCard = `
-        <div class="project-card project-card-new" onclick="showNewProjectForm()">
+        <div class="project-card project-card-new" data-action="show-new-project-form">
             <div class="project-card-plus">+</div>
             <h3>New Project</h3>
             <p class="project-purpose">Create a new research project</p>
@@ -36,8 +36,8 @@ async function loadProjects() {
             const typeCount = entitySchema ? entitySchema.entity_types?.length || 0 : 0;
             const metaLabel = typeCount > 1 ? `${typeCount} entity types` : `${p.company_count} companies`;
             return `
-            <div class="project-card" onclick="selectProject(${p.id}, '${escAttr(p.name)}')">
-                <button class="project-card-delete" onclick="event.stopPropagation(); confirmDeleteProjectFromGrid(${p.id}, '${escAttr(p.name)}')"
+            <div class="project-card" data-action="select-project" data-id="${p.id}" data-name="${escAttr(p.name)}">
+                <button class="project-card-delete" data-action="delete-project-from-grid" data-id="${p.id}" data-name="${escAttr(p.name)}"
                         aria-label="Delete project" title="Delete project">
                     <span class="material-symbols-outlined icon-16">delete</span>
                 </button>
@@ -175,7 +175,7 @@ function _renderTemplatePicker() {
 
     picker.innerHTML = _schemaTemplates.map(t => `
         <div class="template-card ${t.key === _selectedTemplate ? 'template-card-selected' : ''}"
-             onclick="_selectTemplate('${escAttr(t.key)}')" data-template="${escAttr(t.key)}">
+             data-action="select-template" data-template="${escAttr(t.key)}">
             <div class="template-icon">${icons[t.key] || '&#9679;'}</div>
             <div class="template-info">
                 <strong>${esc(t.name)}</strong>
@@ -335,6 +335,20 @@ async function createProject(event) {
 
     selectProject(result.id, data.name);
 }
+
+// --- Action Delegation ---
+registerActions({
+    'show-new-project-form': () => showNewProjectForm(),
+    'select-project': (el, e) => {
+        if (e.target.closest('[data-action="delete-project-from-grid"]')) return;
+        selectProject(Number(el.dataset.id), el.dataset.name);
+    },
+    'delete-project-from-grid': (el, e) => {
+        e.stopPropagation();
+        confirmDeleteProjectFromGrid(Number(el.dataset.id), el.dataset.name);
+    },
+    'select-template': (el) => _selectTemplate(el.dataset.template),
+});
 
 async function confirmDeleteProjectFromGrid(projectId, projectName) {
     const confirmed = await showNativeConfirm({

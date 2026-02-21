@@ -18,10 +18,10 @@
             <p class="hint-text">Direct API access. Fastest and most reliable option.</p>
             <div class="ai-setup-key-row">
                 <input type="password" id="aiSetupApiKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
-                <button class="btn btn-sm" onclick="saveAiApiKey()">Save Key</button>
+                <button class="btn btn-sm" data-action="save-ai-api-key">Save Key</button>
             </div>
             <div class="ai-setup-key-status" id="apiKeyStatus"></div>
-            <button class="btn btn-sm" onclick="testAiBackend('claude_sdk')" id="testSdkBtn">Test Connection</button>
+            <button class="btn btn-sm" data-action="test-ai-backend" data-backend="claude_sdk" id="testSdkBtn">Test Connection</button>
             <div class="ai-setup-fix-section" id="sdkFixSection">
                 <div class="fix-header">Setup Instructions</div>
                 <ol class="fix-steps">
@@ -41,17 +41,17 @@
             </div>
             <p class="hint-text">Uses your Claude Pro/Team subscription. Supports web search.</p>
             <div class="ai-setup-key-status" id="cliPathStatus"></div>
-            <button class="btn btn-sm" onclick="testAiBackend('claude_cli')" id="testCliBtn">Test Connection</button>
+            <button class="btn btn-sm" data-action="test-ai-backend" data-backend="claude_cli" id="testCliBtn">Test Connection</button>
             <div class="ai-setup-fix-section" id="cliFixSection">
                 <div class="fix-header" id="cliFixHeader">Installation</div>
                 <div id="cliFixContent">
                     <p class="fix-subtitle">Install via npm (requires Node.js):</p>
-                    <div class="fix-command" onclick="copyCommand(this)">
+                    <div class="fix-command" data-action="copy-command">
                         <code>npm install -g @anthropic-ai/claude-code</code>
                         <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
                     </div>
                     <p class="fix-subtitle">Then authenticate:</p>
-                    <div class="fix-command" onclick="copyCommand(this)">
+                    <div class="fix-command" data-action="copy-command">
                         <code>claude login</code>
                         <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
                     </div>
@@ -68,17 +68,17 @@
             </div>
             <p class="hint-text">Google AI alternative. Free tier available.</p>
             <div class="ai-setup-key-status" id="geminiPathStatus"></div>
-            <button class="btn btn-sm" onclick="testAiBackend('gemini')" id="testGeminiBtn">Test Connection</button>
+            <button class="btn btn-sm" data-action="test-ai-backend" data-backend="gemini" id="testGeminiBtn">Test Connection</button>
             <div class="ai-setup-fix-section" id="geminiFixSection">
                 <div class="fix-header" id="geminiFixHeader">Installation</div>
                 <div id="geminiFixContent">
                     <p class="fix-subtitle">1. Install Node.js (if not installed):</p>
-                    <div class="fix-command" onclick="copyCommand(this)">
+                    <div class="fix-command" data-action="copy-command">
                         <code>brew install node</code>
                         <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
                     </div>
                     <p class="fix-subtitle">2. Authenticate Gemini CLI:</p>
-                    <div class="fix-command" onclick="copyCommand(this)">
+                    <div class="fix-command" data-action="copy-command">
                         <code>npx @google/gemini-cli</code>
                         <span class="material-symbols-outlined fix-copy-icon">content_copy</span>
                     </div>
@@ -96,7 +96,7 @@
     <div class="settings-row">
         <label for="defaultModelSetting">Model:</label>
         {{ model_select('defaultModelSetting') }}
-        <button class="btn btn-sm" onclick="saveDefaultModel()">Save</button>
+        <button class="btn btn-sm" data-action="save-default-model">Save</button>
         <span id="defaultModelStatus" class="hint-text hint-inline"></span>
     </div>
 </div>
@@ -128,7 +128,7 @@
     <div class="cost-budget-row" style="margin-top:12px">
         <label for="costBudgetInput" style="font-size:13px;font-weight:500">Project Budget (USD):</label>
         <input type="number" id="costBudgetInput" min="0" step="0.01" placeholder="0.00" style="width:120px;margin:0 8px">
-        <button class="btn btn-sm" onclick="saveCostBudget()">Set Budget</button>
+        <button class="btn btn-sm" data-action="save-cost-budget">Set Budget</button>
         <span id="costBudgetStatus" class="hint-text hint-inline"></span>
     </div>
 

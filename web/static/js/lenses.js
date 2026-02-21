@@ -73,7 +73,7 @@ function _renderLensSelector(lenses) {
 
         return `
             <div class="lens-card ${available ? 'lens-card-available' : 'lens-card-unavailable'} ${_activeLens === lens.id ? 'lens-card-active' : ''}"
-                 ${available ? `onclick="_selectLens('${esc(lens.id)}')"` : ''}
+                 ${available ? `data-action="select-lens" data-value="${esc(lens.id)}"` : ''}
                  title="${available ? esc(lens.name) : esc(hint)}">
                 <div class="lens-card-name">${esc(lens.name)}</div>
                 <div class="lens-card-count">
@@ -128,13 +128,13 @@ async function _loadCompetitiveLens() {
     content.innerHTML = `
         <div class="lens-subview-bar" id="competitiveSubBar">
             <button class="lens-subview-btn lens-subview-btn-active"
-                    onclick="_switchCompetitiveSubView('matrix')">Feature Matrix</button>
+                    data-action="switch-competitive-view" data-value="matrix">Feature Matrix</button>
             <button class="lens-subview-btn"
-                    onclick="_switchCompetitiveSubView('gap')">Gap Analysis</button>
+                    data-action="switch-competitive-view" data-value="gap">Gap Analysis</button>
             <button class="lens-subview-btn"
-                    onclick="_switchCompetitiveSubView('positioning')">Positioning</button>
+                    data-action="switch-competitive-view" data-value="positioning">Positioning</button>
             <button class="lens-subview-btn"
-                    onclick="_switchCompetitiveSubView('market_map')">Market Map</button>
+                    data-action="switch-competitive-view" data-value="market_map">Market Map</button>
         </div>
         <div id="competitiveSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading feature matrix&hellip;</div>
@@ -619,7 +619,7 @@ function _renderEnrichedToggle(active) {
         <div class="matrix-enriched-toggle">
             <label class="matrix-toggle-label">
                 <input type="checkbox" ${active ? 'checked' : ''}
-                       onchange="_toggleEnrichedMatrix(this.checked)" />
+                       data-on-change="toggle-enriched-matrix" />
                 <span>Show financial data</span>
             </label>
         </div>
@@ -648,19 +648,19 @@ async function _loadDesignLens() {
     content.innerHTML = `
         <div class="lens-entity-selector-row">
             <label class="lens-entity-label">Entity</label>
-            <select class="lens-entity-select" id="designEntitySelect" onchange="_onDesignEntityChange()">
+            <select class="lens-entity-select" id="designEntitySelect" data-on-change="design-entity-change">
                 <option value="">All entities</option>
             </select>
         </div>
         <div class="lens-subview-bar" id="designSubBar">
             <button class="lens-subview-btn lens-subview-btn-active"
-                    onclick="_switchDesignSubView('gallery')">Gallery</button>
+                    data-action="switch-design-view" data-value="gallery">Gallery</button>
             <button class="lens-subview-btn"
-                    onclick="_switchDesignSubView('journey')">Journey Map</button>
+                    data-action="switch-design-view" data-value="journey">Journey Map</button>
             <button class="lens-subview-btn"
-                    onclick="_switchDesignSubView('patterns')">Pattern Library</button>
+                    data-action="switch-design-view" data-value="patterns">Pattern Library</button>
             <button class="lens-subview-btn"
-                    onclick="_switchDesignSubView('scoring')">UX Scoring</button>
+                    data-action="switch-design-view" data-value="scoring">UX Scoring</button>
         </div>
         <div id="designSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading evidence&hellip;</div>
@@ -783,7 +783,7 @@ function _renderEvidenceGallery(data) {
                 const capturedAt = item.captured_at ? new Date(item.captured_at).toLocaleDateString() : '';
 
                 return `
-                    <div class="gallery-thumb" onclick="_expandGalleryItem('${escAttr(src)}', '${escAttr(item.entity_name || '')}', '${escAttr(item.filename || '')}')"
+                    <div class="gallery-thumb" data-action="expand-gallery-item" data-src="${escAttr(src)}" data-entity="${escAttr(item.entity_name || '')}" data-filename="${escAttr(item.filename || '')}"
                          title="${escAttr(item.filename || '')} — ${escAttr(item.entity_name || '')}">
                         ${isImg
                             ? `<img class="gallery-thumb-img" src="${escAttr(src)}" alt="${escAttr(item.filename || '')}" loading="lazy">`
@@ -813,9 +813,9 @@ function _renderEvidenceGallery(data) {
     return `
         <div class="gallery-meta">${totalItems} items</div>
         ${groupHtml}
-        <div id="galleryLightbox" class="gallery-lightbox hidden" onclick="_closeLightbox()">
-            <div class="gallery-lightbox-inner" onclick="event.stopPropagation()">
-                <button class="gallery-lightbox-close" onclick="_closeLightbox()">&times;</button>
+        <div id="galleryLightbox" class="gallery-lightbox hidden" data-action="close-lightbox">
+            <div class="gallery-lightbox-inner" data-action="lightbox-inner-stop">
+                <button class="gallery-lightbox-close" data-action="close-lightbox">&times;</button>
                 <img id="galleryLightboxImg" class="gallery-lightbox-img" src="" alt="">
                 <div id="galleryLightboxCaption" class="gallery-lightbox-caption"></div>
             </div>
@@ -911,7 +911,7 @@ function _renderPatternLibrary(data) {
 
     const filterPills = categories.map(cat =>
         `<button class="pattern-filter-pill ${_patternCategoryFilter === cat ? 'pattern-filter-pill-active' : ''}"
-                onclick="_filterPatternCategory('${escAttr(cat)}')">${esc(cat.replace('_', ' '))}</button>`
+                data-action="filter-pattern-category" data-value="${escAttr(cat)}">${esc(cat.replace('_', ' '))}</button>`
     ).join('');
 
     const allActive = !_patternCategoryFilter ? 'pattern-filter-pill-active' : '';
@@ -950,7 +950,7 @@ function _renderPatternLibrary(data) {
             <span class="pattern-meta-stat">${data.total_evidence || 0} evidence items</span>
         </div>
         <div class="pattern-filter-bar">
-            <button class="pattern-filter-pill ${allActive}" onclick="_filterPatternCategory(null)">All</button>
+            <button class="pattern-filter-pill ${allActive}" data-action="filter-pattern-category" data-value="">All</button>
             ${filterPills}
         </div>
         <div class="pattern-grid">
@@ -1093,15 +1093,15 @@ async function _loadTemporalLens() {
     content.innerHTML = `
         <div class="lens-entity-selector-row">
             <label class="lens-entity-label">Entity</label>
-            <select class="lens-entity-select" id="temporalEntitySelect" onchange="_onTemporalEntityChange()">
+            <select class="lens-entity-select" id="temporalEntitySelect" data-on-change="temporal-entity-change">
                 <option value="">Select an entity&hellip;</option>
             </select>
         </div>
         <div class="lens-subview-bar" id="temporalSubBar">
             <button class="lens-subview-btn lens-subview-btn-active"
-                    onclick="_switchTemporalSubView('timeline')">Timeline</button>
+                    data-action="switch-temporal-view" data-value="timeline">Timeline</button>
             <button class="lens-subview-btn"
-                    onclick="_switchTemporalSubView('compare')">Compare</button>
+                    data-action="switch-temporal-view" data-value="compare">Compare</button>
         </div>
         <div id="temporalSubContent" class="lens-sub-content">
             <div class="lens-empty-state">
@@ -1267,7 +1267,7 @@ function _renderComparisonPicker(data) {
                     </select>
                 </div>
             </div>
-            <button class="btn btn-sm" onclick="_runComparison()">Compare</button>
+            <button class="btn btn-sm" data-action="run-comparison">Compare</button>
         </div>
         <div id="compareResult" class="compare-result"></div>
     `;
@@ -1347,9 +1347,9 @@ async function _loadProductLens() {
     content.innerHTML = `
         <div class="lens-subview-bar" id="productSubBar">
             <button class="lens-subview-btn lens-subview-btn-active"
-                    onclick="_switchProductSubView('pricing')">Pricing Landscape</button>
+                    data-action="switch-product-view" data-value="pricing">Pricing Landscape</button>
             <button class="lens-subview-btn"
-                    onclick="_switchProductSubView('plans')">Plan Comparison</button>
+                    data-action="switch-product-view" data-value="plans">Plan Comparison</button>
         </div>
         <div id="productSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading pricing data&hellip;</div>
@@ -1513,15 +1513,15 @@ async function _loadSignalsLens() {
     content.innerHTML = `
         <div class="lens-subview-bar" id="signalsSubBar">
             <button class="lens-subview-btn lens-subview-btn-active"
-                    onclick="_switchSignalsSubView('timeline')">Timeline</button>
+                    data-action="switch-signals-view" data-value="timeline">Timeline</button>
             <button class="lens-subview-btn"
-                    onclick="_switchSignalsSubView('activity')">Activity</button>
+                    data-action="switch-signals-view" data-value="activity">Activity</button>
             <button class="lens-subview-btn"
-                    onclick="_switchSignalsSubView('trends')">Trends</button>
+                    data-action="switch-signals-view" data-value="trends">Trends</button>
             <button class="lens-subview-btn"
-                    onclick="_switchSignalsSubView('heatmap')">Heatmap</button>
+                    data-action="switch-signals-view" data-value="heatmap">Heatmap</button>
             <button class="lens-subview-btn"
-                    onclick="_switchSignalsSubView('summary')">Summary</button>
+                    data-action="switch-signals-view" data-value="summary">Summary</button>
         </div>
         <div id="signalsSubContent" class="lens-sub-content">
             <div class="lens-loading">Loading timeline&hellip;</div>
@@ -1951,19 +1951,25 @@ function _fileExt(filename) {
     return m ? m[1].toUpperCase() : 'FILE';
 }
 
-// ── Global Exposure ───────────────────────────────────────────
+// ── Action Delegation ─────────────────────────────────────────
 
-window.initLenses                = initLenses;
-window._selectLens               = _selectLens;
-window._switchCompetitiveSubView = _switchCompetitiveSubView;
-window._switchDesignSubView      = _switchDesignSubView;
-window._switchTemporalSubView    = _switchTemporalSubView;
-window._switchProductSubView     = _switchProductSubView;
-window._switchSignalsSubView     = _switchSignalsSubView;
-window._onDesignEntityChange     = _onDesignEntityChange;
-window._onTemporalEntityChange   = _onTemporalEntityChange;
-window._expandGalleryItem        = _expandGalleryItem;
-window._closeLightbox            = _closeLightbox;
-window._runComparison            = _runComparison;
-window._filterPatternCategory    = _filterPatternCategory;
-window._toggleEnrichedMatrix     = _toggleEnrichedMatrix;
+registerActions({
+    'select-lens':              (el) => _selectLens(el.dataset.value),
+    'switch-competitive-view':  (el) => _switchCompetitiveSubView(el.dataset.value),
+    'switch-design-view':       (el) => _switchDesignSubView(el.dataset.value),
+    'switch-temporal-view':     (el) => _switchTemporalSubView(el.dataset.value),
+    'switch-product-view':      (el) => _switchProductSubView(el.dataset.value),
+    'switch-signals-view':      (el) => _switchSignalsSubView(el.dataset.value),
+    'design-entity-change':     ()   => _onDesignEntityChange(),
+    'temporal-entity-change':   ()   => _onTemporalEntityChange(),
+    'expand-gallery-item':      (el) => _expandGalleryItem(el.dataset.src, el.dataset.entity, el.dataset.filename),
+    'close-lightbox':           ()   => _closeLightbox(),
+    'lightbox-inner-stop':      (el, e) => e.stopPropagation(),
+    'run-comparison':           ()   => _runComparison(),
+    'filter-pattern-category':  (el) => _filterPatternCategory(el.dataset.value || null),
+    'toggle-enriched-matrix':   (el) => _toggleEnrichedMatrix(el.checked),
+});
+
+// ── Expose on window (for external callers) ──────────────────
+
+window.initLenses = initLenses;

@@ -8,8 +8,8 @@
 
 <!-- Bulk Actions -->
 <div class="review-bulk-bar">
-    <button class="primary-btn" onclick="reviewBulkAll('accept')">Accept All High Confidence</button>
-    <button class="btn" onclick="reviewBulkAll('reject')">Reject All</button>
+    <button class="primary-btn" data-action="review-bulk-all-accept">Accept All High Confidence</button>
+    <button class="btn" data-action="review-bulk-all-reject">Reject All</button>
 </div>
 
 <!-- Queue List (entity cards) -->
@@ -26,8 +26,8 @@
     <div class="feat-section-header">
         <h3>Feature Vocabulary</h3>
         <div>
-            <button class="btn btn-sm" onclick="mergeFeatures()">Merge</button>
-            <button class="primary-btn btn-sm" onclick="createFeature()">+ New Feature</button>
+            <button class="btn btn-sm" data-action="merge-features">Merge</button>
+            <button class="primary-btn btn-sm" data-action="create-feature">+ New Feature</button>
         </div>
     </div>
     <p class="hint-text">Standardise extracted values into canonical feature names for cross-entity comparison.</p>
@@ -45,7 +45,7 @@
     <div class="feat-toolbar">
         <input type="text" class="feat-search" placeholder="Search features..."
                aria-label="Search canonical features"
-               oninput="featureSearchInput(this.value)">
+               data-on-input="feature-search-input">
     </div>
 
     <!-- Feature List -->

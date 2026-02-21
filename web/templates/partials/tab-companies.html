@@ -5,15 +5,15 @@
     </div>
     <div class="entity-breadcrumbs hidden" id="entityBreadcrumbs"></div>
     <div class="entity-controls">
-        <input type="text" id="entitySearchInput" placeholder="Search entities... (/)" oninput="debounceEntitySearch()" aria-label="Search entities">
-        <button class="btn" onclick="refineSchema()" title="AI schema refinement">Refine Schema</button>
-        <button class="primary-btn" onclick="openEntityCreateModal()">+ New</button>
+        <input type="text" id="entitySearchInput" placeholder="Search entities... (/)" aria-label="Search entities">
+        <button class="btn" data-action="refine-schema" title="AI schema refinement">Refine Schema</button>
+        <button class="primary-btn" data-action="open-entity-create-modal">+ New</button>
     </div>
 
     <div id="entityEmptyState" class="entity-empty-state hidden">
         <div class="empty-state-title">No entities yet</div>
         <div class="empty-state-desc">Create your first entity to get started</div>
-        <button class="primary-btn" onclick="openEntityCreateModal()">+ Create</button>
+        <button class="primary-btn" data-action="open-entity-create-modal">+ Create</button>
     </div>
 
     <table id="entityTable" class="entity-table">
@@ -24,10 +24,10 @@
     <!-- Entity Bulk Bar -->
     <div id="entityBulkBar" class="bulk-action-bar hidden">
         <span id="entityBulkCount">0 selected</span>
-        <button class="btn" onclick="entityBulkAction('star')">Star</button>
-        <button class="btn" onclick="entityBulkAction('unstar')">Unstar</button>
-        <button class="danger-btn" onclick="entityBulkAction('delete')">Delete</button>
-        <button class="btn" onclick="clearEntityBulkSelection()" aria-label="Clear selection">&times;</button>
+        <button class="btn" data-action="entity-bulk-action" data-value="star">Star</button>
+        <button class="btn" data-action="entity-bulk-action" data-value="unstar">Unstar</button>
+        <button class="danger-btn" data-action="entity-bulk-action" data-value="delete">Delete</button>
+        <button class="btn" data-action="clear-entity-bulk-selection" aria-label="Clear selection">&times;</button>
     </div>
 
     <!-- Entity Detail Panel -->
@@ -48,20 +48,20 @@
 <!-- ===== Company View (original, shown for flat schemas) ===== -->
 <div id="companyViewWrapper">
 <div class="controls">
-    <input type="text" id="searchInput" placeholder="Search companies... (/)" oninput="debounceSearch()" aria-label="Search companies">
-    <select id="categoryFilter" onchange="addFilterFromSelect('category')" aria-label="Filter by category">
+    <input type="text" id="searchInput" placeholder="Search companies... (/)" aria-label="Search companies">
+    <select id="categoryFilter" data-on-change="add-filter-from-select" data-filter-type="category" aria-label="Filter by category">
         <option value="">+ Category</option>
     </select>
-    <select id="tagFilter" onchange="addFilterFromSelect('tag')" aria-label="Filter by tag">
+    <select id="tagFilter" data-on-change="add-filter-from-select" data-filter-type="tag" aria-label="Filter by tag">
         <option value="">+ Tag</option>
     </select>
-    <select id="geoFilter" onchange="addFilterFromSelect('geography')" aria-label="Filter by geography">
+    <select id="geoFilter" data-on-change="add-filter-from-select" data-filter-type="geography" aria-label="Filter by geography">
         <option value="">+ Geography</option>
     </select>
-    <select id="stageFilter" onchange="addFilterFromSelect('funding_stage')" aria-label="Filter by funding stage">
+    <select id="stageFilter" data-on-change="add-filter-from-select" data-filter-type="funding_stage" aria-label="Filter by funding stage">
         <option value="">+ Stage</option>
     </select>
-    <select id="relationshipFilter" class="filter-select" onchange="loadCompanies()" aria-label="Filter by relationship">
+    <select id="relationshipFilter" class="filter-select" data-on-change="load-companies" aria-label="Filter by relationship">
         <option value="">Relationship</option>
         <option value="any">Any flagged</option>
         <option value="watching">Watching</option>
@@ -72,9 +72,9 @@
         <option value="not_relevant">Not Relevant</option>
     </select>
     <input type="text" id="foundedYearFilter" placeholder="Founded year range..." class="founded-year-filter" readonly aria-label="Filter by founded year">
-    <label class="filter-checkbox"><input type="checkbox" id="starredFilter" onchange="loadCompanies()"> Starred</label>
-    <label class="filter-checkbox"><input type="checkbox" id="enrichmentFilter" onchange="loadCompanies()"> Needs enrichment</label>
-    <button class="filter-action-btn" onclick="openTagManager()" title="Manage tags">Tags</button>
+    <label class="filter-checkbox"><input type="checkbox" id="starredFilter" data-on-change="load-companies"> Starred</label>
+    <label class="filter-checkbox"><input type="checkbox" id="enrichmentFilter" data-on-change="load-companies"> Needs enrichment</label>
+    <button class="filter-action-btn" data-action="open-tag-manager" title="Manage tags">Tags</button>
 </div>
 
 <!-- Active filters as chips -->
@@ -82,26 +82,26 @@
 
 <!-- Saved views bar -->
 <div class="saved-views-bar">
-    <select id="savedViewSelect" onchange="loadSavedView()" aria-label="Saved views">
+    <select id="savedViewSelect" data-on-change="load-saved-view" aria-label="Saved views">
         <option value="">Saved views...</option>
     </select>
-    <button class="filter-action-btn" onclick="saveCurrentView()" title="Save current filters">Save view</button>
+    <button class="filter-action-btn" data-action="save-current-view" title="Save current filters">Save view</button>
 </div>
 
 <div class="company-view-toggle">
-    <button class="view-toggle-btn active" id="viewTableBtn" onclick="switchCompanyView('table')">
+    <button class="view-toggle-btn active" id="viewTableBtn" data-action="switch-company-view" data-view="table">
         <span class="material-symbols-outlined icon-16">table_rows</span> Table
     </button>
-    <button class="view-toggle-btn" id="viewGridBtn" onclick="switchCompanyView('grid')">
+    <button class="view-toggle-btn" id="viewGridBtn" data-action="switch-company-view" data-view="grid">
         <span class="material-symbols-outlined icon-16">view_list</span> Grid
     </button>
-    <button class="view-toggle-btn" id="viewGalleryBtn" onclick="switchCompanyView('gallery')">
+    <button class="view-toggle-btn" id="viewGalleryBtn" data-action="switch-company-view" data-view="gallery">
         <span class="material-symbols-outlined icon-16">grid_view</span> Gallery
     </button>
-    <button class="view-toggle-btn" id="viewTimelineBtn" onclick="switchCompanyView('timeline')">
+    <button class="view-toggle-btn" id="viewTimelineBtn" data-action="switch-company-view" data-view="timeline">
         <span class="material-symbols-outlined icon-16">timeline</span> Timeline
     </button>
-    <button class="view-toggle-btn ml-auto" id="viewExportCsvBtn" onclick="exportTabulatorCsv()" title="Export CSV">
+    <button class="view-toggle-btn ml-auto" id="viewExportCsvBtn" data-action="export-tabulator-csv" title="Export CSV">
         <span class="material-symbols-outlined icon-16">download</span> CSV
     </button>
 </div>
@@ -114,7 +114,7 @@
 <table id="companyTable">
     <thead>
         <tr>
-            <th class="bulk-header col-bulk"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all" aria-label="Select all companies"></th>
+            <th class="bulk-header col-bulk"><input type="checkbox" id="selectAllCheckbox" data-on-change="toggle-select-all" title="Select all" aria-label="Select all companies"></th>
             <th class="sort-header col-starred" data-sort="starred"></th>
             <th class="sort-header" data-sort="name">Name</th>
             <th class="sort-header" data-sort="category">Category</th>
@@ -132,19 +132,19 @@
 <!-- Bulk Action Bar -->
 <div id="bulkActionBar" class="bulk-action-bar hidden">
     <span id="bulkCount">0 selected</span>
-    <button class="btn" onclick="bulkAction('assign_category')"><span class="material-symbols-outlined">category</span> Assign Category</button>
-    <button class="btn" onclick="bulkAction('add_tags')"><span class="material-symbols-outlined">label</span> Add Tags</button>
-    <button class="btn" onclick="bulkAction('set_relationship')"><span class="material-symbols-outlined">handshake</span> Set Relationship</button>
-    <button class="btn" onclick="startBatchEnrichment()"><span class="material-symbols-outlined">auto_fix_high</span> Enrich</button>
-    <button class="danger-btn" onclick="bulkAction('delete')"><span class="material-symbols-outlined">delete</span> Delete</button>
-    <button class="btn" onclick="clearBulkSelection()" aria-label="Clear selection"><span class="material-symbols-outlined">close</span></button>
+    <button class="btn" data-action="bulk-action" data-bulk-type="assign_category"><span class="material-symbols-outlined">category</span> Assign Category</button>
+    <button class="btn" data-action="bulk-action" data-bulk-type="add_tags"><span class="material-symbols-outlined">label</span> Add Tags</button>
+    <button class="btn" data-action="bulk-action" data-bulk-type="set_relationship"><span class="material-symbols-outlined">handshake</span> Set Relationship</button>
+    <button class="btn" data-action="start-batch-enrichment"><span class="material-symbols-outlined">auto_fix_high</span> Enrich</button>
+    <button class="danger-btn" data-action="bulk-action" data-bulk-type="delete"><span class="material-symbols-outlined">delete</span> Delete</button>
+    <button class="btn" data-action="clear-bulk-selection" aria-label="Clear selection"><span class="material-symbols-outlined">close</span></button>
 </div>
 
 <!-- Detail Panel -->
 <div id="detailPanel" class="detail-panel hidden">
     <div class="detail-header">
         <h2 id="detailName"></h2>
-        <button class="close-btn" onclick="closeDetail()" aria-label="Close detail panel">&times;</button>
+        <button class="close-btn" data-action="close-detail" aria-label="Close detail panel">&times;</button>
     </div>
     <div id="detailContent"></div>
 </div>

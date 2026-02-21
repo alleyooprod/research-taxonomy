@@ -120,7 +120,7 @@ function _renderSetupViewMode(container, project, dataCheck) {
             </div>
         </div>
         <div class="setup-danger-zone">
-            <button class="btn btn-danger" onclick="confirmDeleteProject()">Delete Project</button>
+            <button class="btn btn-danger" data-action="confirm-delete-project">Delete Project</button>
         </div>
     `;
 }
@@ -200,11 +200,11 @@ function _renderSetupEditMode(container, project) {
                 <textarea id="epDescription" rows="3">${esc(project.description || '')}</textarea>
             </div>
             <div class="form-actions">
-                <button class="primary-btn" onclick="saveProjectSetup()">Save Changes</button>
+                <button class="primary-btn" data-action="save-project-setup">Save Changes</button>
             </div>
         </div>
         <div class="setup-danger-zone">
-            <button class="btn btn-danger" onclick="confirmDeleteProject()">Delete Project</button>
+            <button class="btn btn-danger" data-action="confirm-delete-project">Delete Project</button>
         </div>
     `;
 }
@@ -308,7 +308,7 @@ function searchResearchCompany() {
         }
         container.classList.remove('hidden');
         container.innerHTML = companies.map(c => `
-            <div class="research-company-option" onclick="selectResearchCompany(${c.id}, '${escAttr(c.name)}')">
+            <div class="research-company-option" data-action="select-research-company" data-id="${c.id}" data-value="${escAttr(c.name)}">
                 <strong>${esc(c.name)}</strong>
                 <span class="hint-text">${esc(c.category_name || '')}</span>
             </div>
@@ -335,9 +335,9 @@ function renderTemplateButtons() {
     const container = document.getElementById('researchTemplateButtons');
     if (!container) return;
     container.innerHTML = _researchTemplates.map(t =>
-        `<button class="research-template-btn" onclick="applyResearchTemplate(${t.id})">${esc(t.name)}</button>`
+        `<button class="research-template-btn" data-action="apply-research-template" data-id="${t.id}">${esc(t.name)}</button>`
     ).join('') +
-    `<button class="research-template-btn research-template-manage" onclick="openTemplateManager()" title="Manage templates">
+    `<button class="research-template-btn research-template-manage" data-action="open-template-manager" title="Manage templates">
         <span class="material-symbols-outlined" style="font-size:14px">settings</span>
     </button>`;
 }
@@ -393,8 +393,8 @@ function renderTemplateManagerList() {
             </div>
             <div class="template-item-body hint-text">${esc((t.prompt_template || '').substring(0, 120))}...</div>
             <div class="template-item-actions">
-                <button class="btn btn-sm" onclick="editTemplate(${t.id})">Edit</button>
-                <button class="btn btn-sm" style="color:var(--accent-danger)" onclick="deleteTemplate(${t.id})">Delete</button>
+                <button class="btn btn-sm" data-action="edit-template" data-id="${t.id}">Edit</button>
+                <button class="btn btn-sm" style="color:var(--accent-danger)" data-action="delete-template" data-id="${t.id}">Delete</button>
             </div>
         </div>
     `).join('');
@@ -545,7 +545,7 @@ function showResearchError(msg) {
     content.classList.remove('hidden');
     content.innerHTML = `<div class="re-research-error">
         <p>${esc(msg)}</p>
-        <button class="btn" onclick="startDeepDive()" style="margin-top:8px">
+        <button class="btn" data-action="start-deep-dive" style="margin-top:8px">
             <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">refresh</span> Retry
         </button>
     </div>`;
@@ -571,7 +571,7 @@ async function loadResearchDetail(researchId) {
     if (data.status === 'failed') {
         content.innerHTML = `<div class="re-research-error">
             <p>${esc(data.result || 'Research failed')}</p>
-            <button class="btn" onclick="startDeepDive()" style="margin-top:8px">
+            <button class="btn" data-action="start-deep-dive" style="margin-top:8px">
                 <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">refresh</span> Retry
             </button>
         </div>`;
@@ -607,9 +607,9 @@ async function loadResearchDetail(researchId) {
             <h3>${esc(data.title)}</h3>
             <div style="display:flex;gap:8px;align-items:center">
                 <span class="hint-text">${metaParts}</span>
-                <button class="btn" onclick="exportResearchMd(${researchId})">Export .md</button>
-                <button class="btn" onclick="exportResearchPdf()">Export PDF</button>
-                <button class="btn" onclick="startPresentation('report')"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">slideshow</span> Present</button>
+                <button class="btn" data-action="export-research-md" data-id="${researchId}">Export .md</button>
+                <button class="btn" data-action="export-research-pdf">Export PDF</button>
+                <button class="btn" data-action="start-presentation" data-value="report"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">slideshow</span> Present</button>
             </div>
         </div>
         <div class="report-body">${html}</div>
@@ -687,13 +687,13 @@ async function loadSavedResearch() {
             </div>
             <div class="saved-report-actions">
                 ${r.status === 'completed'
-                    ? `<button class="btn" onclick="viewSavedResearch(${r.id})">View</button>
-                       <button class="btn" onclick="exportResearchMd(${r.id})">MD</button>`
+                    ? `<button class="btn" data-action="view-saved-research" data-id="${r.id}">View</button>
+                       <button class="btn" data-action="export-research-md" data-id="${r.id}">MD</button>`
                     : r.status === 'running'
                     ? '<span class="hint-text">Running...</span>'
                     : `<span class="re-research-error" style="font-size:12px">Failed</span>`
                 }
-                <button class="btn" style="color:var(--accent-danger)" onclick="deleteResearch(${r.id})">Delete</button>
+                <button class="btn" style="color:var(--accent-danger)" data-action="delete-research" data-id="${r.id}">Delete</button>
             </div>
         </div>`;
     }).join('');
@@ -719,3 +719,35 @@ function startCompanyResearch(companyId, companyName) {
     _selectedResearchCompanyId = companyId;
     document.getElementById('researchPrompt').focus();
 }
+
+// ── Action Delegation ─────────────────────────────────────────
+
+registerActions({
+    'confirm-delete-project':    () => confirmDeleteProject(),
+    'save-project-setup':        () => saveProjectSetup(),
+    'select-research-company':   (el) => selectResearchCompany(Number(el.dataset.id), el.dataset.value),
+    'apply-research-template':   (el) => applyResearchTemplate(Number(el.dataset.id)),
+    'open-template-manager':     () => openTemplateManager(),
+    'edit-template':             (el) => editTemplate(Number(el.dataset.id)),
+    'delete-template':           (el) => deleteTemplate(Number(el.dataset.id)),
+    'start-deep-dive':           () => startDeepDive(),
+    'export-research-md':        (el) => exportResearchMd(Number(el.dataset.id)),
+    'export-research-pdf':       () => exportResearchPdf(),
+    'start-presentation':        (el) => startPresentation(el.dataset.value),
+    'view-saved-research':       (el) => viewSavedResearch(Number(el.dataset.id)),
+    'delete-research':           (el) => deleteResearch(Number(el.dataset.id)),
+    'switch-research-mode':      (el) => switchResearchMode(el.dataset.value),
+    'research-scope-change':     () => onResearchScopeChange(),
+    'search-research-company':   () => searchResearchCompany(),
+    'cancel-research-poll':      () => cancelResearchPoll(),
+    'close-template-manager':    () => closeTemplateManager(),
+    'save-template':             () => saveTemplate(),
+    'show-add-template-form':    () => showAddTemplateForm(),
+    'cancel-template-form':      () => document.getElementById('templateFormSection').classList.add('hidden'),
+});
+
+// ── Global Exposure (cross-module calls only) ─────────────────
+
+window.switchResearchMode    = switchResearchMode;
+window.startCompanyResearch  = startCompanyResearch;
+window.startDeepDive         = startDeepDive;

@@ -128,8 +128,8 @@ async function loadBackupList() {
                 <span class="backup-meta">${b.size_mb} MB &middot; ${new Date(b.created_at).toLocaleString()}</span>
             </div>
             <div class="backup-actions">
-                <button class="btn btn-sm" onclick="restoreBackup('${escAttr(b.filename)}')">Restore</button>
-                <button class="btn btn-sm danger-btn" onclick="deleteBackup('${escAttr(b.filename)}')">Delete</button>
+                <button class="btn btn-sm" data-action="restore-backup" data-filename="${escAttr(b.filename)}">Restore</button>
+                <button class="btn btn-sm danger-btn" data-action="delete-backup" data-filename="${escAttr(b.filename)}">Delete</button>
             </div>
         </div>
     `).join('');
@@ -257,7 +257,7 @@ async function openLogViewer() {
         return;
     }
     list.innerHTML = logs.map(l => `
-        <div class="log-file-item" onclick="viewLogFile('${escAttr(l.filename)}')">
+        <div class="log-file-item" data-action="view-log-file" data-filename="${escAttr(l.filename)}">
             <strong>${esc(l.filename)}</strong>
             <span>${l.size_kb} KB &middot; ${new Date(l.modified_at).toLocaleString()}</span>
         </div>
@@ -302,4 +302,11 @@ window.addEventListener('error', (e) => {
 
 window.addEventListener('unhandledrejection', (e) => {
     console.error('Unhandled promise rejection:', e.reason);
+});
+
+// --- Action Delegation ---
+registerActions({
+    'restore-backup': (el) => restoreBackup(el.dataset.filename),
+    'delete-backup': (el) => deleteBackup(el.dataset.filename),
+    'view-log-file': (el) => viewLogFile(el.dataset.filename),
 });

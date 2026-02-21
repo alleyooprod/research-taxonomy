@@ -64,9 +64,9 @@ function _ensureCrossProjectDashboard() {
             <h2>Cross-Project Intelligence</h2>
             <div class="xp-header-actions">
                 <button class="xp-btn xp-scan-btn" id="xpScanBtn"
-                        onclick="_xpScanForOverlaps()">Scan for Overlaps</button>
+                        data-action="xp-scan-overlaps">Scan for Overlaps</button>
                 <button class="xp-btn xp-btn-ghost" id="xpAnalyseBtn"
-                        onclick="_xpRunAnalysis()">Run Analysis</button>
+                        data-action="xp-run-analysis">Run Analysis</button>
             </div>
         </div>
 
@@ -76,11 +76,11 @@ function _ensureCrossProjectDashboard() {
 
         <div class="xp-inner-nav" id="xpInnerNav">
             <button class="xp-inner-nav-btn xp-inner-nav-btn--active" data-xp-view="overview"
-                    onclick="_xpSwitchView('overview')">Overview</button>
+                    data-action="xp-switch-view" data-view="overview">Overview</button>
             <button class="xp-inner-nav-btn" data-xp-view="links"
-                    onclick="_xpSwitchView('links')">Entity Links</button>
+                    data-action="xp-switch-view" data-view="links">Entity Links</button>
             <button class="xp-inner-nav-btn" data-xp-view="insights"
-                    onclick="_xpSwitchView('insights')">Insights</button>
+                    data-action="xp-switch-view" data-view="insights">Insights</button>
         </div>
 
         <div id="xpOverviewSection" class="xp-overview"></div>
@@ -274,7 +274,7 @@ function _renderXpOverview() {
                 : '<div class="xp-empty"><div class="xp-empty-title">No entity links yet</div><div class="xp-empty-desc">Scan for overlaps to discover entities that appear across multiple projects.</div></div>'
             }
             ${recentLinks.length > 0 && _xpLinks.length > 5
-                ? `<button class="xp-btn xp-btn-ghost xp-btn-sm" onclick="_xpSwitchView('links')" style="margin-top:var(--space-2);">View all ${_xpLinks.length} links</button>`
+                ? `<button class="xp-btn xp-btn-ghost xp-btn-sm" data-action="xp-switch-view" data-view="links" style="margin-top:var(--space-2);">View all ${_xpLinks.length} links</button>`
                 : ''
             }
         </div>
@@ -286,7 +286,7 @@ function _renderXpOverview() {
                 : '<div class="xp-empty"><div class="xp-empty-title">No insights yet</div><div class="xp-empty-desc">Run analysis to discover patterns across your projects.</div></div>'
             }
             ${recentInsights.length > 0 && _xpInsights.filter(i => !i.is_dismissed).length > 5
-                ? `<button class="xp-btn xp-btn-ghost xp-btn-sm" onclick="_xpSwitchView('insights')" style="margin-top:var(--space-2);">View all insights</button>`
+                ? `<button class="xp-btn xp-btn-ghost xp-btn-sm" data-action="xp-switch-view" data-view="insights" style="margin-top:var(--space-2);">View all insights</button>`
                 : ''
             }
         </div>
@@ -307,7 +307,7 @@ function _renderXpLinksView() {
         <div id="xpLinksTableContainer">
             ${_xpLinks.length > 0
                 ? _renderXpLinksTableHtml(_xpLinks)
-                : '<div class="xp-empty"><div class="xp-empty-title">No entity links</div><div class="xp-empty-desc">Scan for overlaps or create a manual link to connect entities across projects.</div><button class="xp-btn" onclick="_xpScanForOverlaps()">Scan for Overlaps</button></div>'
+                : '<div class="xp-empty"><div class="xp-empty-title">No entity links</div><div class="xp-empty-desc">Scan for overlaps or create a manual link to connect entities across projects.</div><button class="xp-btn" data-action="xp-scan-overlaps">Scan for Overlaps</button></div>'
             }
         </div>
     `;
@@ -331,13 +331,13 @@ function _renderXpLinkFiltersHtml() {
     const currentSource = _xpLinkFilters.source || '';
 
     return `
-        <select class="xp-filter-select" onchange="_xpSetLinkFilter('link_type', this.value)" aria-label="Filter by link type">
+        <select class="xp-filter-select" data-on-change="xp-set-link-filter" data-key="link_type" aria-label="Filter by link type">
             ${linkTypeOptions.map(o => `<option value="${o.value}" ${o.value === currentType ? 'selected' : ''}>${o.label}</option>`).join('')}
         </select>
-        <select class="xp-filter-select" onchange="_xpSetLinkFilter('source', this.value)" aria-label="Filter by source">
+        <select class="xp-filter-select" data-on-change="xp-set-link-filter" data-key="source" aria-label="Filter by source">
             ${sourceOptions.map(o => `<option value="${o.value}" ${o.value === currentSource ? 'selected' : ''}>${o.label}</option>`).join('')}
         </select>
-        <button class="xp-btn xp-btn-sm xp-btn-ghost" onclick="_xpToggleManualLinkForm()">+ Manual Link</button>
+        <button class="xp-btn xp-btn-sm xp-btn-ghost" data-action="xp-toggle-manual-link-form">+ Manual Link</button>
     `;
 }
 
@@ -399,13 +399,13 @@ function _renderXpLinksTableHtml(links) {
                 <td>
                     <div class="xp-link-actions">
                         <button class="xp-btn xp-btn-sm xp-btn-ghost"
-                                onclick="event.stopPropagation(); _xpViewEntityDiff(${srcId}, ${tgtId})"
+                                data-action="xp-view-entity-diff" data-source-id="${srcId}" data-target-id="${tgtId}"
                                 title="View Diff">Diff</button>
                         <button class="xp-btn xp-btn-sm xp-btn-ghost"
-                                onclick="event.stopPropagation(); _xpShowSyncPanel(${srcId}, ${tgtId})"
+                                data-action="xp-show-sync-panel" data-source-id="${srcId}" data-target-id="${tgtId}"
                                 title="Sync Attributes">Sync</button>
                         <button class="xp-btn xp-btn-sm xp-btn-danger"
-                                onclick="event.stopPropagation(); _xpDeleteLink(${linkId})"
+                                data-action="xp-delete-link" data-id="${linkId}"
                                 title="Delete Link">Delete</button>
                     </div>
                 </td>
@@ -520,7 +520,7 @@ function _renderDiffPanel(data, entityId, compareToId) {
     panel.innerHTML = `
         <div class="xp-diff-panel-header">
             <span class="xp-diff-panel-title">Attribute Comparison</span>
-            <button class="xp-btn xp-btn-sm xp-btn-ghost" onclick="_xpCloseDiffPanel()">Close</button>
+            <button class="xp-btn xp-btn-sm xp-btn-ghost" data-action="xp-close-diff-panel">Close</button>
         </div>
 
         <div class="xp-diff-entities">
@@ -611,7 +611,7 @@ function _renderSyncPanel(data, sourceId, targetId) {
         panel.innerHTML = `
             <div class="xp-diff-panel-header">
                 <span class="xp-diff-panel-title">Sync Attributes</span>
-                <button class="xp-btn xp-btn-sm xp-btn-ghost" onclick="_xpCloseDiffPanel()">Close</button>
+                <button class="xp-btn xp-btn-sm xp-btn-ghost" data-action="xp-close-diff-panel">Close</button>
             </div>
             <div class="xp-loading">No differing attributes to sync from ${esc(entityAName)} to ${esc(entityBName)}</div>
         `;
@@ -632,7 +632,7 @@ function _renderSyncPanel(data, sourceId, targetId) {
     panel.innerHTML = `
         <div class="xp-diff-panel-header">
             <span class="xp-diff-panel-title">Sync Attributes</span>
-            <button class="xp-btn xp-btn-sm xp-btn-ghost" onclick="_xpCloseDiffPanel()">Close</button>
+            <button class="xp-btn xp-btn-sm xp-btn-ghost" data-action="xp-close-diff-panel">Close</button>
         </div>
 
         <div class="xp-diff-entities">
@@ -647,8 +647,8 @@ function _renderSyncPanel(data, sourceId, targetId) {
 
         <div class="xp-sync-actions">
             <button class="xp-btn xp-btn-sm" id="xpSyncSubmitBtn"
-                    onclick="_xpDoSync(${sourceId}, ${targetId})">Sync Selected</button>
-            <button class="xp-btn xp-btn-sm xp-btn-ghost" onclick="_xpCloseDiffPanel()">Cancel</button>
+                    data-action="xp-do-sync" data-source-id="${sourceId}" data-target-id="${targetId}">Sync Selected</button>
+            <button class="xp-btn xp-btn-sm xp-btn-ghost" data-action="xp-close-diff-panel">Cancel</button>
         </div>
     `;
 }
@@ -758,7 +758,7 @@ function _renderXpInsightCards(insights) {
             <div class="xp-empty">
                 <div class="xp-empty-title">No cross-project insights</div>
                 <div class="xp-empty-desc">Run analysis to discover patterns, divergences, and coverage gaps across projects.</div>
-                <button class="xp-btn" onclick="_xpRunAnalysis()">Run Analysis</button>
+                <button class="xp-btn" data-action="xp-run-analysis">Run Analysis</button>
             </div>
         `;
         return;
@@ -803,10 +803,10 @@ function _renderXpInsightCardHtml(insight, idx) {
             </div>
             <div class="xp-insight-card__actions">
                 <button class="xp-btn xp-btn-sm xp-btn-ghost"
-                        onclick="event.stopPropagation(); _xpDismissInsight(${insight.id})"
+                        data-action="xp-dismiss-insight" data-id="${insight.id}"
                         title="Dismiss">Dismiss</button>
                 <button class="xp-btn xp-btn-sm xp-btn-danger"
-                        onclick="event.stopPropagation(); _xpDeleteInsight(${insight.id})"
+                        data-action="xp-delete-insight" data-id="${insight.id}"
                         title="Delete">Delete</button>
             </div>
         </div>
@@ -952,9 +952,9 @@ function _xpToggleManualLinkForm() {
             </div>
             <div class="xp-form-actions">
                 <button class="xp-btn xp-btn-sm" id="xpManualLinkSubmit"
-                        onclick="_xpSubmitManualLink()">Create Link</button>
+                        data-action="xp-submit-manual-link">Create Link</button>
                 <button class="xp-btn xp-btn-sm xp-btn-ghost"
-                        onclick="_xpToggleManualLinkForm()">Cancel</button>
+                        data-action="xp-toggle-manual-link-form">Cancel</button>
             </div>
         </div>
     `;
@@ -1077,20 +1077,20 @@ function _xpRelativeTime(isoString) {
     }
 }
 
-// ── Expose on window ──────────────────────────────────────────
+// ── Action Delegation ─────────────────────────────────────────
 
-window._xpScanForOverlaps = _xpScanForOverlaps;
-window._xpRunAnalysis = _xpRunAnalysis;
-window._xpSwitchView = _xpSwitchView;
-window._xpViewEntityDiff = _xpViewEntityDiff;
-window._xpShowSyncPanel = _xpShowSyncPanel;
-window._xpDoSync = _xpDoSync;
-window._xpSyncAttributes = _xpSyncAttributes;
-window._xpDismissInsight = _xpDismissInsight;
-window._xpDeleteInsight = _xpDeleteInsight;
-window._xpDeleteLink = _xpDeleteLink;
-window._xpToggleManualLinkForm = _xpToggleManualLinkForm;
-window._xpCreateManualLink = _xpCreateManualLink;
-window._xpSubmitManualLink = _xpSubmitManualLink;
-window._xpSetLinkFilter = _xpSetLinkFilter;
-window._xpCloseDiffPanel = _xpCloseDiffPanel;
+registerActions({
+    'xp-scan-overlaps': () => _xpScanForOverlaps(),
+    'xp-run-analysis': () => _xpRunAnalysis(),
+    'xp-switch-view': (el) => _xpSwitchView(el.dataset.view),
+    'xp-view-entity-diff': (el, e) => { e.stopPropagation(); _xpViewEntityDiff(Number(el.dataset.sourceId), Number(el.dataset.targetId)); },
+    'xp-show-sync-panel': (el, e) => { e.stopPropagation(); _xpShowSyncPanel(Number(el.dataset.sourceId), Number(el.dataset.targetId)); },
+    'xp-do-sync': (el) => _xpDoSync(Number(el.dataset.sourceId), Number(el.dataset.targetId)),
+    'xp-delete-link': (el, e) => { e.stopPropagation(); _xpDeleteLink(Number(el.dataset.id)); },
+    'xp-dismiss-insight': (el, e) => { e.stopPropagation(); _xpDismissInsight(Number(el.dataset.id)); },
+    'xp-delete-insight': (el, e) => { e.stopPropagation(); _xpDeleteInsight(Number(el.dataset.id)); },
+    'xp-close-diff-panel': () => _xpCloseDiffPanel(),
+    'xp-toggle-manual-link-form': () => _xpToggleManualLinkForm(),
+    'xp-submit-manual-link': () => _xpSubmitManualLink(),
+    'xp-set-link-filter': (el) => _xpSetLinkFilter(el.dataset.key, el.value),
+});

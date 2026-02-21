@@ -216,7 +216,7 @@
     <div id="connectionBanner" class="connection-banner hidden" role="alert">
         <span class="connection-banner-icon"><span class="material-symbols-outlined">warning</span></span>
         <span>Connection lost — retrying...</span>
-        <button onclick="location.reload()" class="connection-banner-btn">Reload</button>
+        <button data-action="reload-page" class="connection-banner-btn">Reload</button>
     </div>
 
     <!-- Offline banner -->
@@ -230,15 +230,15 @@
         <span class="material-symbols-outlined">system_update</span>
         <span>Update available: <strong id="updateVersion"></strong></span>
         <a id="updateLink" href="#" target="_blank" class="btn btn-sm update-link">Download</a>
-        <button class="update-dismiss" onclick="dismissUpdateBanner()" aria-label="Dismiss update banner">&times;</button>
+        <button class="update-dismiss" data-action="dismiss-update-banner" aria-label="Dismiss update banner">&times;</button>
     </div>
 
     <!-- Keyboard shortcuts overlay -->
-    <div id="shortcutsOverlay" class="shortcuts-overlay hidden" onclick="if(event.target===this)toggleShortcutsOverlay()">
+    <div id="shortcutsOverlay" class="shortcuts-overlay hidden" data-action="toggle-shortcuts-overlay-backdrop">
         <div class="shortcuts-panel">
             <div class="shortcuts-header">
                 <h2>Keyboard Shortcuts</h2>
-                <button onclick="toggleShortcutsOverlay()" aria-label="Close shortcuts">&times;</button>
+                <button data-action="toggle-shortcuts-overlay" aria-label="Close shortcuts">&times;</button>
             </div>
             <div class="shortcuts-grid">
                 <div class="shortcut-section">
@@ -276,8 +276,8 @@
                             <p class="header-subtitle">Select a research project or create a new one.</p>
                         </div>
                         <div class="flex-gap-sm">
-                            <button class="icon-btn" onclick="openAppSettings()" title="Settings" aria-label="App settings"><span class="material-symbols-outlined">settings</span></button>
-                            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
+                            <button class="icon-btn" data-action="open-app-settings" title="Settings" aria-label="App settings"><span class="material-symbols-outlined">settings</span></button>
+                            <button class="theme-toggle" data-action="toggle-theme" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
                         </div>
                     </div>
                 </header>
@@ -289,11 +289,11 @@
         <div id="newProjectForm" class="hidden">
             <header>
                 <div class="header-with-back">
-                    <button class="back-btn" onclick="showProjectSelection()" aria-label="Back to projects">&larr;</button>
+                    <button class="back-btn" data-action="show-project-selection" aria-label="Back to projects">&larr;</button>
                     <h1>New Research Project</h1>
                 </div>
             </header>
-            <form onsubmit="createProject(event)">
+            <form id="newProjectFormEl" data-action="create-project">
                 <div class="new-project-form">
                     <div class="form-group full-width">
                         <label for="npName">Project Name *</label>
@@ -329,7 +329,7 @@
                         <p class="form-hint">Describe your research and AI will propose entity types and attributes.</p>
                         <div class="ai-suggest-row">
                             <textarea id="npAiDescription" rows="2" placeholder="e.g. I want to compare pet insurance products across UK providers, focusing on coverage tiers, pricing, and exclusions"></textarea>
-                            <button type="button" class="btn" id="aiSuggestBtn" onclick="suggestSchema()">Suggest Schema</button>
+                            <button type="button" class="btn" id="aiSuggestBtn" data-action="suggest-schema">Suggest Schema</button>
                         </div>
                         <div id="aiSuggestStatus" class="hidden"></div>
                     </div>
@@ -352,7 +352,7 @@
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="primary-btn">Create Project</button>
-                        <button type="button" class="btn" onclick="showProjectSelection()">Cancel</button>
+                        <button type="button" class="btn" data-action="show-project-selection">Cancel</button>
                     </div>
                 </div>
             </form>
@@ -364,7 +364,7 @@
                 <header>
                     <div class="flex-between">
                         <div class="header-with-back">
-                            <button class="back-btn" onclick="switchProject()" aria-label="Switch project">&larr;</button>
+                            <button class="back-btn" data-action="switch-project" aria-label="Switch project">&larr;</button>
                             <div>
                                 <h1 id="projectTitle">Project</h1>
                                 <div class="stats-bar">
@@ -375,39 +375,39 @@
                             </div>
                         </div>
                         <div class="flex-center-gap">
-                            <button class="notification-bell" onclick="toggleNotificationPanel()" title="Notifications" aria-label="Toggle notifications" aria-expanded="false" aria-controls="notificationPanel">
+                            <button class="notification-bell" data-action="toggle-notification-panel" title="Notifications" aria-label="Toggle notifications" aria-expanded="false" aria-controls="notificationPanel">
                                 <span class="bell-icon" aria-hidden="true"><span class="material-symbols-outlined">notifications</span></span>
                                 <span class="bell-badge hidden" id="bellBadge" aria-live="polite">0</span>
                             </button>
-                            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
+                            <button class="theme-toggle" data-action="toggle-theme" title="Toggle dark mode (D)" aria-label="Toggle dark mode"><span class="material-symbols-outlined">dark_mode</span></button>
                         </div>
                     </div>
                 </header>
 
                 <nav class="tabs" role="tablist" aria-label="Main navigation">
                     <!-- Primary workbench tabs (guided workflow order) -->
-                    <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-reports" data-tab="reports" onclick="showTab('reports')">Research</button>
-                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" data-tab="process" onclick="showTab('process')">Process</button>
-                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" data-tab="review" onclick="showTab('review')">Review</button>
-                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-analysis" data-tab="analysis" onclick="showTab('analysis')">Analysis</button>
-                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-intelligence" data-tab="intelligence" onclick="showTab('intelligence')">Intelligence</button>
-                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" data-tab="export" onclick="showTab('export')">Export</button>
+                    <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-reports" data-tab="reports" data-action="show-tab">Research</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-process" data-tab="process" data-action="show-tab">Process</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" data-tab="review" data-action="show-tab">Review</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-analysis" data-tab="analysis" data-action="show-tab">Analysis</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-intelligence" data-tab="intelligence" data-action="show-tab">Intelligence</button>
+                    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-export" data-tab="export" data-action="show-tab">Export</button>
                     <!-- Hidden tabs -->
-                    <button class="tab hidden" role="tab" aria-selected="false" aria-controls="tab-discovery" data-tab="discovery" onclick="showTab('discovery')" id="discoveryTabBtn">Discovery</button>
+                    <button class="tab hidden" role="tab" aria-selected="false" aria-controls="tab-discovery" data-tab="discovery" data-action="show-tab" id="discoveryTabBtn">Discovery</button>
                     <!-- Spacer pushes Tools + Settings to right -->
                     <div class="tab-spacer" aria-hidden="true"></div>
                     <!-- Tools dropdown for legacy tabs -->
                     <div class="tools-dropdown" role="none">
-                        <button class="tab tools-trigger" id="toolsTrigger" aria-haspopup="true" aria-expanded="false" onclick="toggleToolsDropdown(event)">Tools <span class="tools-caret" aria-hidden="true">&#9662;</span></button>
+                        <button class="tab tools-trigger" id="toolsTrigger" aria-haspopup="true" aria-expanded="false" data-action="toggle-tools-dropdown">Tools <span class="tools-caret" aria-hidden="true">&#9662;</span></button>
                         <div class="tools-menu hidden" id="toolsMenu" role="menu" aria-label="Legacy tools">
-                            <button class="tools-menu-item" role="menuitem" data-tab="companies" onclick="showTab('companies'); closeToolsDropdown()">Companies</button>
-                            <button class="tools-menu-item" role="menuitem" data-tab="taxonomy" onclick="showTab('taxonomy'); closeToolsDropdown()">Taxonomy</button>
-                            <button class="tools-menu-item" role="menuitem" data-tab="map" onclick="showTab('map'); closeToolsDropdown()">Map</button>
-                            <button class="tools-menu-item" role="menuitem" data-tab="canvas" onclick="showTab('canvas'); closeToolsDropdown()">Canvas</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="companies" data-action="show-tab-close-tools">Companies</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="taxonomy" data-action="show-tab-close-tools">Taxonomy</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="map" data-action="show-tab-close-tools">Map</button>
+                            <button class="tools-menu-item" role="menuitem" data-tab="canvas" data-action="show-tab-close-tools">Canvas</button>
                         </div>
                     </div>
                     <!-- Settings gear icon -->
-                    <button class="tab tab-icon" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings" onclick="showTab('settings')" title="Settings" aria-label="Settings"><span class="material-symbols-outlined">settings</span></button>
+                    <button class="tab tab-icon" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings" data-action="show-tab" title="Settings" aria-label="Settings"><span class="material-symbols-outlined">settings</span></button>
                 </nav>
             </div>
 
@@ -415,7 +415,7 @@
             <div id="notificationPanel" class="notification-panel hidden">
                 <div class="notif-panel-header">
                     <strong>Recent Activity</strong>
-                    <button class="close-btn" onclick="toggleNotificationPanel()" aria-label="Close notifications">&times;</button>
+                    <button class="close-btn" data-action="toggle-notification-panel" aria-label="Close notifications">&times;</button>
                 </div>
                 <div id="notifPanelContent" class="notif-panel-content">
                     <p class="hint-text">No recent activity.</p>
@@ -466,29 +466,29 @@
     </div>
     <!-- AI Chat Widget -->
     <div id="chatWidget" class="chat-widget hidden" role="complementary" aria-label="AI Chat">
-        <div class="chat-header" onclick="toggleChat()">
+        <div class="chat-header" data-action="toggle-chat">
             <span>Ask about your data</span>
-            <button class="chat-close" onclick="event.stopPropagation();closeChat()" aria-label="Close chat">&times;</button>
+            <button class="chat-close" data-action="close-chat" aria-label="Close chat">&times;</button>
         </div>
         <div class="chat-body" id="chatBody">
             <div class="chat-welcome">Ask questions about your taxonomy data. e.g. "Which companies focus on employer wellness?"</div>
         </div>
         <div class="chat-input-row">
-            <input type="text" id="chatInput" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendChatMessage()" aria-label="Chat message">
-            <button class="primary-btn" onclick="sendChatMessage()">Send</button>
+            <input type="text" id="chatInput" placeholder="Ask a question..." data-action="chat-input-keydown" aria-label="Chat message">
+            <button class="primary-btn" data-action="send-chat-message">Send</button>
         </div>
     </div>
-    <button id="chatToggle" class="chat-fab hidden" onclick="toggleChat()" title="AI Chat" aria-label="AI Chat"><span class="material-symbols-outlined">chat</span></button>
-    <button id="tourBtn" class="tour-fab hidden" onclick="startProductTour()" title="Product Tour" aria-label="Product Tour">?</button>
+    <button id="chatToggle" class="chat-fab hidden" data-action="toggle-chat" title="AI Chat" aria-label="AI Chat"><span class="material-symbols-outlined">chat</span></button>
+    <button id="tourBtn" class="tour-fab hidden" data-action="start-product-tour" title="Product Tour" aria-label="Product Tour">?</button>
 
     <!-- Edit Modal -->
     <div id="editModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="editModalTitle">Edit Company</h2>
-                <button class="close-btn" onclick="closeEditModal()" aria-label="Close edit modal">&times;</button>
+                <button class="close-btn" data-action="close-edit-modal" aria-label="Close edit modal">&times;</button>
             </div>
-            <form id="editForm" onsubmit="saveEdit(event)">
+            <form id="editForm">
                 <input type="hidden" id="editId">
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -570,7 +570,7 @@
                     </div>
                     <div class="form-group">
                         <label for="editCategory">Category</label>
-                        <select id="editCategory" onchange="loadSubcategories()">
+                        <select id="editCategory" data-on-change="load-subcategories">
                             <option value="">-- Select --</option>
                         </select>
                     </div>
@@ -613,7 +613,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn" onclick="closeEditModal()">Cancel</button>
+                    <button type="button" class="btn" data-action="close-edit-modal">Cancel</button>
                     <button type="submit" class="primary-btn">Save Changes</button>
                 </div>
             </form>
@@ -625,24 +625,24 @@
         <div class="modal modal-narrow">
             <div class="modal-header">
                 <h2 id="tagModalTitle">Manage Tags</h2>
-                <button class="close-btn" onclick="closeTagManager()" aria-label="Close tag manager">&times;</button>
+                <button class="close-btn" data-action="close-tag-manager" aria-label="Close tag manager">&times;</button>
             </div>
             <div id="tagManagerContent">
                 <div class="tag-manager-actions">
-                    <button class="btn" onclick="showTagRenameForm()">Rename Tag</button>
-                    <button class="btn" onclick="showTagMergeForm()">Merge Tags</button>
+                    <button class="btn" data-action="show-tag-rename-form">Rename Tag</button>
+                    <button class="btn" data-action="show-tag-merge-form">Merge Tags</button>
                 </div>
                 <div id="tagRenameForm" class="tag-action-form hidden">
                     <input type="text" id="tagRenameOld" placeholder="Current tag name">
                     <input type="text" id="tagRenameNew" placeholder="New tag name">
-                    <button class="primary-btn" onclick="executeTagRename()">Rename</button>
-                    <button class="btn" onclick="hideTagForms()">Cancel</button>
+                    <button class="primary-btn" data-action="execute-tag-rename">Rename</button>
+                    <button class="btn" data-action="hide-tag-forms">Cancel</button>
                 </div>
                 <div id="tagMergeForm" class="tag-action-form hidden">
                     <input type="text" id="tagMergeSource" placeholder="Tag to merge (will be removed)">
                     <input type="text" id="tagMergeTarget" placeholder="Merge into this tag">
-                    <button class="primary-btn" onclick="executeTagMerge()">Merge</button>
-                    <button class="btn" onclick="hideTagForms()">Cancel</button>
+                    <button class="primary-btn" data-action="execute-tag-merge">Merge</button>
+                    <button class="btn" data-action="hide-tag-forms">Cancel</button>
                 </div>
                 <div id="tagList" class="tag-list"></div>
             </div>
@@ -654,7 +654,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="templateManagerTitle">Research Templates</h2>
-                <button class="close-btn" onclick="closeTemplateManager()" aria-label="Close">&times;</button>
+                <button class="close-btn" data-action="close-template-manager" aria-label="Close">&times;</button>
             </div>
             <div id="templateManagerList"></div>
             <div id="templateFormSection" class="hidden template-form-section">
@@ -663,12 +663,12 @@
                 <input type="text" id="templateFormName" placeholder="Template name" class="template-form-field">
                 <textarea id="templateFormPrompt" rows="3" placeholder="Prompt template... Use {scope}, {company_name}, {category_name} as variables" class="template-form-field"></textarea>
                 <div class="template-form-buttons">
-                    <button class="primary-btn" onclick="saveTemplate()">Save</button>
-                    <button class="btn" onclick="document.getElementById('templateFormSection').classList.add('hidden')">Cancel</button>
+                    <button class="primary-btn" data-action="save-template">Save</button>
+                    <button class="btn" data-action="cancel-template-form">Cancel</button>
                 </div>
             </div>
             <div class="template-add-row">
-                <button class="btn" onclick="showAddTemplateForm()">+ Add Template</button>
+                <button class="btn" data-action="show-add-template-form">+ Add Template</button>
             </div>
         </div>
     </div>
@@ -680,8 +680,8 @@
             <p>Build market taxonomies — discover, research, classify, and organize companies.</p>
             <div id="onboardingPrereqs" class="onboarding-prereqs"></div>
             <div class="onboarding-actions">
-                <button class="primary-btn" onclick="onboardingCreateProject()">Create Your First Project</button>
-                <button class="btn" onclick="dismissOnboarding()">Skip</button>
+                <button class="primary-btn" data-action="onboarding-create-project">Create Your First Project</button>
+                <button class="btn" data-action="dismiss-onboarding">Skip</button>
             </div>
         </div>
     </div>
@@ -691,7 +691,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2>App Settings</h2>
-                <button class="close-btn" onclick="closeAppSettings()" aria-label="Close app settings">&times;</button>
+                <button class="close-btn" data-action="close-app-settings" aria-label="Close app settings">&times;</button>
             </div>
             <div class="settings-grid">
                 <div class="settings-section">
@@ -741,18 +741,18 @@
                         <span>Version: <strong id="settingVersion"></strong></span>
                         <span>Data: <code id="settingDataDir" class="settings-path"></code></span>
                     </div>
-                    <button class="btn btn-sm" onclick="checkForUpdates(false)" class="settings-btn-mt">Check for Updates</button>
+                    <button class="btn btn-sm" data-action="check-for-updates" class="settings-btn-mt">Check for Updates</button>
                 </div>
 
                 <div class="settings-section">
                     <h3>Backup & Restore</h3>
-                    <button class="primary-btn btn-sm" onclick="createBackup()" class="settings-btn-mb">Create Backup Now</button>
+                    <button class="primary-btn btn-sm" data-action="create-backup" class="settings-btn-mb">Create Backup Now</button>
                     <div id="backupList"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn" onclick="closeAppSettings()">Cancel</button>
-                <button class="primary-btn" onclick="saveAppSettings()">Save Settings</button>
+                <button class="btn" data-action="close-app-settings">Cancel</button>
+                <button class="primary-btn" data-action="save-app-settings">Save Settings</button>
             </div>
         </div>
     </div>
@@ -762,7 +762,7 @@
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2>Application Logs</h2>
-                <button class="close-btn" onclick="closeLogViewer()" aria-label="Close log viewer">&times;</button>
+                <button class="close-btn" data-action="close-log-viewer" aria-label="Close log viewer">&times;</button>
             </div>
             <div id="logFileList" class="log-file-list"></div>
             <pre id="logContent" class="log-content"></pre>
@@ -783,7 +783,7 @@
           </div>
           <div class="app-copyright">&copy; 2024-2026</div>
           <div class="mt-4">
-            <button class="btn btn-secondary about-ok" onclick="closeAboutDialog()">OK</button>
+            <button class="btn btn-secondary about-ok" data-action="close-about-dialog">OK</button>
           </div>
         </div>
       </div>

@@ -110,14 +110,14 @@ function renderPresentationOverlay() {
     _presOverlay = document.createElement('div');
     _presOverlay.className = 'presentation-overlay';
     _presOverlay.innerHTML = `
-        <div class="pres-exit" onclick="exitPresentation()" title="Exit (Esc)">&times;</div>
+        <div class="pres-exit" data-action="exit-presentation" title="Exit (Esc)">&times;</div>
         <div class="pres-slide-container">
             <div id="presSlideContent" class="pres-slide"></div>
         </div>
         <div class="pres-controls">
-            <button class="pres-nav" onclick="presNavigate(-1)"><span class="material-symbols-outlined">chevron_left</span></button>
+            <button class="pres-nav" data-action="pres-navigate-prev"><span class="material-symbols-outlined">chevron_left</span></button>
             <span class="pres-counter" id="presCounter"></span>
-            <button class="pres-nav" onclick="presNavigate(1)"><span class="material-symbols-outlined">chevron_right</span></button>
+            <button class="pres-nav" data-action="pres-navigate-next"><span class="material-symbols-outlined">chevron_right</span></button>
         </div>
         <div class="pres-progress-bar"><div id="presProgress" class="pres-progress-fill"></div></div>
     `;
@@ -165,3 +165,10 @@ function exitPresentation() {
     _presSlides = [];
     _presCurrentSlide = 0;
 }
+
+// --- Action Delegation ---
+registerActions({
+    'exit-presentation': () => exitPresentation(),
+    'pres-navigate-prev': () => presNavigate(-1),
+    'pres-navigate-next': () => presNavigate(1),
+});

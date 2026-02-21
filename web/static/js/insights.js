@@ -63,13 +63,13 @@ function _ensureIntelligenceSubNav() {
     nav.className = 'intel-sub-nav';
     nav.innerHTML = `
         <button class="intel-sub-btn intel-sub-btn--active" data-view="monitoring"
-                onclick="_switchIntelligenceView('monitoring')">Monitoring</button>
+                data-action="switch-intel-view">Monitoring</button>
         <button class="intel-sub-btn" data-view="insights"
-                onclick="_switchIntelligenceView('insights')">Insights</button>
+                data-action="switch-intel-view">Insights</button>
         <button class="intel-sub-btn" data-view="playbooks"
-                onclick="_switchIntelligenceView('playbooks')">Playbooks</button>
+                data-action="switch-intel-view">Playbooks</button>
         <button class="intel-sub-btn" data-view="crossproject"
-                onclick="_switchIntelligenceView('crossproject')">Cross-Project</button>
+                data-action="switch-intel-view">Cross-Project</button>
     `;
     tab.insertBefore(nav, tab.firstChild);
 
@@ -81,15 +81,15 @@ function _ensureIntelligenceSubNav() {
         <div class="insights-header">
             <h2>Insights</h2>
             <div class="insights-header-actions">
-                <button class="ins-btn" onclick="_generateInsights()" id="insightsGenerateBtn">Detect Patterns</button>
-                <button class="ins-btn ins-btn-ghost" onclick="_generateAiInsights()" id="insightsAiBtn">AI Enhance</button>
+                <button class="ins-btn" data-action="generate-insights" id="insightsGenerateBtn">Detect Patterns</button>
+                <button class="ins-btn ins-btn-ghost" data-action="generate-ai-insights" id="insightsAiBtn">AI Enhance</button>
             </div>
         </div>
         <div class="insights-inner-toggle" id="insightsInnerToggle">
             <button class="insights-inner-btn insights-inner-btn--active" data-inner="patterns"
-                    onclick="_switchInsightsInner('patterns')">Patterns</button>
+                    data-action="switch-insights-inner">Patterns</button>
             <button class="insights-inner-btn" data-inner="hypotheses"
-                    onclick="_switchInsightsInner('hypotheses')">Hypotheses</button>
+                    data-action="switch-insights-inner">Hypotheses</button>
         </div>
         <div id="insightsPatternSection">
             <div class="insights-stats" id="insightsStatsBar"></div>
@@ -98,13 +98,13 @@ function _ensureIntelligenceSubNav() {
             <div class="insights-empty hidden" id="insightsEmpty">
                 <div class="insights-empty-title">No insights yet</div>
                 <div class="insights-empty-desc">Run pattern detection to discover insights from your research data.</div>
-                <button class="ins-btn" onclick="_generateInsights()">Detect Patterns</button>
+                <button class="ins-btn" data-action="generate-insights">Detect Patterns</button>
             </div>
         </div>
         <div id="insightsHypothesisSection" class="hidden">
             <div class="hypotheses-header">
                 <div class="hypotheses-header-actions">
-                    <button class="ins-btn" onclick="_createHypothesis()">+ New Hypothesis</button>
+                    <button class="ins-btn" data-action="create-hypothesis">+ New Hypothesis</button>
                 </div>
             </div>
             <div class="hypotheses-filters" id="hypothesesFilters"></div>
@@ -112,7 +112,7 @@ function _ensureIntelligenceSubNav() {
             <div class="hypotheses-empty hidden" id="hypothesesEmpty">
                 <div class="hypotheses-empty-title">No hypotheses yet</div>
                 <div class="hypotheses-empty-desc">Create a hypothesis to track and test claims about your market.</div>
-                <button class="ins-btn" onclick="_createHypothesis()">+ New Hypothesis</button>
+                <button class="ins-btn" data-action="create-hypothesis">+ New Hypothesis</button>
             </div>
             <div class="hypothesis-detail hidden" id="hypothesisDetail"></div>
         </div>
@@ -352,17 +352,17 @@ function _renderInsightCard(insight, idx) {
             </div>
             <div class="insight-card__actions">
                 <button class="ins-btn ins-btn-sm ${isPinned ? 'ins-btn-active' : 'ins-btn-ghost'}"
-                        onclick="event.stopPropagation(); _pinInsight(${insight.id})"
+                        data-action="pin-insight" data-id="${insight.id}"
                         title="${isPinned ? 'Unpin' : 'Pin'}">
                     ${isPinned ? 'Unpin' : 'Pin'}
                 </button>
                 ${!isDismissed ? `
                     <button class="ins-btn ins-btn-sm ins-btn-ghost"
-                            onclick="event.stopPropagation(); _dismissInsight(${insight.id})"
+                            data-action="dismiss-insight" data-id="${insight.id}"
                             title="Dismiss">Dismiss</button>
                 ` : ''}
                 <button class="ins-btn ins-btn-sm ins-btn-danger"
-                        onclick="event.stopPropagation(); _deleteInsight(${insight.id})"
+                        data-action="delete-insight" data-id="${insight.id}"
                         title="Delete">Delete</button>
             </div>
         </div>
@@ -404,20 +404,20 @@ function _renderInsightFilters() {
 
     el.innerHTML = `
         <div class="ins-filter-group">
-            <select class="ins-filter-select" onchange="_setInsightFilter('type', this.value)" aria-label="Filter by type">
+            <select class="ins-filter-select" data-on-change="set-insight-filter" data-key="type" aria-label="Filter by type">
                 ${typeOptions.map(o => `<option value="${o.value}" ${o.value === currentType ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
-            <select class="ins-filter-select" onchange="_setInsightFilter('severity', this.value)" aria-label="Filter by severity">
+            <select class="ins-filter-select" data-on-change="set-insight-filter" data-key="severity" aria-label="Filter by severity">
                 ${severityOptions.map(o => `<option value="${o.value}" ${o.value === currentSeverity ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
-            <select class="ins-filter-select" onchange="_setInsightFilter('source', this.value)" aria-label="Filter by source">
+            <select class="ins-filter-select" data-on-change="set-insight-filter" data-key="source" aria-label="Filter by source">
                 ${sourceOptions.map(o => `<option value="${o.value}" ${o.value === currentSource ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
         </div>
         <div class="ins-filter-group">
             <label class="ins-filter-checkbox">
                 <input type="checkbox" ${_insightsFilters.is_dismissed ? 'checked' : ''}
-                       onchange="_setInsightFilter('is_dismissed', this.checked ? '1' : null)">
+                       data-on-change="set-insight-dismissed-filter">
                 <span>Show dismissed</span>
             </label>
         </div>
@@ -662,7 +662,7 @@ function _renderHypothesisCard(hyp, idx) {
 
     return `
         <div class="hypothesis-card" data-hypothesis-id="${hyp.id}" style="--i:${idx}"
-             onclick="_viewHypothesis(${hyp.id})">
+             data-action="view-hypothesis" data-id="${hyp.id}">
             <div class="hypothesis-card__top">
                 <div class="hypothesis-card__header">
                     <span class="hypothesis-status-badge hypothesis-status--${esc(status)}">${esc(_formatHypothesisStatus(status))}</span>
@@ -687,10 +687,10 @@ function _renderHypothesisCard(hyp, idx) {
             </div>
             <div class="hypothesis-card__actions">
                 <button class="ins-btn ins-btn-sm ins-btn-ghost"
-                        onclick="event.stopPropagation(); _updateHypothesis(${hyp.id})"
+                        data-action="edit-hypothesis" data-id="${hyp.id}"
                         title="Edit">Edit</button>
                 <button class="ins-btn ins-btn-sm ins-btn-danger"
-                        onclick="event.stopPropagation(); _deleteHypothesis(${hyp.id})"
+                        data-action="delete-hypothesis" data-id="${hyp.id}"
                         title="Delete">Delete</button>
             </div>
         </div>
@@ -729,7 +729,7 @@ function _renderHypothesesFilters() {
 
     el.innerHTML = `
         <div class="ins-filter-group">
-            <select class="ins-filter-select" onchange="_setHypothesisFilter('status', this.value)" aria-label="Filter by status">
+            <select class="ins-filter-select" data-on-change="set-hypothesis-filter" data-key="status" aria-label="Filter by status">
                 ${statusOptions.map(o => `<option value="${o.value}" ${o.value === currentStatus ? 'selected' : ''}>${o.label}</option>`).join('')}
             </select>
         </div>
@@ -954,10 +954,10 @@ function _renderHypothesisDetail(hyp) {
 
     detailEl.innerHTML = `
         <div class="hypothesis-detail__header">
-            <button class="ins-btn ins-btn-ghost" onclick="_backToHypothesesList()">Back</button>
+            <button class="ins-btn ins-btn-ghost" data-action="back-to-hypotheses">Back</button>
             <div class="hypothesis-detail__actions">
-                <button class="ins-btn ins-btn-sm" onclick="_updateHypothesis(${hyp.id})">Edit</button>
-                <button class="ins-btn ins-btn-sm ins-btn-danger" onclick="_deleteHypothesis(${hyp.id})">Delete</button>
+                <button class="ins-btn ins-btn-sm" data-action="edit-hypothesis" data-id="${hyp.id}">Edit</button>
+                <button class="ins-btn ins-btn-sm ins-btn-danger" data-action="delete-hypothesis" data-id="${hyp.id}">Delete</button>
             </div>
         </div>
 
@@ -981,7 +981,7 @@ function _renderHypothesisDetail(hyp) {
         <div class="hypothesis-detail__evidence-section">
             <div class="hypothesis-detail__evidence-header">
                 <span class="hypothesis-detail__evidence-title">Evidence (${evidenceList.length})</span>
-                <button class="ins-btn ins-btn-sm" onclick="_addHypothesisEvidence(${hyp.id})">+ Add Evidence</button>
+                <button class="ins-btn ins-btn-sm" data-action="add-hypothesis-evidence" data-id="${hyp.id}">+ Add Evidence</button>
             </div>
 
             <div class="hypothesis-detail__evidence-list" id="hypothesisEvidenceList">
@@ -1023,7 +1023,7 @@ function _renderEvidenceRow(hypothesisId, ev) {
             </div>
             <div class="evidence-row__actions">
                 <button class="ins-btn ins-btn-sm ins-btn-danger"
-                        onclick="event.stopPropagation(); _removeHypothesisEvidence(${hypothesisId}, ${ev.id})"
+                        data-action="remove-hypothesis-evidence" data-hypothesis-id="${hypothesisId}" data-id="${ev.id}"
                         title="Remove">Remove</button>
             </div>
         </div>
@@ -1197,9 +1197,9 @@ function _ensureHypothesisFormModal() {
                 </div>
                 <div class="confirm-sheet-actions" style="margin-top:16px;">
                     <button id="hypFormSubmit" class="confirm-btn-primary" style="border-radius:0;"
-                            onclick="_submitHypothesisForm()">Create</button>
+                            data-action="submit-hypothesis-form">Create</button>
                     <button class="confirm-btn-cancel" style="border-radius:0;"
-                            onclick="_closeHypothesisForm()">Cancel</button>
+                            data-action="close-hypothesis-form">Cancel</button>
                 </div>
             </div>
         </div>
@@ -1245,9 +1245,9 @@ function _ensureEvidenceFormModal() {
                 </div>
                 <div class="confirm-sheet-actions" style="margin-top:16px;">
                     <button id="evFormSubmit" class="confirm-btn-primary" style="border-radius:0;"
-                            onclick="_submitEvidenceForm()">Add Evidence</button>
+                            data-action="submit-evidence-form">Add Evidence</button>
                     <button class="confirm-btn-cancel" style="border-radius:0;"
-                            onclick="_closeEvidenceForm()">Cancel</button>
+                            data-action="close-evidence-form">Cancel</button>
                 </div>
             </div>
         </div>
@@ -1329,26 +1329,33 @@ function _formatDirection(direction) {
     return labels[direction] || direction || '';
 }
 
-// ── Expose on window ──────────────────────────────────────────
+// ── Action Delegation ─────────────────────────────────────────
 
-window._switchInsightsInner = _switchInsightsInner;
-window._loadInsights = _loadInsights;
-window._generateInsights = _generateInsights;
-window._generateAiInsights = _generateAiInsights;
-window._dismissInsight = _dismissInsight;
-window._pinInsight = _pinInsight;
-window._deleteInsight = _deleteInsight;
-window._setInsightFilter = _setInsightFilter;
-window._loadHypotheses = _loadHypotheses;
-window._createHypothesis = _createHypothesis;
-window._viewHypothesis = _viewHypothesis;
-window._updateHypothesis = _updateHypothesis;
-window._deleteHypothesis = _deleteHypothesis;
-window._addHypothesisEvidence = _addHypothesisEvidence;
-window._removeHypothesisEvidence = _removeHypothesisEvidence;
-window._submitHypothesisForm = _submitHypothesisForm;
-window._closeHypothesisForm = _closeHypothesisForm;
-window._submitEvidenceForm = _submitEvidenceForm;
-window._closeEvidenceForm = _closeEvidenceForm;
-window._backToHypothesesList = _backToHypothesesList;
-window._setHypothesisFilter = _setHypothesisFilter;
+registerActions({
+    'switch-intel-view': (el) => _switchIntelligenceView(el.dataset.view),
+    'switch-insights-inner': (el) => _switchInsightsInner(el.dataset.inner),
+    'generate-insights': () => _generateInsights(),
+    'generate-ai-insights': () => _generateAiInsights(),
+    'pin-insight': (el, e) => { e.stopPropagation(); _pinInsight(Number(el.dataset.id)); },
+    'dismiss-insight': (el, e) => { e.stopPropagation(); _dismissInsight(Number(el.dataset.id)); },
+    'delete-insight': (el, e) => { e.stopPropagation(); _deleteInsight(Number(el.dataset.id)); },
+    'set-insight-filter': (el) => _setInsightFilter(el.dataset.key, el.value),
+    'set-insight-dismissed-filter': (el) => _setInsightFilter('is_dismissed', el.checked ? '1' : null),
+    'create-hypothesis': () => _createHypothesis(),
+    'view-hypothesis': (el) => _viewHypothesis(Number(el.dataset.id)),
+    'edit-hypothesis': (el, e) => { e.stopPropagation(); _updateHypothesis(Number(el.dataset.id)); },
+    'delete-hypothesis': (el, e) => { e.stopPropagation(); _deleteHypothesis(Number(el.dataset.id)); },
+    'add-hypothesis-evidence': (el) => _addHypothesisEvidence(Number(el.dataset.id)),
+    'remove-hypothesis-evidence': (el, e) => { e.stopPropagation(); _removeHypothesisEvidence(Number(el.dataset.hypothesisId), Number(el.dataset.id)); },
+    'back-to-hypotheses': () => _backToHypothesesList(),
+    'submit-hypothesis-form': () => _submitHypothesisForm(),
+    'close-hypothesis-form': () => _closeHypothesisForm(),
+    'submit-evidence-form': () => _submitEvidenceForm(),
+    'close-evidence-form': () => _closeEvidenceForm(),
+    'set-hypothesis-filter': (el) => _setHypothesisFilter(el.dataset.key, el.value),
+});
+
+// ── Expose on window (for external callers) ──────────────────
+
+window.initInsights = initInsights;
+window._switchIntelligenceView = _switchIntelligenceView;
