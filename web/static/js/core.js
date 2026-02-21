@@ -636,43 +636,90 @@ window.showNativeConfirm = function({ title, message, confirmText = 'Delete', ca
 /**
  * Show a prompt dialog (replaces native prompt() which is blocked by pywebview).
  * Creates its DOM on first use, reuses thereafter.
+ *
+ * Supports two calling patterns:
+ *   Callback:  showPromptDialog(title, placeholder, callback, confirmText)
+ *   Promise:   const val = await showPromptDialog(title, placeholder, defaultValue, confirmText)
+ *
+ * The 3rd argument is inspected: if it is a function the callback pattern is used,
+ * otherwise it is treated as a default value and the function returns a Promise.
+ * If the 3rd arg is a non-function default value and the 4th arg IS a function,
+ * the 4th arg is used as a callback (for mixed patterns).
+ *
  * @param {string} title - Dialog title
  * @param {string} placeholder - Input placeholder text
- * @param {function} callback - Called with value string on submit, null on cancel
- * @param {string} confirmText - Submit button label (default: "OK")
+ * @param {function|string} callbackOrDefault - Callback function OR default input value
+ * @param {string|function} confirmTextOrCallback - Confirm button label OR callback (when 3rd arg is default value)
+ * @returns {Promise<string|null>|undefined} Promise when used without callback
  */
-window.showPromptDialog = function(title, placeholder, callback, confirmText) {
-  _ensurePromptDialogSheet();
-  const overlay = document.getElementById('promptDialogSheet');
-  const titleEl = document.getElementById('promptDialogTitle');
-  const input = document.getElementById('promptDialogInput');
-  const confirmBtn = document.getElementById('promptDialogConfirm');
-  const cancelBtn = document.getElementById('promptDialogCancel');
+window.showPromptDialog = function(title, placeholder, callbackOrDefault, confirmTextOrCallback) {
+  // Determine calling pattern
+  const arg3IsFunction = typeof callbackOrDefault === 'function';
+  const arg4IsFunction = typeof confirmTextOrCallback === 'function';
 
-  titleEl.textContent = title || 'Enter a value';
-  input.value = '';
-  input.placeholder = placeholder || '';
-  confirmBtn.textContent = confirmText || 'OK';
+  let defaultValue, callback, confirmText;
 
-  overlay.style.display = 'flex';
-  requestAnimationFrame(() => { overlay.classList.add('visible'); input.focus(); });
-
-  function cleanup() {
-    overlay.classList.remove('visible');
-    setTimeout(() => { overlay.style.display = 'none'; }, 200);
-    confirmBtn.removeEventListener('click', onConfirm);
-    cancelBtn.removeEventListener('click', onCancel);
-    input.removeEventListener('keydown', onKey);
+  if (arg3IsFunction) {
+    // Classic callback pattern: showPromptDialog(title, placeholder, callback, confirmText)
+    defaultValue = '';
+    callback = callbackOrDefault;
+    confirmText = confirmTextOrCallback || 'OK';
+  } else if (arg4IsFunction) {
+    // Mixed pattern: showPromptDialog(title, placeholder, defaultValue, callback)
+    defaultValue = callbackOrDefault || '';
+    callback = confirmTextOrCallback;
+    confirmText = 'OK';
+  } else {
+    // Promise pattern: showPromptDialog(title, placeholder, defaultValue, confirmText)
+    defaultValue = callbackOrDefault || '';
+    callback = null;
+    confirmText = confirmTextOrCallback || 'OK';
   }
-  function onConfirm() { const v = input.value.trim(); cleanup(); callback(v || null); }
-  function onCancel() { cleanup(); callback(null); }
-  function onKey(e) {
-    if (e.key === 'Enter') { onConfirm(); }
-    else if (e.key === 'Escape') { onCancel(); }
+
+  function _showDialog(resolve) {
+    _ensurePromptDialogSheet();
+    const overlay = document.getElementById('promptDialogSheet');
+    const titleEl = document.getElementById('promptDialogTitle');
+    const input = document.getElementById('promptDialogInput');
+    const confirmBtn = document.getElementById('promptDialogConfirm');
+    const cancelBtn = document.getElementById('promptDialogCancel');
+
+    titleEl.textContent = title || 'Enter a value';
+    input.value = defaultValue;
+    input.placeholder = placeholder || '';
+    confirmBtn.textContent = confirmText;
+
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => { overlay.classList.add('visible'); input.focus(); });
+
+    function cleanup() {
+      overlay.classList.remove('visible');
+      setTimeout(() => { overlay.style.display = 'none'; }, 200);
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+    }
+    function onConfirm() {
+      const v = input.value.trim();
+      cleanup();
+      if (callback) callback(v || null);
+      resolve(v || null);
+    }
+    function onCancel() {
+      cleanup();
+      if (callback) callback(null);
+      resolve(null);
+    }
+    function onKey(e) {
+      if (e.key === 'Enter') { onConfirm(); }
+      else if (e.key === 'Escape') { onCancel(); }
+    }
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
   }
-  confirmBtn.addEventListener('click', onConfirm);
-  cancelBtn.addEventListener('click', onCancel);
-  input.addEventListener('keydown', onKey);
+
+  return new Promise(_showDialog);
 };
 
 /**

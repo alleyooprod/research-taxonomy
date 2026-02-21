@@ -2156,6 +2156,10 @@ def unread_count():
 
 def _bulk_update_feed(field, value):
     """Shared helper for bulk feed updates (read/dismiss)."""
+    _ALLOWED_FIELDS = {"is_dismissed", "is_read"}
+    if field not in _ALLOWED_FIELDS:
+        raise ValueError(f"Invalid field: {field}")
+
     data = request.json or {}
     ids = data.get("ids", [])
     if not ids or not isinstance(ids, list):

@@ -273,12 +273,16 @@ body {
     background: var(--bg-page);
     padding: 24px;
     transition: background var(--duration-normal) var(--ease-standard), color var(--duration-normal) var(--ease-standard);
-    -webkit-user-select: none;
-    user-select: none;
     overscroll-behavior: none;
     font-size: 15px;
     font-weight: 400;
     letter-spacing: -0.01em;
+}
+
+/* Disable text selection on interactive chrome elements only */
+.tab, .btn, .sidebar-toggle, .toolbar, .tabs, .stat-card, .nav-item {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* Desktop native mode: transparent body so vibrancy shows through toolbar */

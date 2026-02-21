@@ -853,30 +853,39 @@ def competitive_enriched_matrix():
                 row_data[str(eid)] = has_feature
             matrix[feature] = row_data
 
-        # ── Financial data per entity ──
+        # ── Financial data per entity (batch query) ──
         financial_data = {}
         all_financial_slugs_found = set()
         fin_slug_list = sorted(_FINANCIAL_SLUGS)
-        fin_placeholders = ",".join("?" * len(fin_slug_list))
 
-        for eid in entity_ids:
+        if entity_ids and fin_slug_list:
+            eid_placeholders = ",".join("?" * len(entity_ids))
+            fin_placeholders = ",".join("?" * len(fin_slug_list))
             fin_rows = conn.execute(
                 f"""
-                SELECT attr_slug, value, source, confidence
-                FROM entity_attributes
-                WHERE entity_id = ?
-                  AND attr_slug IN ({fin_placeholders})
-                GROUP BY attr_slug
-                HAVING id = MAX(id)
+                SELECT ea.entity_id, ea.attr_slug, ea.value, ea.source, ea.confidence
+                FROM entity_attributes ea
+                INNER JOIN (
+                    SELECT entity_id, attr_slug, MAX(id) as max_id
+                    FROM entity_attributes
+                    WHERE entity_id IN ({eid_placeholders}) AND attr_slug IN ({fin_placeholders})
+                    GROUP BY entity_id, attr_slug
+                ) latest ON ea.id = latest.max_id
                 """,
-                [eid] + fin_slug_list,
+                entity_ids + fin_slug_list,
             ).fetchall()
 
-            fd = {}
-            for r in fin_rows:
-                fd[r["attr_slug"]] = r["value"]
-                all_financial_slugs_found.add(r["attr_slug"])
-            financial_data[str(eid)] = fd
+            # Group by entity_id
+            fin_by_entity = {}
+            for row in fin_rows:
+                eid = row["entity_id"]
+                if eid not in fin_by_entity:
+                    fin_by_entity[eid] = {}
+                fin_by_entity[eid][row["attr_slug"]] = row["value"]
+                all_financial_slugs_found.add(row["attr_slug"])
+
+            for eid in entity_ids:
+                financial_data[str(eid)] = fin_by_entity.get(eid, {})
 
     return jsonify({
         "entities": entities,
