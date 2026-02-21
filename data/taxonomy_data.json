@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "last_updated": "2026-02-21T17:21:26.871721",
+    "last_updated": "2026-02-21T17:32:50.223227",
     "total_companies": 0,
     "total_categories": 1,
-    "exported_at": "2026-02-21T17:21:26.871727"
+    "exported_at": "2026-02-21T17:32:50.223288"
   },
   "categories": [
     {
@@ -26,6 +26,34 @@
   "companies": [],
   "taxonomy_history": [],
   "reports": [],
-  "activity_log": [],
+  "activity_log": [
+    {
+      "id": 18,
+      "project_id": 26,
+      "action": "batch_complete",
+      "description": "Retry all errors batch 8c6d4fdc54cb471e: processed 0 companies",
+      "entity_type": "batch",
+      "entity_id": null,
+      "created_at": "2026-02-21 17:27:48"
+    },
+    {
+      "id": 17,
+      "project_id": 26,
+      "action": "batch_complete",
+      "description": "Retry all errors batch 8c6d4fdc54cb471e: processed 0 companies",
+      "entity_type": "batch",
+      "entity_id": null,
+      "created_at": "2026-02-21 17:21:40"
+    },
+    {
+      "id": 16,
+      "project_id": 26,
+      "action": "batch_complete",
+      "description": "Batch 8c6d4fdc54cb471e: processed 0 companies",
+      "entity_type": "batch",
+      "entity_id": null,
+      "created_at": "2026-02-21 17:21:26"
+    }
+  ],
   "saved_views": []
 }
